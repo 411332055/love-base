@@ -116,6 +116,15 @@ textarea{resize:vertical;min-height:44px}
 .entry header{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
 .entry header b{font-weight:900}
 .entry header span{font-size:13px;color:var(--muted)}
+.by{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;border-radius:99px;padding:2px 10px;background:var(--sunk);color:var(--muted)}
+.by.me{background:var(--pink-soft);color:var(--pink)}
+.by.them{background:var(--gold-soft);color:var(--gold)}
+.entry.me{border-left:4px solid var(--pink)}
+.entry.them{border-left:4px solid var(--gold)}
+.filter{display:flex;gap:8px;flex-wrap:wrap}
+.filter button{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:99px;padding:6px 14px;font-size:14px}
+.filter button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.q .who{font-size:11px;font-weight:700;color:var(--ok)}
 .entry dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:0;font-size:14px}
 .entry dt{color:var(--muted)}
 .entry dd{margin:0;min-width:0;overflow-wrap:anywhere}
@@ -158,7 +167,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
     <div class="row" style="justify-content:space-between">
       <div class="next" id="nextText">再 50 XP 解鎖「🐣 戀愛新手村」</div>
-      <div class="status"><span id="status">連線中…</span> <button type="button" id="logout" hidden style="background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px">換暗號</button></div>
+      <div class="status"><span id="meLabel" hidden></span> <span id="status">連線中…</span> <button type="button" id="rename" hidden style="background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px">換暱稱</button> <button type="button" id="logout" hidden style="background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px">換暗號</button></div>
     </div>
   </header>
 
@@ -192,6 +201,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <div class="full summary">今日小結：「今天雖然<input id="dS1" maxlength="60" aria-label="今天雖然">，但因為有你<input id="dS2" maxlength="60" aria-label="但因為有你">。」</div>
       <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span></div>
     </form>
+    <div class="filter" id="filter" role="group" aria-label="篩選日記"><button type="button" data-w="all" aria-pressed="true">全部</button><button type="button" data-w="me" aria-pressed="false">✍️ 我寫的</button><button type="button" data-w="them" aria-pressed="false">💌 對方寫的</button></div>
     <div class="entries" id="entries"><div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div></div>
   </section>
 
@@ -226,9 +236,10 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <h2>🔐 輸入你們的暗號</h2>
+    <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
-    <input id="gateCode" placeholder="例：bear-and-bunny-2026" aria-label="暗號">
+    <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
+    <label>你的暱稱（用來顯示是誰寫的）<input id="gateName" maxlength="12" placeholder="例：小熊、兔兔"></label>
     <button class="btn" type="submit">進入基地</button>
     <p class="sub" id="gateMsg" style="color:var(--pink)"></p>
   </form>
@@ -294,13 +305,17 @@ function renderQuests(){
   $("todayBtn").onclick=()=>toggle(tk,ti,true);
   if(isDone)$("todayUndo").onclick=()=>toggle(tk,ti,false);
   $("week").innerHTML=weekDates().map((d,i)=>{const k=key(d),T=TASKS[i],dn=!!done[k],future=d>t;
-    return `<div class="q ${dn?"done":""} ${k===tk?"is-today":""}"><div class="d">${T.day}</div><div class="t"><b>${T.name}</b><div>${T.text}</div></div><div class="s"><span class="xpchip num">+${T.xp}</span><button class="check" type="button" data-k="${k}" data-i="${i}" aria-pressed="${dn}" aria-label="星期${T.day}${dn?"已完成，點一下取消":"標記完成"}" ${future?"disabled":""}>✓</button></div></div>`}).join("");
+    return `<div class="q ${dn?"done":""} ${k===tk?"is-today":""}"><div class="d">${T.day}</div><div class="t"><b>${T.name}</b>${dn&&done[k].by?` <span class="who">· ${esc(done[k].by)} 打勾</span>`:""}<div>${T.text}</div></div><div class="s"><span class="xpchip num">+${T.xp}</span><button class="check" type="button" data-k="${k}" data-i="${i}" aria-pressed="${dn}" aria-label="星期${T.day}${dn?"已完成，點一下取消":"標記完成"}" ${future?"disabled":""}>✓</button></div></div>`}).join("");
   document.querySelectorAll(".check").forEach(b=>b.onclick=()=>toggle(b.dataset.k,+b.dataset.i,!done[b.dataset.k]));
 }
 
+const NAME_KEY="love-base-name";
+function myName(){try{return localStorage.getItem(NAME_KEY)||""}catch(e){return ""}}
+let who="all";
+function byChip(n){if(!n)return '<span class="by">未署名</span>';const me=n===myName();return `<span class="by ${me?"me":"them"}">✍️ ${esc(n)}${me?"（我）":""}</span>`}
 async function toggle(k,i,on){
   const prev=done[k];
-  if(on)done[k]={dow:i,xp:TASKS[i].xp,at:Date.now()};else delete done[k];
+  if(on)done[k]={dow:i,xp:TASKS[i].xp,at:Date.now(),by:myName()};else delete done[k];
   renderAll();
   if(on)toast(`+${TASKS[i].xp} XP！`);
   try{
@@ -314,7 +329,11 @@ function renderEntries(){
   if(!entries.length){box.innerHTML='<div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div>';return}
   const sorted=[...entries].sort((a,b)=>(a.date+a.at).localeCompare(b.date+b.at));
   const num=new Map(sorted.map((e,i)=>[e.id,i+1]));
-  box.innerHTML=sorted.slice().reverse().map(e=>`<article class="entry"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b><span>${esc(e.date)}${e.happy?" · ⭐ "+esc(e.happy)+"/10":""}</span></header>
+  const me=myName();
+  const shown=sorted.slice().reverse().filter(e=>who==="all"||(who==="me"?e.by===me:e.by!==me));
+  if(!shown.length){box.innerHTML=`<div class="empty">${who==="me"?"你還沒寫過日記。":"對方還沒寫過日記。"}</div>`;return}
+  box.innerHTML=shown.map(e=>`<article class="entry ${e.by?(e.by===me?"me":"them"):""}"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b><span>${esc(e.date)}${e.happy?" · ⭐ "+esc(e.happy)+"/10":""}</span></header>
+  <div>${byChip(e.by)}</div>
   <dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>
   ${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}
   <button class="btn ghost del" type="button" data-id="${esc(e.id)}">刪除</button></article>`).join("");
@@ -332,7 +351,7 @@ function renderHearts(){$("hearts").innerHTML=[...Array(10)].map((_,i)=>`<button
 
 $("diaryForm").addEventListener("submit",async ev=>{
   ev.preventDefault();
-  const e={date:$("dDate").value,mood:$("dMood").value.trim(),food:$("dFood").value.trim(),funny:$("dFunny").value.trim(),say:$("dSay").value.trim(),happy:happy||null,s1:$("dS1").value.trim(),s2:$("dS2").value.trim(),at:new Date().toISOString()};
+  const e={date:$("dDate").value,mood:$("dMood").value.trim(),food:$("dFood").value.trim(),funny:$("dFunny").value.trim(),say:$("dSay").value.trim(),happy:happy||null,s1:$("dS1").value.trim(),s2:$("dS2").value.trim(),at:new Date().toISOString(),by:myName()};
   if(!e.mood&&!e.food&&!e.funny&&!e.say&&!e.s1&&!e.s2){$("dMsg").textContent="至少寫一格再存喔";return}
   $("dSave").disabled=true;$("dMsg").textContent="";
   try{
@@ -353,6 +372,7 @@ function renderAll(){renderHUD();renderQuests();renderEntries()}
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries}))}catch(e){}}
 function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[]}}catch(e){}}
 
+$("filter").querySelectorAll("button").forEach(b=>b.onclick=()=>{who=b.dataset.w;$("filter").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));renderEntries()});
 $("dDate").value=key(today());
 renderHearts();renderAll();
 
@@ -361,22 +381,27 @@ const ROOM_KEY="love-base-room";
 function getRoom(){try{return localStorage.getItem(ROOM_KEY)||""}catch(e){return ""}}
 function showGate(msg){
   $("gate").hidden=false;$("gateMsg").textContent=msg||"";
-  setTimeout(()=>$("gateCode").focus(),50);
+  $("gateCode").value=getRoom();$("gateName").value=myName();
+  setTimeout(()=>($("gateCode").value?$("gateName"):$("gateCode")).focus(),50);
 }
 $("gateForm").addEventListener("submit",ev=>{
   ev.preventDefault();
   const code=$("gateCode").value.trim();
   if(!/^[A-Za-z0-9_-]{8,64}$/.test(code)){$("gateMsg").textContent="暗號要 8～64 個字，只能用英文、數字、- 或 _";return}
-  try{localStorage.setItem(ROOM_KEY,code)}catch(e){}
+  const name=$("gateName").value.trim();
+  if(!name){$("gateMsg").textContent="請填你的暱稱，對方才知道是誰寫的";return}
+  try{localStorage.setItem(ROOM_KEY,code);localStorage.setItem(NAME_KEY,name)}catch(e){}
   location.reload();
 });
+$("rename").onclick=()=>showGate();
 $("logout").onclick=()=>{try{localStorage.removeItem(ROOM_KEY)}catch(e){}location.reload()};
 
 (async()=>{
   const configured=FIREBASE_CONFIG.apiKey&&!FIREBASE_CONFIG.apiKey.startsWith("請貼上");
   if(!configured||!window.firebase){local=true;loadLocal();renderAll();$("status").textContent=configured?"連不上伺服器 · 先存在這台裝置":"尚未設定伺服器 · 只存在這台裝置";return}
   const room=getRoom();
-  if(!room){$("status").textContent="請輸入你們的暗號";showGate();return}
+  if(!room||!myName()){$("status").textContent=room?"請填你的暱稱":"請輸入你們的暗號";showGate();return}
+  $("meLabel").hidden=false;$("meLabel").textContent="你是 "+myName()+" ·";$("rename").hidden=false;
   firebase.initializeApp(FIREBASE_CONFIG);
   db=firebase.firestore().collection("rooms").doc(room);
   $("logout").hidden=false;
