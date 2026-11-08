@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>我們的戀愛遊戲基地</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: one column "save file" — HUD (level + XP bar) on top, then quest board, ladder, diary, draw. */
+:root{
+  --bg:#fbf6f8; --surface:#ffffff; --sunk:#f4ebef; --line:#ead9e1;
+  --fg:#2a1b25; --muted:#7c6672;
+  --pink:#e2457a; --pink-soft:#fde3ec; --gold:#c08a12; --gold-soft:#fbefcf; --ink:#3a1830;
+  --ok:#2f8a5b; --ok-soft:#dff3e8;
+  --f-display:"Bagel Fat One","Noto Sans TC",system-ui,sans-serif;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1a1117; --surface:#241820; --sunk:#2e202a; --line:#3d2b37;
+  --fg:#f6e9ef; --muted:#b59cab;
+  --pink:#ff6f9c; --pink-soft:#4a1f31; --gold:#f2c14e; --gold-soft:#3d2f12; --ink:#f6e9ef;
+  --ok:#6fd39d; --ok-soft:#173a29; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1a1117; --surface:#241820; --sunk:#2e202a; --line:#3d2b37;
+  --fg:#f6e9ef; --muted:#b59cab;
+  --pink:#ff6f9c; --pink-soft:#4a1f31; --gold:#f2c14e; --gold-soft:#3d2f12; --ink:#f6e9ef;
+  --ok:#6fd39d; --ok-soft:#173a29; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.65}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 64px;display:flex;flex-direction:column;gap:36px}
+h1,h2,h3{margin:0;text-wrap:balance}
+h2{font-size:20px;font-weight:900;display:flex;align-items:center;gap:8px}
+.sub{color:var(--muted);margin:2px 0 0;font-size:14px}
+section{display:flex;flex-direction:column;gap:14px}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+.num{font-family:var(--f-display);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+
+/* HUD */
+.hud{background:var(--ink);color:var(--bg);border-radius:20px;padding:22px 20px 20px;display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden}
+:root[data-theme="dark"] .hud{background:var(--surface);color:var(--fg);border:1px solid var(--line)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .hud{background:var(--surface);color:var(--fg);border:1px solid var(--line)}}
+.hud .eyebrow{font-size:12px;letter-spacing:.12em;opacity:.7}
+.hud h1{font-size:clamp(24px,6vw,32px);font-weight:900;line-height:1.25}
+.hud .party{font-size:13px;opacity:.8}
+.lvl{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.lvl .title{font-size:18px;font-weight:700}
+.lvl .xp{font-size:34px;line-height:1;color:var(--gold)}
+.lvl .xp small{font-size:14px;font-family:var(--f-body);font-weight:700;margin-left:4px}
+.bar{height:12px;background:rgba(255,255,255,.14);border-radius:99px;overflow:hidden}
+:root[data-theme="dark"] .bar{background:var(--sunk)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .bar{background:var(--sunk)}}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pink),var(--gold));border-radius:99px;transition:width .6s ease}
+.hud .next{font-size:13px;opacity:.8}
+.status{font-size:12px;opacity:.75}
+
+nav.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5;padding-block:8px;margin-block:-8px}
+nav.chips a{flex:none;text-decoration:none;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:6px 14px;font-size:14px;font-weight:500}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+
+/* quests */
+.today{background:var(--pink-soft);border:2px solid var(--pink);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:10px}
+.today .tag{font-size:12px;font-weight:700;color:var(--pink);letter-spacing:.08em}
+.today h3{font-size:20px;font-weight:900}
+.today p{margin:0;font-size:16px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{border:0;border-radius:99px;padding:10px 20px;font-weight:700;background:var(--pink);color:#fff}
+.btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);padding:8px 14px;font-weight:500}
+.btn.dark{background:var(--fg);color:var(--bg)}
+.btn:disabled{opacity:.5;cursor:default}
+.xpchip{color:var(--gold);font-weight:700}
+.week{display:grid;grid-template-columns:1fr;gap:8px}
+.q{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.q .d{font-weight:900;width:2.2em;text-align:center;font-size:15px}
+.q .t{min-width:0}
+.q .t b{font-size:14px}
+.q .t div{font-size:13px;color:var(--muted)}
+.q .s{display:flex;align-items:center;gap:8px;font-size:13px}
+.q.done{background:var(--ok-soft);border-color:transparent}
+.q.done .d{color:var(--ok)}
+.q.is-today{border-color:var(--pink)}
+.check{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:var(--surface);display:grid;place-items:center;color:transparent;padding:0;font-size:15px}
+.q.done .check{background:var(--ok);border-color:var(--ok);color:#fff}
+.check:disabled{opacity:.35;cursor:default}
+
+/* ladder */
+.ladder{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.rung{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
+.rung:first-child{border-top:0}
+.rung .need{color:var(--muted);font-size:14px}
+.rung .name{font-weight:700}
+.rung .st{font-size:12px;border-radius:99px;padding:2px 10px;background:var(--sunk);color:var(--muted)}
+.rung.on .st{background:var(--gold-soft);color:var(--gold);font-weight:700}
+.rung.on .need{color:var(--gold)}
+.rung:not(.on) .name{opacity:.55}
+.note{background:var(--sunk);border-radius:12px;padding:12px 14px;font-size:14px}
+
+/* diary */
+form.diary{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+form.diary .full{grid-column:1/-1}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500;min-width:0}
+input,textarea,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%}
+textarea{resize:vertical;min-height:44px}
+.summary{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:15px;color:var(--fg)}
+.summary input{width:auto;flex:1 1 120px}
+.hearts{display:flex;gap:2px;flex-wrap:wrap}
+.hearts button{border:0;background:none;font-size:20px;padding:2px;line-height:1;filter:grayscale(1);opacity:.4}
+.hearts button.on{filter:none;opacity:1}
+@media (max-width:520px){form.diary{grid-template-columns:1fr}}
+.entries{display:flex;flex-direction:column;gap:12px}
+.entry{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.entry header{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.entry header b{font-weight:900}
+.entry header span{font-size:13px;color:var(--muted)}
+.entry dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:0;font-size:14px}
+.entry dt{color:var(--muted)}
+.entry dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.entry blockquote{margin:4px 0 0;padding:8px 12px;background:var(--pink-soft);border-radius:10px;font-weight:500}
+.entry .del{align-self:flex-end;font-size:12px}
+.empty{color:var(--muted);text-align:center;padding:20px;border:1px dashed var(--line);border-radius:var(--r)}
+
+/* draw */
+.draw{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--sunk);border-radius:12px;min-height:120px;display:grid;place-items:center;text-align:center;padding:20px;font-size:clamp(18px,4.6vw,22px);font-weight:900;text-wrap:balance}
+.card.flip{animation:flip .45s ease}
+@keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+.draw .btn{width:100%}
+.hint{font-size:12px;color:var(--muted);text-align:center}
+
+details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+details.rules summary{font-weight:700;cursor:pointer}
+details.rules ol{margin:10px 0 4px;padding-left:1.4em}
+.names{display:flex;flex-wrap:wrap;gap:8px}
+.names span{background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:4px 12px;font-size:14px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:99px;font-weight:700;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+.gate{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);z-index:30;display:grid;place-items:center;padding:16px}
+.gate-box{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:12px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hud" id="top">
+    <div>
+      <div class="eyebrow">群組公告 · 本群只有兩位玩家，永久組隊</div>
+      <h1>我們的戀愛遊戲基地</h1>
+      <div class="party">耍白痴、講幹話、放閃、撒嬌，也記錄生活裡的每個小瞬間。</div>
+    </div>
+    <div class="lvl">
+      <div><div class="next" style="opacity:.7">目前稱號</div><div class="title" id="curTitle">尚未解鎖</div></div>
+      <div class="xp num"><span id="xp">0</span><small>XP</small></div>
+    </div>
+    <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
+    <div class="row" style="justify-content:space-between">
+      <div class="next" id="nextText">再 50 XP 解鎖「🐣 戀愛新手村」</div>
+      <div class="status"><span id="status">連線中…</span> <button type="button" id="logout" hidden style="background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px">換暗號</button></div>
+    </div>
+  </header>
+
+  <nav class="chips" aria-label="區塊">
+    <a href="#quests">🎮 每日任務</a><a href="#ladder">🏆 成就</a><a href="#diary">💌 日記</a><a href="#draw">🎲 抽題</a><a href="#rules">🧸 規則</a>
+  </nav>
+
+  <section id="quests">
+    <div><h2>🎮 每日任務</h2><p class="sub">每天一個小挑戰，兩個人都做到就打勾領 XP。這週漏掉的也可以補。</p></div>
+    <div class="today" id="todayCard"></div>
+    <div class="week" id="week"></div>
+  </section>
+
+  <section id="ladder">
+    <div><h2>🏆 戀愛成就解鎖</h2><p class="sub">累積積分解鎖稱號。</p></div>
+    <div class="ladder" id="ladderList"></div>
+    <div class="note">🎁 解鎖獎勵可以是：一次指定抱抱、一次約會、一次指定美食，或讓對方答應一個可愛的小願望。</div>
+  </section>
+
+  <section id="diary">
+    <div><h2>💌 戀愛日記</h2><p class="sub">每天留一則，以後一起回顧。</p></div>
+    <form class="diary" id="diaryForm" autocomplete="off">
+      <label>📅 日期<input type="date" id="dDate" required></label>
+      <label>⛅ 今天的心情<input id="dMood" maxlength="60" placeholder="例：有點累但很開心"></label>
+      <label>🍜 今天吃了什麼<input id="dFood" maxlength="80"></label>
+      <label>🤪 今天最好笑的事情<input id="dFunny" maxlength="200"></label>
+      <label class="full">💞 今天最想對你說的話<textarea id="dSay" maxlength="400" rows="2"></textarea></label>
+      <label class="full">⭐ 今天的幸福指數（1～10）
+        <div class="hearts" id="hearts" role="radiogroup" aria-label="幸福指數"></div>
+      </label>
+      <div class="full summary">今日小結：「今天雖然<input id="dS1" maxlength="60" aria-label="今天雖然">，但因為有你<input id="dS2" maxlength="60" aria-label="但因為有你">。」</div>
+      <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span></div>
+    </form>
+    <div class="entries" id="entries"><div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div></div>
+  </section>
+
+  <section id="draw">
+    <div><h2>🎲 今日隨機抽題</h2><p class="sub">輪流抽一題，兩個人都要回答才算過關。</p></div>
+    <div class="draw">
+      <div class="card" id="qCard">按下面的按鈕抽一題</div>
+      <button class="btn dark" id="drawBtn" type="button">🎲 抽一題！</button>
+      <div class="hint" id="drawHint">題庫共 0 題，這輪不會重複</div>
+    </div>
+  </section>
+
+  <section id="rules">
+    <details class="rules" open>
+      <summary>🧸 群組遊戲規則</summary>
+      <ol>
+        <li>不准害羞，有廢話就說！</li>
+        <li>不准潛水太久，要記得出來刷存在感。</li>
+        <li>可以互相鬧，但不可以真的欺負對方。</li>
+        <li>每天都要完成一點小互動。</li>
+        <li>心情不好也可以來這裡討抱抱。</li>
+        <li>所有可愛、搞笑、丟臉的瞬間都值得紀錄！</li>
+      </ol>
+      <p class="sub">🏁 終極目標：解鎖更多兩個人的回憶，成為彼此最好的玩伴！</p>
+    </details>
+    <div><h3 style="font-size:15px;margin-bottom:8px">群組名稱備選</h3>
+      <div class="names"><span>🧸 兩隻幼稚鬼的秘密基地</span><span>🎮 戀愛雙人副本</span><span>💗 永久組隊中</span><span>🤡 情侶發瘋管理中心</span><span>📖 我們的戀愛存檔點</span></div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<div class="gate" id="gate" hidden>
+  <form class="gate-box" id="gateForm" autocomplete="off">
+    <h2>🔐 輸入你們的暗號</h2>
+    <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
+    <input id="gateCode" placeholder="例：bear-and-bunny-2026" aria-label="暗號">
+    <button class="btn" type="submit">進入基地</button>
+    <p class="sub" id="gateMsg" style="color:var(--pink)"></p>
+  </form>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* ===== ① 把 Firebase 給你的設定貼在這裡（教學第 4 步）===== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDJL8FJG-NFPfWdYjrkL3gfX4dBFnbVYbA",
+  authDomain: "love-base-eec24.firebaseapp.com",
+  projectId: "love-base-eec24",
+  storageBucket: "love-base-eec24.firebasestorage.app",
+  messagingSenderId: "252296258877",
+  appId: "1:252296258877:web:a2e5600c3d5e693361d154"
+};
+</script>
+<script>
+const TASKS=[ // index 0 = Monday
+  {day:"一",name:"搞笑挑戰",text:"今天傳一張最醜、最搞笑的自拍給對方！",xp:10},
+  {day:"二",name:"默契挑戰",text:"同時回答：如果現在可以一起去一個地方，你想去哪？",xp:10},
+  {day:"三",name:"告白挑戰",text:"說出一件最近覺得對方很可愛的事。",xp:15},
+  {day:"四",name:"整人挑戰",text:"用一句話讓對方不知道該哭還是該笑。",xp:10},
+  {day:"五",name:"約會挑戰",text:"各自推薦一個想跟對方去的地方。",xp:15},
+  {day:"六",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:10},
+  {day:"日",name:"回憶收集",text:"分享這週最開心、最難忘的一個瞬間。",xp:20},
+];
+const TITLES=[[50,"🐣 戀愛新手村"],[100,"🧸 黏踢踢小情侶"],[200,"🤡 專業互鬧選手"],[300,"💗 甜蜜製造機"],[500,"👑 戀愛滿等玩家"]];
+const QUESTIONS=["你覺得我最欠揍但又最可愛的地方是什麼？","如果我變成一隻蟑螂，你還會愛我嗎？","如果我們一起被困在荒島，你覺得誰會先崩潰？","最近哪一個瞬間讓你突然很想我？","第一次見到我的時候，你心裡在想什麼？","我做過最讓你傻眼的一件事是什麼？","用三個詞形容我們這段關係。","如果明天放假一整天，你想跟我做什麼？","你覺得我們誰比較會吃醋？","我最常對你說的一句話是什麼？","如果要幫我們拍一部電影，片名叫什麼？","你偷偷覺得我哪一個習慣很好笑？","我們吵架之後，你最希望我怎麼哄你？","你最想跟我一起完成的一件事是什麼？","如果可以交換身份一天，你最想用我的身份做什麼？","你覺得我們十年後會在幹嘛？","我哪一個表情你最受不了（但其實很喜歡）？","你最想吃我煮的哪一道菜？","我們之間最好笑的一個暗號或梗是什麼？","哪一首歌會讓你想到我？","如果我們養一隻寵物，要叫什麼名字？","我最近做了什麼讓你覺得被照顧到？","你覺得我們的戀愛像哪一種遊戲？","你今天最想對我撒嬌的一句話是？","如果只能用一個 emoji 代表我，你會選哪個？","我們第一次約會，你最記得哪個畫面？","你覺得我身上最像小孩的地方是什麼？","如果我們一起去旅行，誰負責迷路？"];
+
+const $=id=>document.getElementById(id);
+let done={};      // dateKey -> {dow,xp}
+let entries=[];   // diary docs
+let db=null, local=false;
+const LS="love-base-v1";
+
+function pad(n){return String(n).padStart(2,"0")}
+function key(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function today(){const d=new Date();d.setHours(0,0,0,0);return d}
+function dow(d){return (d.getDay()+6)%7} // Mon=0
+function weekDates(){const t=today();const m=new Date(t);m.setDate(t.getDate()-dow(t));return [...Array(7)].map((_,i)=>{const d=new Date(m);d.setDate(m.getDate()+i);return d})}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2200)}
+
+function totalXP(){return Object.values(done).reduce((s,v)=>s+(Number(v.xp)||0),0)+entries.length*5}
+
+function renderHUD(){
+  const xp=totalXP(); $("xp").textContent=xp;
+  let cur=null,next=TITLES[0],prev=0;
+  for(const t of TITLES){if(xp>=t[0]){cur=t;prev=t[0]}else{next=t;break}}
+  if(cur&&cur===TITLES[TITLES.length-1])next=null;
+  $("curTitle").textContent=cur?cur[1]:"尚未解鎖";
+  if(next){$("nextText").textContent=`再 ${next[0]-xp} XP 解鎖「${next[1]}」`;$("barFill").style.width=Math.max(3,(xp-prev)/(next[0]-prev)*100)+"%"}
+  else{$("nextText").textContent="已經滿等了，繼續累積回憶吧！";$("barFill").style.width="100%"}
+  $("ladderList").innerHTML=TITLES.map(([n,name])=>`<div class="rung ${xp>=n?"on":""}"><span class="need num">${n} XP</span><span class="name">${name}</span><span class="st">${xp>=n?"已解鎖":"未解鎖"}</span></div>`).join("");
+}
+
+function renderQuests(){
+  const t=today(), tk=key(t), ti=dow(t), task=TASKS[ti], isDone=!!done[tk];
+  $("todayCard").innerHTML=`<div class="tag">今天 · 星期${task.day}</div><h3>${task.name} <span class="xpchip num" style="font-size:16px">+${task.xp} XP</span></h3><p>${task.text}</p>
+  <div class="row"><button class="btn" id="todayBtn" type="button" ${isDone?"disabled":""}>${isDone?"✓ 今天的任務完成了":"我們完成了！"}</button>${isDone?'<button class="btn ghost" type="button" id="todayUndo">取消</button>':""}</div>`;
+  $("todayBtn").onclick=()=>toggle(tk,ti,true);
+  if(isDone)$("todayUndo").onclick=()=>toggle(tk,ti,false);
+  $("week").innerHTML=weekDates().map((d,i)=>{const k=key(d),T=TASKS[i],dn=!!done[k],future=d>t;
+    return `<div class="q ${dn?"done":""} ${k===tk?"is-today":""}"><div class="d">${T.day}</div><div class="t"><b>${T.name}</b><div>${T.text}</div></div><div class="s"><span class="xpchip num">+${T.xp}</span><button class="check" type="button" data-k="${k}" data-i="${i}" aria-pressed="${dn}" aria-label="星期${T.day}${dn?"已完成，點一下取消":"標記完成"}" ${future?"disabled":""}>✓</button></div></div>`}).join("");
+  document.querySelectorAll(".check").forEach(b=>b.onclick=()=>toggle(b.dataset.k,+b.dataset.i,!done[b.dataset.k]));
+}
+
+async function toggle(k,i,on){
+  const prev=done[k];
+  if(on)done[k]={dow:i,xp:TASKS[i].xp,at:Date.now()};else delete done[k];
+  renderAll();
+  if(on)toast(`+${TASKS[i].xp} XP！`);
+  try{
+    if(db){on?await db.collection("done").doc(k).set(done[k]):await db.collection("done").doc(k).delete()}
+    else saveLocal();
+  }catch(e){if(prev)done[k]=prev;else delete done[k];renderAll();toast("沒存到，請確認你有這個頁面的編輯權限")}
+}
+
+function renderEntries(){
+  const box=$("entries");
+  if(!entries.length){box.innerHTML='<div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div>';return}
+  const sorted=[...entries].sort((a,b)=>(a.date+a.at).localeCompare(b.date+b.at));
+  const num=new Map(sorted.map((e,i)=>[e.id,i+1]));
+  box.innerHTML=sorted.slice().reverse().map(e=>`<article class="entry"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b><span>${esc(e.date)}${e.happy?" · ⭐ "+esc(e.happy)+"/10":""}</span></header>
+  <dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>
+  ${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}
+  <button class="btn ghost del" type="button" data-id="${esc(e.id)}">刪除</button></article>`).join("");
+  box.querySelectorAll(".del").forEach(b=>{b.onclick=()=>{
+    if(b.dataset.confirm){delEntry(b.dataset.id)}else{b.dataset.confirm=1;b.textContent="確定刪除？再按一次";setTimeout(()=>{if(b.isConnected){delete b.dataset.confirm;b.textContent="刪除"}},3000)}}});
+}
+async function delEntry(id){
+  const old=entries;entries=entries.filter(e=>e.id!==id);renderAll();
+  try{db?await db.collection("diary").doc(id).delete():saveLocal()}catch(e){entries=old;renderAll();toast("刪除失敗")}
+}
+
+let happy=0;
+function renderHearts(){$("hearts").innerHTML=[...Array(10)].map((_,i)=>`<button type="button" role="radio" aria-checked="${happy===i+1}" aria-label="${i+1} 分" class="${i<happy?"on":""}" data-v="${i+1}">⭐</button>`).join("");
+  $("hearts").querySelectorAll("button").forEach(b=>b.onclick=()=>{happy=+b.dataset.v;renderHearts()})}
+
+$("diaryForm").addEventListener("submit",async ev=>{
+  ev.preventDefault();
+  const e={date:$("dDate").value,mood:$("dMood").value.trim(),food:$("dFood").value.trim(),funny:$("dFunny").value.trim(),say:$("dSay").value.trim(),happy:happy||null,s1:$("dS1").value.trim(),s2:$("dS2").value.trim(),at:new Date().toISOString()};
+  if(!e.mood&&!e.food&&!e.funny&&!e.say&&!e.s1&&!e.s2){$("dMsg").textContent="至少寫一格再存喔";return}
+  $("dSave").disabled=true;$("dMsg").textContent="";
+  try{
+    if(db){const ref=db.collection("diary").doc();await ref.set(e);if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e})}
+    else{e.id="l"+Date.now();entries.push(e);saveLocal()}
+    ["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();renderAll();toast("寫好了！+5 XP 💌");
+  }catch(err){$("dMsg").textContent="沒存到，請確認你有這個頁面的編輯權限"}
+  $("dSave").disabled=false;
+});
+
+// draw
+let pool=[];
+function drawQ(){if(!pool.length)pool=QUESTIONS.slice().sort(()=>Math.random()-.5);const q=pool.pop();const c=$("qCard");c.classList.remove("flip");void c.offsetWidth;c.classList.add("flip");setTimeout(()=>c.textContent=q,200);$("drawHint").textContent=`這輪還剩 ${pool.length} 題 · 抽到題目後，兩個人都要回答才算過關！`}
+$("drawBtn").onclick=drawQ;
+$("drawHint").textContent=`題庫共 ${QUESTIONS.length} 題，這輪不會重複`;
+
+function renderAll(){renderHUD();renderQuests();renderEntries()}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries}))}catch(e){}}
+function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[]}}catch(e){}}
+
+$("dDate").value=key(today());
+renderHearts();renderAll();
+
+/* ===== 伺服器連線（Firebase） ===== */
+const ROOM_KEY="love-base-room";
+function getRoom(){try{return localStorage.getItem(ROOM_KEY)||""}catch(e){return ""}}
+function showGate(msg){
+  $("gate").hidden=false;$("gateMsg").textContent=msg||"";
+  setTimeout(()=>$("gateCode").focus(),50);
+}
+$("gateForm").addEventListener("submit",ev=>{
+  ev.preventDefault();
+  const code=$("gateCode").value.trim();
+  if(!/^[A-Za-z0-9_-]{8,64}$/.test(code)){$("gateMsg").textContent="暗號要 8～64 個字，只能用英文、數字、- 或 _";return}
+  try{localStorage.setItem(ROOM_KEY,code)}catch(e){}
+  location.reload();
+});
+$("logout").onclick=()=>{try{localStorage.removeItem(ROOM_KEY)}catch(e){}location.reload()};
+
+(async()=>{
+  const configured=FIREBASE_CONFIG.apiKey&&!FIREBASE_CONFIG.apiKey.startsWith("請貼上");
+  if(!configured||!window.firebase){local=true;loadLocal();renderAll();$("status").textContent=configured?"連不上伺服器 · 先存在這台裝置":"尚未設定伺服器 · 只存在這台裝置";return}
+  const room=getRoom();
+  if(!room){$("status").textContent="請輸入你們的暗號";showGate();return}
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db=firebase.firestore().collection("rooms").doc(room);
+  $("logout").hidden=false;
+  let got={done:false,diary:false};
+  const timer=setTimeout(()=>{$("status").textContent="暫時連不上，資料可能不是最新"},10000);
+  const ready=()=>{if(got.done&&got.diary){clearTimeout(timer);$("status").textContent="● 兩人同步中"}};
+  db.collection("done").onSnapshot(s=>{done={};s.docs.forEach(d=>done[d.id]=d.data());if(!s.metadata?.fromCache)got.done=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
+  db.collection("diary").onSnapshot(s=>{entries=s.docs.map(d=>({id:d.id,...d.data()}));if(!s.metadata?.fromCache)got.diary=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
+})();
+</script>
+</body>
+</html>
