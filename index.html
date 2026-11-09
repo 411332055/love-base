@@ -204,6 +204,7 @@ form.wishform{display:flex;gap:8px}
 .ans{display:flex;flex-direction:column;gap:8px}
 .ans .btn{align-self:flex-end;width:auto}
 .reveal{display:grid;gap:8px}
+.reveal:empty{display:none}
 .reveal div{background:var(--pink-soft);border-radius:10px;padding:8px 12px;overflow-wrap:anywhere;white-space:pre-wrap}
 .reveal b{margin-right:8px;color:var(--pink)}
 .log,.custom{display:flex;flex-direction:column;gap:10px;margin-top:10px}
@@ -444,6 +445,11 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div class="streak" id="streak"></div>
     <div class="today" id="todayBox" hidden>
       <div id="todayCard" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div class="reveal" id="reviewList"></div>
+      <form class="ans" id="reviewForm" autocomplete="off">
+        <textarea id="reviewText" maxlength="500" rows="3" required placeholder="這週最開心、最難忘的瞬間是…" aria-label="這週回顧"></textarea>
+        <button class="btn" type="submit" id="reviewSave">送出回顧</button>
+      </form>
     </div>
   <div class="diary-block" id="diary">
       <p class="sub" style="margin:0">寫日記或傳照片，今天就算有紀錄。兩個人都寫日記 +10 XP，兩個人都傳照片再 +10 XP。</p>
@@ -556,6 +562,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   <section id="memories" class="fold">
     <div><h2>🕰️ 回憶</h2><p class="sub">從日記裡翻出來的你們。</p></div>
     <div class="entries" id="onThisDay"></div>
+    <details class="month"><summary>每週回顧<span id="reviewN"></span></summary><div class="month-body"><div class="entries" id="reviewPast"></div></div></details>
     <div class="panel">
       <h3>幸福指數 · 最近 30 天</h3>
       <div class="chart" id="hChart"></div>
@@ -680,7 +687,7 @@ const TASKS=[ // index 0 = Monday
   {day:"四",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:0},
   {day:"五",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:0},
   {day:"六",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:0},
-  {day:"日",name:"回憶收集",text:"分享這週最開心、最難忘的一個瞬間。",xp:20},
+  {day:"日",name:"回憶收集",text:"寫下這週最開心、最難忘的瞬間。",xp:10},
 ];
 const TITLES=[[50,"🐣 戀愛新手村"],[100,"🧸 黏踢踢小情侶"],[200,"🤡 專業互鬧選手"],[300,"💗 甜蜜製造機"],[500,"🍀 穩定升溫中"],[800,"🍜 吃貨雙人組"],[1200,"🧠 心電感應學徒"],[1800,"🎢 雙人副本老手"],[2500,"🌈 放閃職人"],[3500,"🔥 傳說級黏人精"],[5000,"🛡️ 永久組隊隊長"],[6500,"🌌 宇宙級閃光彈"],[8000,"👑 戀愛滿等玩家"]];
 const QUESTIONS=["你覺得我最欠揍但又最可愛的地方是什麼？","如果我變成一隻蟑螂，你還會愛我嗎？","如果我們一起被困在荒島，你覺得誰會先崩潰？","最近哪一個瞬間讓你突然很想我？","第一次見到我的時候，你心裡在想什麼？","我做過最讓你傻眼的一件事是什麼？","用三個詞形容我們這段關係。","如果明天放假一整天，你想跟我做什麼？","你覺得我們誰比較會吃醋？","我最常對你說的一句話是什麼？","如果要幫我們拍一部電影，片名叫什麼？","你偷偷覺得我哪一個習慣很好笑？","我們吵架之後，你最希望我怎麼哄你？","你最想跟我一起完成的一件事是什麼？","如果可以交換身份一天，你最想用我的身份做什麼？","你覺得我們十年後會在幹嘛？","我哪一個表情你最受不了（但其實很喜歡）？","你最想吃我煮的哪一道菜？","我們之間最好笑的一個暗號或梗是什麼？","哪一首歌會讓你想到我？","如果我們養一隻寵物，要叫什麼名字？","我最近做了什麼讓你覺得被照顧到？","你覺得我們的戀愛像哪一種遊戲？","你今天最想對我撒嬌的一句話是？","如果只能用一個 emoji 代表我，你會選哪個？","我們第一次約會，你最記得哪個畫面？","你覺得我身上最像小孩的地方是什麼？","如果我們一起去旅行，誰負責迷路？"];
@@ -693,7 +700,7 @@ const $=id=>document.getElementById(id);
 let done={};      // dateKey -> {dow,xp}
 let entries=[];   // diary docs
 // 新功能的資料存在 done/x~集合~id，沿用現有的 Firebase 規則，不用另外開權限
-const store={wishes:[],rounds:[],answers:[],capsules:[],custom:[],fixes:[],hugs:[],replies:[],backups:[],bonus:[]};
+const store={wishes:[],rounds:[],answers:[],capsules:[],custom:[],fixes:[],hugs:[],replies:[],backups:[],bonus:[],reviews:[]};
 // 刪除時在原本的資料上標記 trashed，30 天後才真的清掉
 const trash={diary:[],photos:[],wishes:[],capsules:[],custom:[]};
 let db=null, local=false;
@@ -778,8 +785,10 @@ function totalXP(){
   for(const [d,r] of dayRecords()){
     if(r.diary.size>=need())xp+=DIARY_XP;
     if(r.photo.size>=need())xp+=PHOTO_BONUS;
-    if(dow(fromKey(d))===6&&whoDid(r).size>=need())xp+=TASKS[6].xp;
   }
+  const reviews=new Map();
+  store.reviews.forEach(r=>{if(!r.by)return;if(!reviews.has(r.date))reviews.set(r.date,new Set);reviews.get(r.date).add(r.by)});
+  for(const who of reviews.values())if(who.size>=need())xp+=TASKS[6].xp;
   const wishDays=new Set(store.wishes.filter(w=>w.done).map(w=>w.doneDate));
   return xp+wishDays.size*WISH_XP+streakBonus();
 }
@@ -808,10 +817,13 @@ function renderHUD(){
 }
 
 function renderQuests(){
-  const t=today(), tk=key(t), ti=dow(t), task=taskFor(t), rec=dayRecords().get(tk), did=rec?whoDid(rec):new Set, both=did.size>=need();
+  const t=today(), tk=key(t), ti=dow(t), task=taskFor(t), revs=store.reviews.filter(r=>r.date===tk).sort(byAt), myRev=revs.find(r=>r.by===myName()), both=new Set(revs.map(r=>r.by)).size>=need();
   $("todayBox").hidden=ti!==6;
   $("todayCard").innerHTML=`<div class="tag">今天 · 星期${task.day}</div><h3>${esc(task.name)} <span class="xpchip num" style="font-size:16px">+${task.xp} XP</span></h3><p>${esc(task.text)}</p>
-  <div class="done-line">${both?"✓ 兩個人都完成了":did.has(myName())?"你完成了，等對方":`寫日記或傳照片，兩個人都做到 +${task.xp} XP`}</div>`;
+  <div class="done-line">${both?"✓ 兩個人都寫好了":myRev?"你寫好了，等對方":`兩個人都寫好 +${task.xp} XP`}</div>`;
+  $("reviewList").innerHTML=revs.map(r=>`<div><b>${esc(nameOf(r.by))}</b>${esc(r.text)}${r.by===myName()?' <button type="button" class="reply-del" id="reviewEdit">修改</button>':""}</div>`).join("");
+  $("reviewForm").hidden=!!myRev&&!reviewEditing;
+  if(myRev)$("reviewEdit").onclick=()=>{reviewEditing=true;$("reviewText").value=myRev.text;$("reviewForm").hidden=false;$("reviewText").focus()};
   renderTodayPhotos();
 }
 
@@ -1171,7 +1183,12 @@ function renderMonth(){
 }
 $("mPick").onchange=renderMonth;
 window.addEventListener("resize",()=>{if($("memories").classList.contains("open"))renderChart()});
-function renderMemories(){renderOnThisDay();renderChart();renderMonth()}
+function renderReviewsPast(){
+  const days=[...new Set(store.reviews.map(r=>r.date))].sort().reverse();
+  $("reviewN").textContent=`${days.length} 週`;
+  $("reviewPast").innerHTML=days.length?days.map(d=>`<article class="entry"><header><b>${esc(d)}</b></header><dl>${store.reviews.filter(r=>r.date===d).sort(byAt).map(r=>`<dt>${esc(r.by)}</dt><dd>${esc(r.text)}</dd>`).join("")}</dl></article>`).join(""):'<div class="empty">星期日寫下這週回顧，就會收在這裡。</div>';
+}
+function renderMemories(){renderOnThisDay();renderReviewsPast();renderChart();renderMonth()}
 
 // 月曆：照片牆只載入最近幾十張，所以看哪個月就另外抓那個月的照片
 let calMonth=key(today()).slice(0,7), calDay=key(today()), calPhotos=[];
@@ -1252,7 +1269,7 @@ function backupHtml(b){
     const phs=[photos.find(p=>p.entry===e.id),first?photos.find(p=>!p.entry&&p.date===e.date&&p.by===e.by):null].filter(Boolean);
     return `<article><h3>${esc(e.date)}（${wk[dt.getDay()]}）<span>${esc(e.by||"未署名")}${e.happy?` · ⭐ ${esc(e.happy)}/10`:""}${hearts?` · ❤️ ${hearts}`:""}</span></h3><dl>${[["心情",e.mood],["吃了",e.food],["最好笑",e.funny],["想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}${phs.map(p=>`<img src="${esc(p.th)}" alt="當天的照片">`).join("")}${texts.map(r=>`<p class="re"><b>${esc(r.by)}</b> ${esc(r.text)}</p>`).join("")}</article>`;
   };
-  const wishes=xs("wishes"),caps=xs("capsules"),rounds=xs("rounds"),answers=xs("answers"),wall=photos.filter(p=>!p.entry);
+  const wishes=xs("wishes"),caps=xs("capsules"),rounds=xs("rounds"),answers=xs("answers"),wall=photos.filter(p=>!p.entry),reviews=xs("reviews");
   const passed=rounds.filter(r=>new Set(answers.filter(a=>a.round===r.id).map(a=>a.by)).size>=2);
   const part=(id,title,body)=>body?`<section id="${id}"><h2>${title}</h2>${body}</section>`:"";
   const json=JSON.stringify(b).replace(/</g,"\\u003c");
@@ -1264,8 +1281,9 @@ h2{font-size:20px;margin:36px 0 12px;padding-bottom:6px;border-bottom:2px solid 
 article{background:#fff;border:1px solid #ead9e1;border-radius:12px;padding:14px 16px;margin:0 0 12px;break-inside:avoid;overflow-wrap:anywhere}dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:0}dt{color:#7c6672}dd{margin:0;white-space:pre-wrap}
 blockquote{margin:8px 0 0;padding:8px 12px;background:#fde3ec;border-radius:8px}article img{display:inline-block;margin-right:8px;width:140px;height:140px;object-fit:cover;border-radius:8px;margin-top:8px}.re{margin:6px 0 0;padding:4px 10px;background:#f4ebef;border-radius:8px;font-size:14px}
 ul{margin:0;padding-left:1.3em}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}figure{margin:0;font-size:13px;color:#7c6672}figure img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block}
-</style></head><body><main><header><h1>我們的戀愛遊戲基地</h1><p>備份於 ${esc(dayOf(b.exportedAt))} · ${diary.length} 篇日記 · ${photos.length} 張照片${b.full?" · 含原圖":""}</p><p>要救回資料時，到網站的「資料備份」選「從備份檔補回資料」，選這個檔案就可以。</p><nav>${months.map(m=>`<a href="#m${m}">${mName(m)}</a>`).join("")}${wishes.length?'<a href="#wishes">願望</a>':""}${passed.length?'<a href="#draw">抽題</a>':""}${caps.length?'<a href="#caps">膠囊</a>':""}${wall.length?'<a href="#wall">照片</a>':""}</nav></header>
+</style></head><body><main><header><h1>我們的戀愛遊戲基地</h1><p>備份於 ${esc(dayOf(b.exportedAt))} · ${diary.length} 篇日記 · ${photos.length} 張照片${b.full?" · 含原圖":""}</p><p>要救回資料時，到網站的「資料備份」選「從備份檔補回資料」，選這個檔案就可以。</p><nav>${months.map(m=>`<a href="#m${m}">${mName(m)}</a>`).join("")}${reviews.length?'<a href="#reviews">回顧</a>':""}${wishes.length?'<a href="#wishes">願望</a>':""}${passed.length?'<a href="#draw">抽題</a>':""}${caps.length?'<a href="#caps">膠囊</a>':""}${wall.length?'<a href="#wall">照片</a>':""}</nav></header>
 ${months.map(m=>{const list=diary.filter(e=>String(e.date).startsWith(m));return part("m"+m,`${mName(m)}（${list.length} 篇）`,list.map(article).join(""))}).join("")}
+${part("reviews","每週回顧",[...new Set(reviews.map(r=>r.date))].sort().map(d=>`<article><h3>${esc(d)}</h3><dl>${reviews.filter(r=>r.date===d).map(r=>`<dt>${esc(r.by)}</dt><dd>${esc(r.text)}</dd>`).join("")}</dl></article>`).join(""))}
 ${part("wishes","願望清單",wishes.length?`<ul>${wishes.map(w=>`<li>${w.done?"✅":"⬜"} ${esc(w.text)}${w.done?`（${esc(w.doneDate)} 完成）`:""}</li>`).join("")}</ul>`:"")}
 ${part("draw","抽題紀錄",passed.map(r=>`<article><h3>${esc(r.q)}<span>${esc(dayOf(r.at))}</span></h3><dl>${[...new Map(answers.filter(a=>a.round===r.id).sort(byAt).map(a=>[a.by,a])).values()].map(a=>`<dt>${esc(a.by)}</dt><dd>${esc(a.text)}</dd>`).join("")}</dl></article>`).join(""))}
 ${part("caps","時光膠囊",caps.map(c=>`<article><h3>${c.openDate>tk?"🔒 封存中":"💌 已打開"}<span>${esc(c.by)} · ${esc(c.openDate)} 打開</span></h3>${c.openDate>tk?"":`<p style="margin:0;white-space:pre-wrap">${esc(c.text)}</p>`}</article>`).join(""))}
@@ -1447,7 +1465,7 @@ function renderAway(){
   const card=$("awayCard");
   if(!db||!seenMs){card.hidden=true;return}
   const me=myName(),fresh=x=>x.by&&x.by!==me&&x.at&&new Date(x.at).getTime()>seenMs;
-  const groups=[[entries.filter(fresh),n=>`💌 寫了 ${n} 篇日記`,"diary"],[photos.filter(fresh),n=>`📷 傳了 ${n} 張照片`,"photos"],[store.answers.filter(fresh),n=>`🎲 回答了 ${n} 題抽題`,"draw"],[store.wishes.filter(fresh),n=>`🌠 許了 ${n} 個願望`,"wishes"],[store.capsules.filter(fresh),n=>`⏳ 封存了 ${n} 顆膠囊`,"capsule"],[store.replies.filter(fresh).filter(r=>entries.find(e=>e.id===r.entry)?.by===me),n=>`💬 回應了你的日記（${n}）`,"diary"],[store.hugs.filter(fresh),()=>"🤗 來討抱抱","hugCard"],[store.hugs.filter(h=>h.by===me&&h.backBy&&new Date(h.backAt).getTime()>seenMs),()=>"💞 抱了你","hugCard"]].filter(g=>g[0].length&&!layout.hidden.includes(g[2]==="diary"?"quests":g[2]));
+  const groups=[[entries.filter(fresh),n=>`💌 寫了 ${n} 篇日記`,"diary"],[photos.filter(fresh),n=>`📷 傳了 ${n} 張照片`,"photos"],[store.answers.filter(fresh),n=>`🎲 回答了 ${n} 題抽題`,"draw"],[store.wishes.filter(fresh),n=>`🌠 許了 ${n} 個願望`,"wishes"],[store.capsules.filter(fresh),n=>`⏳ 封存了 ${n} 顆膠囊`,"capsule"],[store.replies.filter(fresh).filter(r=>entries.find(e=>e.id===r.entry)?.by===me),n=>`💬 回應了你的日記（${n}）`,"diary"],[store.reviews.filter(fresh),()=>"📝 寫了這週回顧","memories"],[store.hugs.filter(fresh),()=>"🤗 來討抱抱","hugCard"],[store.hugs.filter(h=>h.by===me&&h.backBy&&new Date(h.backAt).getTime()>seenMs),()=>"💞 抱了你","hugCard"]].filter(g=>g[0].length&&!layout.hidden.includes(g[2]==="diary"?"quests":g[2]));
   if(!groups.length){card.hidden=true;return}
   const name=groups[0][0][0].by===me?groups[0][0][0].backBy:groups[0][0][0].by;
   card.innerHTML=`<h3>你不在時，${esc(name)}…</h3><div class="away-list">${groups.map(g=>`<a href="#${g[2]}">${g[1](g[0].length)}</a>`).join("")}</div><button class="btn ghost" type="button" id="awayOk">知道了</button>`;
@@ -1488,13 +1506,14 @@ $("hugForm").addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.isComposin
 function renderTodo(){
   const t=today(),tk=key(t),me=myName(),items=[];
   if(store.hugs.some(h=>h.by&&h.by!==me&&!h.backAt))items.push([false,"🤗 抱抱對方","hugCard"]);
+  if(dow(t)===6)items.push([store.reviews.some(r=>r.date===tk&&r.by===me),"📝 寫這週回顧","todayBox"]);
   if(db)items.push([!!myPhoto(tk),"📷 上傳我的照片","diary"]);
   items.push([entries.some(e=>e.by===me&&dayOf(e.at)===tk),"💌 寫今天的日記","diary"]);
   const r=curRound(),ans=r?pairOf(r.id):[],answered=ans.some(a=>a.by===me),over=!!r&&ans.length>=need();
   if(r&&!over)items.push(answered?[true,"🎲 已回答抽題，等對方揭曉","draw"]:[false,"🎲 回答抽題","draw"]);
   else if(over&&dayOf(r.at)===tk)items.push([true,"🎲 今天的抽題過關了","draw"]);
   else items.push([false,"🎲 抽今天的題目","draw"]);
-  for(let i=items.length-1;i>=0;i--)if(layout.hidden.includes(items[i][2]==="diary"?"quests":items[i][2]))items.splice(i,1);
+  for(let i=items.length-1;i>=0;i--)if(layout.hidden.includes(["diary","todayBox"].includes(items[i][2])?"quests":items[i][2]))items.splice(i,1);
   const n=items.filter(x=>x[0]).length,all=n===items.length;
   $("todoCard").innerHTML=`<div class="row between"><h3>${all?"今天都完成了 🎉":"今天還差什麼"}</h3><span class="num">${n} / ${items.length}</span></div>${items.map(([ok,label,id])=>`<a class="todo-i ${ok?"ok":""}" href="#${id}"><span class="tick" aria-hidden="true">✓</span>${label}${ok?'<span class="sr-only">（已完成）</span>':""}</a>`).join("")}`;
 }
@@ -1736,6 +1755,23 @@ function syncPhotoBonus(){
     xRef("bonus",id).set({date:p.date,xp:PHOTO_BONUS,by:p.by,at:p.at||nowIso()}).catch(()=>bonusSyncing.delete(id));
   });
 }
+
+let reviewEditing=false;
+$("reviewForm").addEventListener("submit",async ev=>{
+  ev.preventDefault();
+  const text=$("reviewText").value.trim();if(!text)return;
+  const date=key(today()),me=myName(),id=date+"_"+me,doc={date,by:me,text,at:nowIso()};
+  const first=!store.reviews.some(r=>r.id===id),partner=store.reviews.some(r=>r.date===date&&r.by!==me);
+  $("reviewSave").disabled=true;
+  try{
+    if(db)await commit(xRef("reviews",id).set(doc));
+    store.reviews=store.reviews.filter(r=>r.id!==id).concat([{id,...doc}]);
+    if(!db)saveLocal();
+    reviewEditing=false;$("reviewText").value="";renderAll();
+    toast(!first?"回顧改好了":partner?`兩個人都寫好了！+${TASKS[6].xp} XP 📝`:`寫好了 📝 等對方也寫就 +${TASKS[6].xp} XP`);
+  }catch(e){toast(NOSAVE)}
+  $("reviewSave").disabled=false;
+});
 
 // 收合中的區塊不重畫，展開時才更新
 function renderOpen(){
