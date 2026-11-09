@@ -52,9 +52,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .hud{background:var(--ink);color:var(--bg);border-radius:20px;padding:22px 20px 20px;display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden}
 :root[data-theme="dark"] .hud{background:var(--surface);color:var(--fg);border:1px solid var(--line)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .hud{background:var(--surface);color:var(--fg);border:1px solid var(--line)}}
-.hud .eyebrow{font-size:12px;letter-spacing:.12em;opacity:.7}
 .hud h1{font-size:clamp(24px,6vw,32px);font-weight:900;line-height:1.25}
-.hud .party{font-size:13px;opacity:.8}
 .lvl{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .lvl .title{font-size:18px;font-weight:700}
 .lvl .xp{font-size:34px;line-height:1;color:var(--gold)}
@@ -275,7 +273,7 @@ details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:
 .wrap>section:not(.current){display:none}
 :root[data-view]:not([data-view="today"]) .hud{display:none}
 .subnav{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
-.subnav a{flex:none;text-decoration:none;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:6px 16px;font-size:14px;font-weight:500}
+.subnav a{flex:1 0 auto;text-align:center;text-decoration:none;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:14px;font-weight:500}
 .subnav a[aria-current="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg);font-weight:700}
 @media (min-width:860px){.tabbar{display:none!important}}
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:14;display:flex;background:var(--surface);border-top:1px solid var(--line);padding:4px max(4px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(4px,env(safe-area-inset-left,0px))}
@@ -330,6 +328,11 @@ details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:
 
 .recap-i{font-size:14px;overflow-wrap:anywhere}
 .recap-i b{margin-right:6px}
+
+section.fold>div:first-child h2{display:none}
+section.fold>div:first-child:not(:has(.sub)){display:none}
+.reply-bar{align-items:center}
+.reply-bar .acts{margin-left:auto}
 
 details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 details.rules summary{font-weight:700;cursor:pointer}
@@ -389,9 +392,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 <div class="wrap">
   <header class="hud" id="top">
     <div>
-      <div class="eyebrow">群組公告 · 本群只有兩位玩家，永久組隊</div>
       <h1>我們的戀愛遊戲基地</h1>
-      <div class="party">耍白痴、講幹話、放閃、撒嬌，也記錄生活裡的每個小瞬間。</div>
     </div>
     <div class="anniv" id="anniv"></div>
     <div class="lvl">
@@ -442,7 +443,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       </form>
     </div>
   <div class="diary-block" id="diary">
-      <p class="sub" style="margin:0">寫日記或傳照片，今天就算有紀錄。兩個人都寫日記 +10 XP，兩個人都傳照片再 +10 XP。</p>
+      <p class="sub" style="margin:0">兩個人都寫日記、都傳照片，各 +10 XP。</p>
       <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
       <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填）" aria-label="照片說明">
       <div class="entries" id="diaryToday"></div>
@@ -938,7 +939,7 @@ function renderEntries(){
   <div>${byChip(e.by)}</div>
   <dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>
   ${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}
-  ${entryExtras(e,"list")}<div class="acts">${(!e.by||e.by===me)?`<button class="btn ghost edit" type="button" data-id="${esc(e.id)}">✏️ 編輯</button>`:""}<button class="btn ghost del" type="button" data-id="${esc(e.id)}">刪除</button></div></article>`;
+  ${entryExtras(e,"list",`<div class="acts">${(!e.by||e.by===me)?`<button class="btn ghost edit" type="button" data-id="${esc(e.id)}">✏️ 編輯</button>`:""}<button class="btn ghost del" type="button" data-id="${esc(e.id)}">刪除</button></div>`)}</article>`;
   const groups=new Map();
   shown.forEach(e=>{const m=String(e.date).slice(0,7);if(!groups.has(m))groups.set(m,[]);groups.get(m).push(e)});
   const cur=key(today()).slice(0,7),first=groups.has(cur)?cur:[...groups.keys()][0];
@@ -1439,7 +1440,7 @@ function renderAway(){
   const groups=[[entries.filter(fresh),n=>`💌 寫了 ${n} 篇日記`,"diary"],[photos.filter(fresh),n=>`📷 傳了 ${n} 張照片`,"photos"],[store.answers.filter(fresh),n=>`🎲 回答了 ${n} 題抽題`,"draw"],[store.wishes.filter(fresh),n=>`🌠 許了 ${n} 個願望`,"wishes"],[store.capsules.filter(fresh),n=>`⏳ 封存了 ${n} 顆膠囊`,"capsule"],[store.replies.filter(fresh).filter(r=>r.kind==="text"&&entries.find(e=>e.id===r.entry)?.by===me),n=>`💬 回應了你的日記（${n}）`,"calendar"],[store.reviews.filter(fresh),()=>"📝 寫了這週回顧","memories"],[store.hugs.filter(fresh),()=>"🤗 來討抱抱","hugCard"],[store.hugs.filter(h=>h.by===me&&h.backBy&&new Date(h.backAt).getTime()>seenMs),()=>"💞 抱了你","hugCard"]].filter(g=>g[0].length&&!layout.hidden.includes(g[2]==="diary"?"quests":g[2]));
   if(!groups.length){card.hidden=true;return}
   const name=groups[0][0][0].by===me?groups[0][0][0].backBy:groups[0][0][0].by;
-  card.innerHTML=`<h3>你不在時，${esc(name)}…</h3><div class="away-list">${groups.map(g=>`<a href="#${g[2]}">${g[1](g[0].length)}</a>`).join("")}</div><button class="btn ghost" type="button" id="awayOk">知道了</button>`;
+  card.innerHTML=`<div class="row between"><h3>你不在時，${esc(name)}…</h3><button class="btn ghost" type="button" id="awayOk">知道了</button></div><div class="away-list">${groups.map(g=>`<a href="#${g[2]}">${g[1](g[0].length)}</a>`).join("")}</div>`;
   card.hidden=false;
   $("awayOk").onclick=()=>{const v=nowIso();seenMs=new Date(v).getTime();try{localStorage.setItem(SEEN_KEY,v)}catch(e){}renderAway()};
 }
@@ -1509,7 +1510,7 @@ function catSecs(c){const rank=id=>{const i=layout.order.indexOf(id);return i<0?
 function renderNav(){
   const cur=CATS.find(c=>c.secs.includes(view)),secs=catSecs(cur),sub=$("subNav");
   sub.hidden=secs.length<2;
-  sub.innerHTML=secs.length<2?"":secs.map(id=>`<a href="#${id}" aria-current="${id===view}">${SEC_META[id][1]} ${SEC_META[id][0]}</a>`).join("");
+  sub.innerHTML=secs.length<2?"":secs.map(id=>`<a href="#${id}" aria-current="${id===view}">${SEC_META[id][0]}</a>`).join("");
   document.querySelectorAll("[data-c]").forEach(a=>{const c=CATS.find(x=>x.id===a.dataset.c);a.hidden=!catSecs(c).length;a.setAttribute("aria-current",c===cur)});
 }
 function applyLayout(){
@@ -1583,7 +1584,7 @@ function renderDiaryToday(){
   $("dNew").textContent=diaryFormOpen?"收起":"✏️ 再寫一篇";
   $("diaryN").textContent=`${entries.length} 篇`;
   const box=$("diaryToday");
-  box.innerHTML=list.map(e=>`<article class="entry ${e.by?(e.by===me?"me":"them"):""}"><header><div>${byChip(e.by)}</div><span>${e.happy?"⭐ "+esc(e.happy)+"/10":""}</span></header><dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}${entryExtras(e,"today")}${(!e.by||e.by===me)?`<div class="acts"><button class="btn ghost" type="button" data-editday="${esc(e.id)}">✏️ 編輯</button></div>`:""}</article>`).join("")+(db&&!theirs?'<p class="sub" style="margin:0">對方今天還沒寫。</p>':"");
+  box.innerHTML=list.map(e=>`<article class="entry ${e.by?(e.by===me?"me":"them"):""}"><header><div>${byChip(e.by)}</div><span>${e.happy?"⭐ "+esc(e.happy)+"/10":""}</span></header><dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}${entryExtras(e,"today",(!e.by||e.by===me)?`<div class="acts"><button class="btn ghost" type="button" data-editday="${esc(e.id)}">✏️ 編輯</button></div>`:"")}</article>`).join("")+(db&&!theirs?'<p class="sub" style="margin:0">對方今天還沒寫。</p>':"");
   attachReply("today");
   box.querySelectorAll("[data-editday]").forEach(b=>b.onclick=()=>startEdit(b.dataset.editday));
   const y=addDays(today(),-1),yk=key(y);let skip="";try{skip=localStorage.getItem(BF_KEY)||""}catch(e){}
@@ -1607,10 +1608,10 @@ const shrinkFull=im=>shrink(im,1280,PHOTO_MAX,.76), shrinkThumb=im=>shrink(im,42
 const BF_KEY="love-base-backfill-skip";
 let replyTo=null;
 const replyFormEl=$("replyForm"),replyTextEl=$("replyText");
-function entryExtras(e,where){
+function entryExtras(e,where,acts=""){
   const me=myName(),rs=store.replies.filter(r=>r.entry===e.id).sort(byAt),texts=rs.filter(r=>r.kind==="text"),all=calAllPhotos(),first=entries.filter(x=>x.date===e.date&&x.by===e.by).sort(byAt)[0]?.id===e.id;
   const phs=[all.find(p=>p.entry===e.id),where==="list"&&first?all.find(p=>!p.entry&&p.date===e.date&&p.by===e.by):null].filter(Boolean);
-  return `${phs.length?`<div class="wall-grid">${phs.map(p=>photoBtn(p,"")).join("")}</div>`:""}${texts.length?`<div class="replies">${texts.map(r=>`<div class="reply ${r.by===me?"me":""}"><b>${esc(r.by)}</b> ${esc(r.text)}${r.by===me?` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>`:""}</div>`).join("")}</div>`:""}<div class="reply-bar"><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}">💬 回應</button></div><div data-replyslot="${where}:${esc(e.id)}"></div>`;
+  return `${phs.length?`<div class="wall-grid">${phs.map(p=>photoBtn(p,"")).join("")}</div>`:""}${texts.length?`<div class="replies">${texts.map(r=>`<div class="reply ${r.by===me?"me":""}"><b>${esc(r.by)}</b> ${esc(r.text)}${r.by===me?` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>`:""}</div>`).join("")}</div>`:""}<div class="reply-bar"><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}">💬 回應</button>${acts}</div><div data-replyslot="${where}:${esc(e.id)}"></div>`;
 }
 function closeReply(){replyTo=null;replyFormEl.hidden=true;document.body.append(replyFormEl)}
 function attachReply(where){
@@ -1706,7 +1707,7 @@ function renderBook(){
     const top=[...me].filter(say).sort((x,y)=>(y.happy||0)-(x.happy||0))[0],fun=me.filter(e=>e.funny).slice(-1)[0],[yy,mm]=m.split("-").map(Number);
     return `<article class="entry book-m"><header><b>${yy} 年 ${mm} 月</b><span>${me.length} 篇日記 · ${mp.length} 張照片</span></header>${mp.length?`<div class="wall-grid">${mp.slice(0,3).map(p=>photoBtn(p,"")).join("")}</div>`:""}${top?`<blockquote>${esc(say(top))}<br><small>${esc(top.by||"")} · ${esc(top.date)}</small></blockquote>`:""}${fun?`<div>🤪 ${esc(fun.funny)}</div>`:""}</article>`;
   }).join("");
-  $("bookBody").innerHTML=`<div class="book-cover"><span>我們的第</span><b>${keep}</b><span>年 · 一起走過 ${dayN} 天</span><span>${a} ～ ${b}</span></div><div class="stats">${tiles.map(([x,v])=>`<div class="stat"><span>${x}</span><b>${v}</b></div>`).join("")}</div>${best?`<div class="note">⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(say(best))}</div>`:""}${pages}`;
+  $("bookBody").innerHTML=`<div class="book-cover"><b>第 ${keep} 年</b><span>一起走過 ${dayN} 天</span><span>${a} ～ ${b}</span></div><div class="stats">${tiles.map(([x,v])=>`<div class="stat"><span>${x}</span><b>${v}</b></div>`).join("")}</div>${best?`<div class="note">⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(say(best))}</div>`:""}${pages}`;
 }
 $("bookYear").onchange=renderBook;
 $("bookPrint").onclick=()=>window.print();
