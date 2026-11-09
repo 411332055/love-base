@@ -740,9 +740,12 @@ function renderStreak(){
   let c=a.has(key(t))?t:addDays(t,-1),n=0;
   while(a.has(key(c))){n++;c=addDays(c,-1)}
   const cards=Math.floor(onTimeDays().length/STREAK_STEP)-store.fixes.length;
-  const repair=cards>0&&a.has(key(addDays(c,-1)));
-  $("streak").innerHTML=`<span>🔥 連續<span class="num">${n}</span>天</span><span class="muted">再 ${STREAK_STEP-n%STREAK_STEP} 天 +${STREAK_BONUS} XP</span><span>🎫 補簽卡 ${Math.max(0,cards)} 張</span>${repair?`<button class="btn" type="button" id="fixBtn">補上 ${c.getMonth()+1}/${c.getDate()}</button>`:""}`;
-  if(repair)$("fixBtn").onclick=async()=>{try{await addDoc("fixes",{day:key(c),at:nowIso(),by:myName()});toast("補簽成功 🎫")}catch(e){toast(NOSAVE)}};
+  // 一張卡補一天：手上的卡夠補滿整段空缺才能補
+  const gap=[];let d=c;
+  while(cards>0&&gap.length<cards&&!a.has(key(d))){gap.push(d);d=addDays(d,-1)}
+  const repair=gap.length>0&&a.has(key(d)),md=x=>`${x.getMonth()+1}/${x.getDate()}`;
+  $("streak").innerHTML=`<span>🔥 連續<span class="num">${n}</span>天</span><span class="muted">再 ${STREAK_STEP-n%STREAK_STEP} 天 +${STREAK_BONUS} XP</span><span>🎫 補簽卡 ${Math.max(0,cards)} 張</span>${repair?`<button class="btn" type="button" id="fixBtn">補上 ${gap.length>1?`${md(gap[gap.length-1])}～${md(gap[0])}（用 ${gap.length} 張）`:md(c)}</button>`:""}`;
+  if(repair)$("fixBtn").onclick=async()=>{try{for(const x of gap)await addDoc("fixes",{day:key(x),at:nowIso(),by:myName()});toast("補簽成功 🎫")}catch(e){toast(NOSAVE)}};
 }
 
 // 所有 XP 都要兩個人一起達成：日期 -> 誰寫了日記、誰傳了照片、誰當天就完成
