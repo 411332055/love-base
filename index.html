@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="戀愛基地">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbf6f8">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1117">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <style>
@@ -202,6 +210,24 @@ details.month summary{font-weight:700;cursor:pointer;background:var(--surface);b
 details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:var(--muted)}
 .month-body{display:flex;flex-direction:column;gap:12px;margin-top:12px}
 
+/* calendar, search */
+.cal,.cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-head span{text-align:center;font-size:12px;color:var(--muted)}
+.cal button{aspect-ratio:1;max-width:100%;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;padding:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:13px;font-variant-numeric:tabular-nums}
+.cal button.has{background:var(--pink-soft);border-color:transparent;font-weight:700}
+.cal button.today{border:2px solid var(--pink)}
+.cal button[aria-pressed="true"]{outline:2px solid var(--fg);outline-offset:1px}
+.cal button:disabled{opacity:.4;cursor:default}
+.dots{display:flex;gap:2px;height:6px}
+.dots i,.cal-legend i{display:inline-block;width:6px;height:6px;border-radius:50%}
+.d-diary{background:var(--pink)}
+.d-photo{background:var(--gold)}
+.d-task{background:var(--ok)}
+.d-wish{background:var(--fg)}
+.cal-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
+.cal-legend span{display:inline-flex;align-items:center;gap:4px}
+#dSearchN:empty{display:none}
+
 details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 details.rules summary{font-weight:700;cursor:pointer}
 details.rules ol{margin:10px 0 4px;padding-left:1.4em}
@@ -258,7 +284,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </header>
 
   <nav class="chips" aria-label="區塊">
-    <a href="#quests">🎮 每日任務</a><a href="#photos">📷 照片</a><a href="#ladder">🏆 成就</a><a href="#diary">💌 日記</a><a href="#wishes">🌠 願望</a><a href="#draw">🎲 抽題</a><a href="#capsule">⏳ 膠囊</a><a href="#memories">🕰️ 回憶</a><a href="#rules">🧸 規則</a>
+    <a href="#quests">🎮 每日任務</a><a href="#photos">📷 照片</a><a href="#ladder">🏆 成就</a><a href="#diary">💌 日記</a><a href="#calendar">📅 月曆</a><a href="#wishes">🌠 願望</a><a href="#draw">🎲 抽題</a><a href="#capsule">⏳ 膠囊</a><a href="#memories">🕰️ 回憶</a><a href="#tools">💾 備份</a><a href="#rules">🧸 規則</a>
   </nav>
 
   <section id="quests">
@@ -282,6 +308,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   <section id="ladder">
     <div><h2>🏆 戀愛成就解鎖</h2><p class="sub">累積積分解鎖稱號。</p></div>
     <div class="ladder" id="ladderList"></div>
+    <details class="month"><summary>其他稱號<span id="ladderN"></span></summary><div class="month-body"><div class="ladder" id="ladderRest"></div></div></details>
     <div class="note">🎁 解鎖獎勵可以是：一次指定抱抱、一次約會、一次指定美食，或讓對方答應一個可愛的小願望。</div>
   </section>
 
@@ -303,8 +330,21 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       </div>
       <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span></div>
     </form>
+    <input type="search" id="dSearch" placeholder="🔍 搜尋日記，例：拉麵" aria-label="搜尋日記" autocomplete="off">
+    <div class="sub" id="dSearchN"></div>
     <div class="filter" id="filter" role="group" aria-label="篩選日記"><button type="button" data-w="all" aria-pressed="true">全部</button><button type="button" data-w="me" aria-pressed="false">✍️ 我寫的</button><button type="button" data-w="them" aria-pressed="false">💌 對方寫的</button></div>
     <div class="entries" id="entries"><div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div></div>
+  </section>
+
+  <section id="calendar">
+    <div><h2>📅 回憶月曆</h2><p class="sub">有紀錄的日子會亮起來，點一下看當天。</p></div>
+    <div class="panel">
+      <div class="row between"><button class="btn ghost" type="button" id="calPrev" aria-label="上個月">‹</button><h3 id="calTitle"></h3><button class="btn ghost" type="button" id="calNext" aria-label="下個月">›</button></div>
+      <div class="cal-head" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+      <div class="cal" id="calGrid"></div>
+      <div class="cal-legend"><span><i class="d-diary"></i>日記</span><span><i class="d-photo"></i>照片</span><span><i class="d-task"></i>任務</span><span><i class="d-wish"></i>願望</span></div>
+    </div>
+    <div class="entries" id="calDetail"></div>
   </section>
 
   <section id="wishes">
@@ -377,6 +417,27 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     </div>
   </section>
 
+  <section id="tools">
+    <div><h2>💾 備份與安裝</h2></div>
+    <details class="rules">
+      <summary>📱 加到手機主畫面</summary>
+      <div class="custom">
+        <p class="sub" id="installText"></p>
+        <button class="btn" type="button" id="installBtn" hidden>加到主畫面</button>
+      </div>
+    </details>
+    <details class="rules">
+      <summary>💾 資料備份</summary>
+      <div class="custom">
+        <p class="sub">下載一份存到自己的電腦或雲端，誤刪時可以補回來。備份檔裡有你們的日記，別傳給別人。iPhone 請用 Safari 開網址來備份。</p>
+        <div class="row"><button class="btn" type="button" id="bkText">備份文字和縮圖</button><button class="btn ghost" type="button" id="bkFull">完整備份（含原圖）</button></div>
+        <div class="row"><button class="btn ghost" type="button" id="bkPick">從備份檔補回資料</button><button class="btn" type="button" id="bkConfirm" hidden></button></div>
+        <input type="file" id="bkFile" accept=".json,application/json" hidden>
+        <p class="sub" id="bkMsg"></p>
+      </div>
+    </details>
+  </section>
+
   <section id="rules">
     <details class="rules" open>
       <summary>🧸 群組遊戲規則</summary>
@@ -436,7 +497,7 @@ const TASKS=[ // index 0 = Monday
   {day:"六",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:10},
   {day:"日",name:"回憶收集",text:"分享這週最開心、最難忘的一個瞬間。",xp:20},
 ];
-const TITLES=[[50,"🐣 戀愛新手村"],[100,"🧸 黏踢踢小情侶"],[200,"🤡 專業互鬧選手"],[300,"💗 甜蜜製造機"],[500,"👑 戀愛滿等玩家"]];
+const TITLES=[[50,"🐣 戀愛新手村"],[100,"🧸 黏踢踢小情侶"],[200,"🤡 專業互鬧選手"],[300,"💗 甜蜜製造機"],[500,"🍀 穩定升溫中"],[800,"🍜 吃貨雙人組"],[1200,"🧠 心電感應學徒"],[1800,"🎢 雙人副本老手"],[2500,"🌈 放閃職人"],[3500,"🔥 傳說級黏人精"],[5000,"🛡️ 永久組隊隊長"],[6500,"🌌 宇宙級閃光彈"],[8000,"👑 戀愛滿等玩家"]];
 const QUESTIONS=["你覺得我最欠揍但又最可愛的地方是什麼？","如果我變成一隻蟑螂，你還會愛我嗎？","如果我們一起被困在荒島，你覺得誰會先崩潰？","最近哪一個瞬間讓你突然很想我？","第一次見到我的時候，你心裡在想什麼？","我做過最讓你傻眼的一件事是什麼？","用三個詞形容我們這段關係。","如果明天放假一整天，你想跟我做什麼？","你覺得我們誰比較會吃醋？","我最常對你說的一句話是什麼？","如果要幫我們拍一部電影，片名叫什麼？","你偷偷覺得我哪一個習慣很好笑？","我們吵架之後，你最希望我怎麼哄你？","你最想跟我一起完成的一件事是什麼？","如果可以交換身份一天，你最想用我的身份做什麼？","你覺得我們十年後會在幹嘛？","我哪一個表情你最受不了（但其實很喜歡）？","你最想吃我煮的哪一道菜？","我們之間最好笑的一個暗號或梗是什麼？","哪一首歌會讓你想到我？","如果我們養一隻寵物，要叫什麼名字？","我最近做了什麼讓你覺得被照顧到？","你覺得我們的戀愛像哪一種遊戲？","你今天最想對我撒嬌的一句話是？","如果只能用一個 emoji 代表我，你會選哪個？","我們第一次約會，你最記得哪個畫面？","你覺得我身上最像小孩的地方是什麼？","如果我們一起去旅行，誰負責迷路？"];
 
 const LOVE_START=new Date(2026,10,4);
@@ -539,7 +600,11 @@ function renderHUD(){
   $("curTitle").textContent=cur?cur[1]:"尚未解鎖";
   if(next){$("nextText").textContent=`再 ${next[0]-xp} XP 解鎖「${next[1]}」`;$("barFill").style.width=Math.max(3,(xp-prev)/(next[0]-prev)*100)+"%"}
   else{$("nextText").textContent="已經滿等了，繼續累積回憶吧！";$("barFill").style.width="100%"}
-  $("ladderList").innerHTML=TITLES.map(([n,name])=>`<div class="rung ${xp>=n?"on":""}"><span class="need num">${n} XP</span><span class="name">${name}</span><span class="st">${xp>=n?"已解鎖":"未解鎖"}</span></div>`).join("");
+  const shownTitle=cur||TITLES[0];
+  const rung=([n,name],st)=>`<div class="rung ${xp>=n?"on":""}"><span class="need num">${n} XP</span><span class="name">${name}</span><span class="st">${st||(xp>=n?"已解鎖":"未解鎖")}</span></div>`;
+  $("ladderList").innerHTML=rung(shownTitle,cur?"最近達成":"下一個");
+  $("ladderRest").innerHTML=TITLES.filter(t=>t!==shownTitle).map(t=>rung(t)).join("");
+  $("ladderN").textContent=`${TITLES.length-1} 個`;
 }
 
 function renderQuests(){
@@ -594,7 +659,7 @@ function renderWall(){
     return `<div class="wall-day"><h3>${m}/${dd}（${wk[dt.getDay()]}）</h3><div class="wall-grid">${photosOn(d).map(p=>photoBtn(p,"")).join("")}</div></div>`}).join("");
   $("wallMore").hidden=photos.length<photoLimit;
 }
-function renderPhotosAll(){renderQuests();renderWall()}
+function renderPhotosAll(){renderQuests();renderWall();renderCalendar()}
 
 function loadImg(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const im=new Image();im.onload=()=>res({im,url});im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("decode"))};im.src=url})}
 function shrink(im,side,maxLen,q){
@@ -637,7 +702,7 @@ $("photoFile").addEventListener("change",async()=>{
 });
 let lbId=null;
 function openPhoto(id){
-  const p=photos.find(x=>x.id===id);if(!p)return;lbId=id;
+  const p=calAllPhotos().find(x=>x.id===id);if(!p)return;lbId=id;
   $("lbImg").src=p.th;$("lbImg").alt=p.by+" 的照片";
   const [,m,d]=p.date.split("-").map(Number);
   $("lbCap").textContent=`${m}/${d} · ${p.by}${p.by===myName()?"（我）":""}${p.cap?"\n「"+p.cap+"」":""}`;
@@ -652,7 +717,7 @@ document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!$("lightbox").hi
 $("lbDel").onclick=async()=>{
   const b=$("lbDel"),id=lbId;if(!id)return;
   if(!b.dataset.confirm){b.dataset.confirm=1;b.textContent="確定刪除？再按一次";return}
-  try{await db.collection("photos").doc(id).delete();await db.collection("pics").doc(id).delete();photos=photos.filter(p=>p.id!==id);closePhoto();renderPhotosAll();toast("照片刪掉了")}
+  try{await db.collection("photos").doc(id).delete();await db.collection("pics").doc(id).delete();photos=photos.filter(p=>p.id!==id);calPhotos=calPhotos.filter(p=>p.id!==id);closePhoto();renderPhotosAll();toast("照片刪掉了")}
   catch(e){toast("刪除失敗，請再試一次")}
 };
 function subPhotos(){
@@ -685,8 +750,11 @@ function renderEntries(){
   const sorted=[...entries].sort((a,b)=>(a.date+a.at).localeCompare(b.date+b.at));
   const num=new Map(sorted.map((e,i)=>[e.id,i+1]));
   const me=myName();
-  const shown=sorted.slice().reverse().filter(e=>who==="all"||(who==="me"?e.by===me:e.by!==me));
-  if(!shown.length){box.innerHTML=`<div class="empty">${who==="me"?"你還沒寫過日記。":"對方還沒寫過日記。"}</div>`;return}
+  const q=$("dSearch").value.trim().toLowerCase();
+  const hit=e=>!q||[e.date,e.mood,e.food,e.funny,e.say,e.s1,e.s2,e.by].some(v=>String(v||"").toLowerCase().includes(q));
+  const shown=sorted.slice().reverse().filter(e=>(who==="all"||(who==="me"?e.by===me:e.by!==me))&&hit(e));
+  $("dSearchN").textContent=q?`找到 ${shown.length} 篇`:"";
+  if(!shown.length){box.innerHTML=`<div class="empty">${q?`找不到「${esc(q)}」的日記。`:who==="me"?"你還沒寫過日記。":"對方還沒寫過日記。"}</div>`;return}
   const card=e=>`<article class="entry ${e.by?(e.by===me?"me":"them"):""}"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b><span>${esc(e.date)}${e.happy?" · ⭐ "+esc(e.happy)+"/10":""}</span></header>
   <div>${byChip(e.by)}</div>
   <dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>
@@ -696,7 +764,7 @@ function renderEntries(){
   shown.forEach(e=>{const m=String(e.date).slice(0,7);if(!groups.has(m))groups.set(m,[]);groups.get(m).push(e)});
   const cur=key(today()).slice(0,7),first=groups.has(cur)?cur:[...groups.keys()][0];
   box.innerHTML=[...groups].map(([m,list])=>{const [y,mo]=m.split("-").map(Number);
-    return `<details class="month" data-m="${esc(m)}" ${(monthOpen[m]??m===first)?"open":""}><summary>${y} 年 ${mo} 月<span>${list.length} 篇</span></summary><div class="month-body">${list.map(card).join("")}</div></details>`}).join("");
+    return `<details class="month" data-m="${esc(m)}" ${(q||(monthOpen[m]??m===first))?"open":""}><summary>${y} 年 ${mo} 月<span>${list.length} 篇</span></summary><div class="month-body">${list.map(card).join("")}</div></details>`}).join("");
   box.querySelectorAll(".month summary").forEach(s=>s.onclick=()=>{monthOpen[s.parentNode.dataset.m]=!s.parentNode.open});
   box.querySelectorAll(".edit").forEach(b=>b.onclick=()=>startEdit(b.dataset.id));
   box.querySelectorAll(".del").forEach(b=>{b.onclick=()=>{
@@ -905,14 +973,127 @@ $("mPick").onchange=renderMonth;
 window.addEventListener("resize",renderChart);
 function renderMemories(){renderOnThisDay();renderChart();renderMonth()}
 
-function renderAll(){renderHUD();renderStreak();renderQuests();renderEntries();renderWall();renderWishes();renderDraw();renderCustom();renderCapsules();renderMemories()}
+// 月曆：照片牆只載入最近幾十張，所以看哪個月就另外抓那個月的照片
+let calMonth=key(today()).slice(0,7), calDay=key(today()), calPhotos=[];
+const calLoaded=new Set();
+function calAllPhotos(){const m=new Map();[...calPhotos,...photos].forEach(p=>m.set(p.id,p));return [...m.values()]}
+function loadCalPhotos(m){
+  if(!db||calLoaded.has(m))return;
+  calLoaded.add(m);
+  db.collection("photos").where("date",">=",m+"-01").where("date","<=",m+"-31").get().then(s=>{
+    const ids=new Set(s.docs.map(d=>d.id));
+    calPhotos=calPhotos.filter(p=>!ids.has(p.id)).concat(s.docs.map(d=>({id:d.id,...d.data()})));
+    renderCalendar();
+  }).catch(()=>{});
+}
+function renderCalendar(){
+  loadCalPhotos(calMonth);
+  const [y,m]=calMonth.split("-").map(Number),t=today(),tk=key(t),cur=tk.slice(0,7);
+  const offset=dow(new Date(y,m-1,1)),count=new Date(y,m,0).getDate(),ps=calAllPhotos();
+  const earliest=[key(LOVE_START).slice(0,7),...entries.map(e=>String(e.date).slice(0,7))].sort()[0];
+  $("calTitle").textContent=`${y} 年 ${m} 月`;
+  $("calPrev").disabled=calMonth<=earliest;
+  $("calNext").disabled=calMonth>=cur;
+  let h='<span></span>'.repeat(offset);
+  for(let d=1;d<=count;d++){
+    const k=calMonth+"-"+pad(d);
+    const marks=[[entries.some(e=>e.date===k),"diary","日記"],[ps.some(p=>p.date===k),"photo","照片"],[!!done[k],"task","任務"],[store.wishes.some(w=>w.done&&w.doneDate===k),"wish","願望"]].filter(x=>x[0]);
+    h+=`<button type="button" data-d="${k}" class="${marks.length?"has":""} ${k===tk?"today":""}" aria-pressed="${k===calDay}" aria-label="${m} 月 ${d} 日${marks.length?"，有"+marks.map(x=>x[2]).join("、"):""}" ${k>tk?"disabled":""}>${d}<span class="dots">${marks.map(x=>`<i class="d-${x[1]}"></i>`).join("")}</span></button>`;
+  }
+  $("calGrid").innerHTML=h;
+  $("calGrid").querySelectorAll("button").forEach(b=>b.onclick=()=>{calDay=b.dataset.d;renderCalendar()});
+  renderCalDetail();
+}
+function renderCalDetail(){
+  const box=$("calDetail"),k=calDay;
+  if(!k){box.innerHTML='<div class="empty">點一個日期，看那天的紀錄。</div>';return}
+  const dt=fromKey(k),label=`${dt.getMonth()+1}/${dt.getDate()}（${"日一二三四五六"[dt.getDay()]}）`;
+  const es=entries.filter(e=>e.date===k).sort(byAt),ps=calAllPhotos().filter(p=>p.date===k),ws=store.wishes.filter(w=>w.done&&w.doneDate===k),d=done[k];
+  if(!es.length&&!ps.length&&!ws.length&&!d){box.innerHTML=`<div class="empty">${label} 還沒有紀錄。</div>`;return}
+  box.innerHTML=`<article class="entry"><header><b>📅 ${label}</b></header>${d?`<div>🎮 完成每日任務${d.by?`（${esc(d.by)} 打勾）`:""}</div>`:""}${ws.map(w=>`<div>🌠 達成願望：${esc(w.text)}</div>`).join("")}${ps.length?`<div class="wall-grid">${ps.map(p=>photoBtn(p,"")).join("")}</div>`:""}</article>`+es.map(e=>`<article class="entry ${e.by?(e.by===myName()?"me":"them"):""}"><header><div>${byChip(e.by)}</div><span>${e.happy?"⭐ "+esc(e.happy)+"/10":""}</span></header><dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}</article>`).join("");
+}
+function shiftCal(n){
+  const [y,m]=calMonth.split("-").map(Number);
+  calMonth=key(new Date(y,m-1+n,1)).slice(0,7);
+  calDay=calMonth===key(today()).slice(0,7)?key(today()):null;
+  renderCalendar();
+}
+$("calPrev").onclick=()=>shiftCal(-1);
+$("calNext").onclick=()=>shiftCal(1);
+
+// 加到主畫面
+let installEvt=null;
+const isStandalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+function renderInstall(){
+  $("installBtn").hidden=!installEvt||isStandalone();
+  $("installText").textContent=isStandalone()?"已經在主畫面上了 ✓":installEvt?"按下面的按鈕，手機桌面就會多一個基地圖示。":isIOS?"用 Safari 打開這個網址，按分享按鈕，選「加入主畫面」。第一次從主畫面打開時，要再輸入一次暗號和名字。":"打開瀏覽器的選單，選「加到主畫面」或「安裝應用程式」。";
+}
+window.addEventListener("beforeinstallprompt",ev=>{ev.preventDefault();installEvt=ev;renderInstall()});
+window.addEventListener("appinstalled",()=>{installEvt=null;renderInstall();toast("加好了 📱")});
+$("installBtn").onclick=async()=>{const e=installEvt;if(!e)return;installEvt=null;e.prompt();try{await e.userChoice}catch(err){}renderInstall()};
+
+// 備份：匯出整個房間；補回時只新增目前沒有的資料，不改動現有內容
+const BK_COLLS=["done","diary","pics","photos"], BK_KEY="love-base-last-backup";
+let bkPending=[];
+const bkMsg=t=>$("bkMsg").textContent=t;
+function saveFile(name,text){const a=document.createElement("a"),url=URL.createObjectURL(new Blob([text],{type:"application/json"}));a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000)}
+function showLastBackup(){let v="";try{v=localStorage.getItem(BK_KEY)||""}catch(e){}bkMsg(v?`這台裝置上次備份：${v}`:"這台裝置還沒備份過。")}
+async function exportBackup(full){
+  if(!db){toast("要連上伺服器才能備份");return}
+  $("bkText").disabled=$("bkFull").disabled=true;bkMsg("整理資料中…");
+  try{
+    const data={};
+    for(const c of BK_COLLS){
+      if(c==="pics"&&!full)continue;
+      const s=await db.collection(c).get();
+      data[c]={};s.docs.forEach(d=>data[c][d.id]=d.data());
+    }
+    saveFile(`love-base-backup-${key(today())}${full?"-full":""}.json`,JSON.stringify({app:"love-base",version:1,exportedAt:nowIso(),full,data}));
+    try{localStorage.setItem(BK_KEY,key(today()))}catch(e){}
+    showLastBackup();toast("備份下載好了 💾");
+  }catch(e){bkMsg("備份失敗，請確認網路後再試一次。")}
+  $("bkText").disabled=$("bkFull").disabled=false;
+}
+async function prepRestore(text){
+  $("bkConfirm").hidden=true;bkPending=[];
+  let b;try{b=JSON.parse(text)}catch(e){bkMsg("這個檔案讀不出來，請選下載的備份檔。");return}
+  if(b?.app!=="love-base"||!b.data){bkMsg("這不是基地的備份檔。");return}
+  if(!db){bkMsg("要連上伺服器才能補回資料。");return}
+  bkMsg("比對中…");
+  try{
+    for(const c of BK_COLLS){
+      if(!b.data[c])continue;
+      const s=await db.collection(c).get(),have=new Set(s.docs.map(d=>d.id));
+      for(const [id,v] of Object.entries(b.data[c]))if(!have.has(id))bkPending.push([c,id,v]);
+    }
+  }catch(e){bkMsg("比對失敗，請確認網路後再試一次。");return}
+  if(!bkPending.length){bkMsg("備份裡的資料目前都還在，不用補回。");return}
+  $("bkConfirm").textContent=`補回 ${bkPending.length} 筆資料`;$("bkConfirm").hidden=false;
+  bkMsg(`備份日期 ${String(b.exportedAt||"").slice(0,10)}。只會補回目前沒有的資料，現有內容不會被改動；已經刪掉的東西也會一起回來。`);
+}
+async function applyRestore(){
+  const list=bkPending;let ok=0;
+  $("bkConfirm").disabled=true;
+  try{for(const [c,id,v] of list){await db.collection(c).doc(id).set(v);ok++;bkMsg(`補回中… ${ok} / ${list.length}`)}bkMsg(`補回完成，共 ${ok} 筆。`);toast("資料補回來了 💾")}
+  catch(e){bkMsg(`補到第 ${ok} 筆時失敗了，請確認網路後再選一次備份檔。`)}
+  bkPending=[];$("bkConfirm").hidden=true;$("bkConfirm").disabled=false;
+}
+$("bkText").onclick=()=>exportBackup(false);
+$("bkFull").onclick=()=>exportBackup(true);
+$("bkPick").onclick=()=>{$("bkFile").value="";$("bkFile").click()};
+$("bkFile").addEventListener("change",async()=>{const f=$("bkFile").files[0];if(f)prepRestore(await f.text())});
+$("bkConfirm").onclick=applyRestore;
+
+function renderAll(){renderHUD();renderStreak();renderQuests();renderEntries();renderWall();renderWishes();renderDraw();renderCustom();renderCapsules();renderMemories();renderCalendar()}
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,...store}))}catch(e){}}
 function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];Object.keys(store).forEach(c=>store[c]=s[c]||[]);delete done["draw-state"]}}catch(e){}}
 
+$("dSearch").addEventListener("input",renderEntries);
 $("filter").querySelectorAll("button").forEach(b=>b.onclick=()=>{who=b.dataset.w;$("filter").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));renderEntries()});
 $("dDate").value=key(today());
 $("capDate").min=key(addDays(today(),1));$("capDate").value=key(nextAnniv());
-renderHearts();renderAll();
+renderHearts();renderAll();renderInstall();showLastBackup();
 
 /* ===== 伺服器連線（Firebase） ===== */
 const ROOM_KEY="love-base-room";
