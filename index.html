@@ -198,6 +198,10 @@ form.wishform{display:flex;gap:8px}
 .best{font-size:14px;overflow-wrap:anywhere}
 .best p{margin:0}
 
+details.month summary{font-weight:700;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:var(--muted)}
+.month-body{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+
 details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 details.rules summary{font-weight:700;cursor:pointer}
 details.rules ol{margin:10px 0 4px;padding-left:1.4em}
@@ -679,6 +683,7 @@ async function toggle(k,i,on){
   }catch(e){if(prev)done[k]=prev;else delete done[k];renderAll();toast("沒存到，請確認你有這個頁面的編輯權限")}
 }
 
+let monthOpen={}; // 月份 -> 使用者手動開合的狀態
 function renderEntries(){
   const box=$("entries");
   if(!entries.length){box.innerHTML='<div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div>';return}
@@ -687,11 +692,17 @@ function renderEntries(){
   const me=myName();
   const shown=sorted.slice().reverse().filter(e=>who==="all"||(who==="me"?e.by===me:e.by!==me));
   if(!shown.length){box.innerHTML=`<div class="empty">${who==="me"?"你還沒寫過日記。":"對方還沒寫過日記。"}</div>`;return}
-  box.innerHTML=shown.map(e=>`<article class="entry ${e.by?(e.by===me?"me":"them"):""}"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b><span>${esc(e.date)}${e.happy?" · ⭐ "+esc(e.happy)+"/10":""}</span></header>
+  const card=e=>`<article class="entry ${e.by?(e.by===me?"me":"them"):""}"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b><span>${esc(e.date)}${e.happy?" · ⭐ "+esc(e.happy)+"/10":""}</span></header>
   <div>${byChip(e.by)}</div>
   <dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>
   ${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}
-  <div class="acts">${(!e.by||e.by===me)?`<button class="btn ghost edit" type="button" data-id="${esc(e.id)}">✏️ 編輯</button>`:""}<button class="btn ghost del" type="button" data-id="${esc(e.id)}">刪除</button></div></article>`).join("");
+  <div class="acts">${(!e.by||e.by===me)?`<button class="btn ghost edit" type="button" data-id="${esc(e.id)}">✏️ 編輯</button>`:""}<button class="btn ghost del" type="button" data-id="${esc(e.id)}">刪除</button></div></article>`;
+  const groups=new Map();
+  shown.forEach(e=>{const m=String(e.date).slice(0,7);if(!groups.has(m))groups.set(m,[]);groups.get(m).push(e)});
+  const cur=key(today()).slice(0,7),first=groups.has(cur)?cur:[...groups.keys()][0];
+  box.innerHTML=[...groups].map(([m,list])=>{const [y,mo]=m.split("-").map(Number);
+    return `<details class="month" data-m="${esc(m)}" ${(monthOpen[m]??m===first)?"open":""}><summary>${y} 年 ${mo} 月<span>${list.length} 篇</span></summary><div class="month-body">${list.map(card).join("")}</div></details>`}).join("");
+  box.querySelectorAll(".month summary").forEach(s=>s.onclick=()=>{monthOpen[s.parentNode.dataset.m]=!s.parentNode.open});
   box.querySelectorAll(".edit").forEach(b=>b.onclick=()=>startEdit(b.dataset.id));
   box.querySelectorAll(".del").forEach(b=>{b.onclick=()=>{
     if(b.dataset.confirm){delEntry(b.dataset.id)}else{b.dataset.confirm=1;b.textContent="確定刪除？再按一次";setTimeout(()=>{if(b.isConnected){delete b.dataset.confirm;b.textContent="刪除"}},3000)}}});
