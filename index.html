@@ -328,6 +328,9 @@ details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:
 /* iPhone 點輸入框時，字小於 16px 會自動放大整頁 */
 @media (hover:none) and (pointer:coarse){input,textarea,select{font-size:16px}}
 
+.recap-i{font-size:14px;overflow-wrap:anywhere}
+.recap-i b{margin-right:6px}
+
 details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 details.rules summary{font-weight:700;cursor:pointer}
 details.rules ol{margin:10px 0 4px;padding-left:1.4em}
@@ -428,6 +431,10 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div><h2>💌 今天的日記</h2></div>
     <div class="today" id="todayBox" hidden>
       <div id="todayCard" style="display:flex;flex-direction:column;gap:10px"></div>
+      <details class="month" id="weekRecap" open>
+        <summary>這週的你們<span id="weekRecapN"></span></summary>
+        <div class="month-body" id="weekRecapBody"></div>
+      </details>
       <div class="reveal" id="reviewList"></div>
       <form class="ans" id="reviewForm" autocomplete="off">
         <textarea id="reviewText" maxlength="500" rows="3" required placeholder="這週最開心、最難忘的瞬間是…" aria-label="這週回顧"></textarea>
@@ -796,6 +803,7 @@ function renderHUD(){
 function renderQuests(){
   const t=today(), tk=key(t), ti=dow(t), task=SUNDAY_TASK, revs=store.reviews.filter(r=>r.date===tk).sort(byAt), myRev=revs.find(r=>r.by===myName()), both=new Set(revs.map(r=>r.by)).size>=need();
   $("todayBox").hidden=ti!==6;
+  if(ti===6)renderWeekRecap(t);
   $("todayCard").innerHTML=`<div class="tag">今天 · 星期${task.day}</div><h3>${esc(task.name)} <span class="xpchip num" style="font-size:16px">+${task.xp} XP</span></h3><p>${esc(task.text)}</p>
   <div class="done-line">${both?"✓ 兩個人都寫好了":myRev?"你寫好了，等對方":`兩個人都寫好 +${task.xp} XP`}</div>`;
   $("reviewList").innerHTML=revs.map(r=>`<div><b>${esc(nameOf(r.by))}</b>${esc(r.text)}${r.by===myName()?' <button type="button" class="reply-del" id="reviewEdit">修改</button>':""}</div>`).join("");
@@ -1745,6 +1753,17 @@ function syncPhotoBonus(){
 }
 
 let reviewEditing=false;
+// 週日寫回顧時的參考：這七天的日記和照片
+function renderWeekRecap(t){
+  const from=key(addDays(t,-6)),to=key(t),inW=d=>String(d)>=from&&String(d)<=to,wk="日一二三四五六";
+  const es=entries.filter(e=>inW(e.date)).sort((a,b)=>(a.date+a.at).localeCompare(b.date+b.at)),ps=calAllPhotos().filter(p=>inW(p.date)).sort(byAt);
+  $("weekRecapN").textContent=`${es.length} 篇日記 · ${ps.length} 張照片`;
+  if(!es.length&&!ps.length){$("weekRecapBody").innerHTML='<div class="empty">這週還沒有日記或照片。</div>';return}
+  const label=d=>{const x=fromKey(d);return `${x.getMonth()+1}/${x.getDate()}（${wk[x.getDay()]}）`};
+  const say=e=>e.say||e.funny||e.mood||e.food||e.s1||e.s2||"";
+  const best=es.filter(e=>e.happy).sort((a,b)=>b.happy-a.happy)[0];
+  $("weekRecapBody").innerHTML=`${ps.length?`<div class="wall-grid">${ps.slice(0,6).map(p=>photoBtn(p,"")).join("")}</div>${ps.length>6?`<div class="hint left-hint">還有 ${ps.length-6} 張在照片牆</div>`:""}`:""}${best?`<div class="recap-i">⭐ 最幸福的一天：${label(best.date)} ${esc(best.by||"")} ${esc(best.happy)}/10</div>`:""}${es.map(e=>`<div class="recap-i"><b>${label(e.date)}</b>${esc(e.by||"")}：${esc(String(say(e)).slice(0,60))}</div>`).join("")}`;
+}
 $("reviewForm").addEventListener("submit",async ev=>{
   ev.preventDefault();
   const text=$("reviewText").value.trim();if(!text)return;
