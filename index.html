@@ -66,8 +66,35 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .hud .next{font-size:13px;opacity:.8}
 .status{font-size:12px;opacity:.75}
 
-nav.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5;padding-block:8px;margin-block:-8px}
-nav.chips a{flex:none;text-decoration:none;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:6px 14px;font-size:14px;font-weight:500}
+/* 側邊選單：桌機固定在左邊可縮成圖示列，手機平常收起、按按鈕滑出 */
+:root{--side-w:216px;--rail-w:64px}
+section{scroll-margin-top:12px}
+#trash{scroll-margin-top:12px}
+.side{position:fixed;inset:0 auto 0 0;z-index:16;width:var(--side-w);background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:4px;padding:calc(12px + env(safe-area-inset-top,0px)) 10px calc(12px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));overflow-y:auto;transition:width .2s ease,transform .2s ease,visibility .2s}
+.side-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px 8px}
+.side-head b{font-weight:900;font-size:15px;white-space:nowrap}
+.side-toggle{flex:none;width:36px;height:36px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:10px;padding:0;font-size:16px;line-height:1}
+.side a{flex:none;display:flex;align-items:center;gap:10px;min-height:42px;padding:0 10px;border-radius:10px;color:var(--fg);text-decoration:none;font-size:14px;font-weight:500;white-space:nowrap}
+.side a .ic{flex:none;width:24px;text-align:center;font-size:17px}
+.side a:hover{background:var(--sunk)}
+.side a[aria-current="true"]{background:var(--pink-soft);color:var(--pink);font-weight:700}
+.side a:focus-visible,.side-toggle:focus-visible,.side-fab:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+@media (min-width:860px){
+  body{padding-left:var(--side-w);transition:padding-left .2s ease}
+  :root[data-side="mini"] body{padding-left:var(--rail-w)}
+  :root[data-side="mini"] .side{width:var(--rail-w)}
+  :root[data-side="mini"] .side .lb,:root[data-side="mini"] .side-head b{display:none}
+  :root[data-side="mini"] .side-head{justify-content:center}
+  .side-fab,.side-scrim{display:none}
+}
+@media (max-width:859px){
+  .side{width:min(240px,80vw)}
+  :root[data-side="mini"] .side{transform:translateX(-100%);visibility:hidden}
+  .side-scrim{position:fixed;inset:0;z-index:15;background:rgba(12,6,10,.5);border:0;padding:0}
+  :root[data-side="mini"] .side-scrim{display:none}
+  .side-fab{position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:14;width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--fg);color:var(--bg);font-size:20px;line-height:1;padding:0}
+  :root[data-side="open"] .side-fab{display:none}
+}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 
 /* quests */
@@ -269,6 +296,29 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 </head>
 <body>
 
+<script>
+(function(){var v="";try{v=localStorage.getItem("love-base-side")||""}catch(e){}document.documentElement.dataset.side=matchMedia("(max-width:859px)").matches?"mini":(v||"open")})();
+</script>
+<aside class="side" id="side">
+  <div class="side-head"><b>戀愛基地</b><button class="side-toggle" type="button" id="sideToggle" aria-controls="sideNav"></button></div>
+  <nav id="sideNav" aria-label="區塊" style="display:flex;flex-direction:column;gap:2px">
+    <a href="#quests" data-s="quests" title="每日任務"><span class="ic" aria-hidden="true">🎮</span><span class="lb">每日任務</span></a>
+    <a href="#photos" data-s="photos" title="照片"><span class="ic" aria-hidden="true">📷</span><span class="lb">照片</span></a>
+    <a href="#ladder" data-s="ladder" title="成就"><span class="ic" aria-hidden="true">🏆</span><span class="lb">成就</span></a>
+    <a href="#diary" data-s="diary" title="日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">日記</span></a>
+    <a href="#calendar" data-s="calendar" title="月曆"><span class="ic" aria-hidden="true">📅</span><span class="lb">月曆</span></a>
+    <a href="#wishes" data-s="wishes" title="願望"><span class="ic" aria-hidden="true">🌠</span><span class="lb">願望</span></a>
+    <a href="#draw" data-s="draw" title="抽題"><span class="ic" aria-hidden="true">🎲</span><span class="lb">抽題</span></a>
+    <a href="#capsule" data-s="capsule" title="膠囊"><span class="ic" aria-hidden="true">⏳</span><span class="lb">膠囊</span></a>
+    <a href="#memories" data-s="memories" title="回憶"><span class="ic" aria-hidden="true">🕰️</span><span class="lb">回憶</span></a>
+    <a href="#trash" data-s="trash" title="垃圾桶"><span class="ic" aria-hidden="true">🗑️</span><span class="lb">垃圾桶</span></a>
+    <a href="#tools" data-s="tools" title="備份"><span class="ic" aria-hidden="true">💾</span><span class="lb">備份</span></a>
+    <a href="#rules" data-s="rules" title="規則"><span class="ic" aria-hidden="true">🧸</span><span class="lb">規則</span></a>
+  </nav>
+</aside>
+<button class="side-scrim" type="button" id="sideScrim" aria-label="關閉選單" tabindex="-1"></button>
+<button class="side-fab" type="button" id="sideFab" aria-label="打開選單" aria-controls="sideNav">☰</button>
+
 <div class="wrap">
   <header class="hud" id="top">
     <div>
@@ -287,10 +337,6 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <div class="status"><span id="meLabel" hidden></span> <span id="status">連線中…</span> <button type="button" id="rename" hidden style="background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px">換暱稱</button> <button type="button" id="logout" hidden style="background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px">換暗號</button></div>
     </div>
   </header>
-
-  <nav class="chips" aria-label="區塊">
-    <a href="#quests">🎮 每日任務</a><a href="#photos">📷 照片</a><a href="#ladder">🏆 成就</a><a href="#diary">💌 日記</a><a href="#calendar">📅 月曆</a><a href="#wishes">🌠 願望</a><a href="#draw">🎲 抽題</a><a href="#capsule">⏳ 膠囊</a><a href="#memories">🕰️ 回憶</a><a href="#trash">🗑️ 垃圾桶</a><a href="#tools">💾 備份</a><a href="#rules">🧸 規則</a>
-  </nav>
 
   <section id="quests">
     <div><h2>🎮 每日任務</h2><p class="sub">每天一個小挑戰，兩個人都做到就打勾領 XP。這週漏掉的也可以補，補打勾有 XP，但不算連續天數。</p></div>
@@ -1163,6 +1209,30 @@ function subPhotoTrash(){
     trash.photos=s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>p.trashed);
     renderTrash();purgeExpired();
   },()=>{});
+}
+
+// 側邊選單
+const SIDE_KEY="love-base-side",sidePhone=matchMedia("(max-width:859px)");
+function savedSide(){try{return localStorage.getItem(SIDE_KEY)||"open"}catch(e){return "open"}}
+function setSide(v,save){
+  document.documentElement.dataset.side=v;
+  const open=v==="open",b=$("sideToggle");
+  b.textContent=sidePhone.matches?"✕":open?"«":"»";
+  b.setAttribute("aria-expanded",open);b.setAttribute("aria-label",open?"縮小選單":"展開選單");
+  $("sideFab").setAttribute("aria-expanded",open);
+  if(save&&!sidePhone.matches)try{localStorage.setItem(SIDE_KEY,v)}catch(e){}
+}
+setSide(document.documentElement.dataset.side);
+$("sideToggle").onclick=()=>{setSide(document.documentElement.dataset.side==="open"?"mini":"open",true);if(sidePhone.matches)$("sideFab").focus()};
+$("sideFab").onclick=()=>{setSide("open");$("sideToggle").focus()};
+$("sideScrim").onclick=()=>setSide("mini");
+sidePhone.addEventListener("change",()=>setSide(sidePhone.matches?"mini":savedSide()));
+document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&sidePhone.matches&&document.documentElement.dataset.side==="open"){setSide("mini");$("sideFab").focus()}});
+$("sideNav").querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>{if(a.dataset.s==="trash")$("trash").open=true;if(sidePhone.matches)setSide("mini")}));
+if("IntersectionObserver" in window){
+  const links=[...$("sideNav").querySelectorAll("a")];
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)links.forEach(a=>a.setAttribute("aria-current",a.dataset.s===e.target.id))}),{rootMargin:"-20% 0px -70% 0px"});
+  document.querySelectorAll("section[id]").forEach(x=>io.observe(x));
 }
 
 function renderAll(){renderHUD();renderStreak();renderQuests();renderEntries();renderWall();renderWishes();renderDraw();renderCustom();renderCapsules();renderMemories();renderCalendar();renderTrash()}
