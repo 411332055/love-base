@@ -260,6 +260,35 @@ details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:
 .trash-acts{display:flex;flex-direction:column;gap:6px}
 .trash-acts .btn{font-size:12px;padding:4px 10px;white-space:nowrap}
 
+/* today: away summary, hugs, to-do */
+.away{background:var(--gold-soft);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.away h3{font-size:15px;font-weight:900}
+.away-list{display:flex;flex-wrap:wrap;gap:6px}
+.away-list a{background:var(--surface);color:var(--fg);text-decoration:none;border-radius:99px;padding:4px 12px;font-size:14px;font-weight:500}
+.away .btn{align-self:flex-end;font-size:13px;padding:4px 14px}
+.hug{background:var(--pink-soft);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:12px}
+.hug-msg{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border-radius:12px;padding:10px 12px}
+.hug-msg>div{min-width:0;flex:1 1 160px;overflow-wrap:anywhere}
+.hug-msg p{margin:0;font-size:14px}
+.hug-msg small{display:block;font-size:12px;color:var(--muted)}
+.hug-msg .btn{padding:6px 14px;font-size:13px}
+.hug-foot{font-size:12px;color:var(--muted);text-align:right}
+.todo{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.todo h3{font-size:15px;font-weight:900}
+.todo-i{display:flex;align-items:center;gap:10px;min-height:36px;color:var(--fg);text-decoration:none;font-size:14px;border-radius:8px}
+.todo-i .tick{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px;color:transparent}
+.todo-i.ok{color:var(--muted)}
+.todo-i.ok .tick{background:var(--ok);border-color:var(--ok);color:#fff}
+
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+:root[data-font="s"] .wrap{zoom:.92}
+:root[data-font="l"] .wrap{zoom:1.12}
+:root[data-font="xl"] .wrap{zoom:1.25}
+.layout-acts{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.layout-acts .btn{font-size:12px;padding:4px 10px;min-width:32px}
+.citem.off span{opacity:.5}
+
 details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 details.rules summary{font-weight:700;cursor:pointer}
 details.rules ol{margin:10px 0 4px;padding-left:1.4em}
@@ -297,11 +326,13 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 <body>
 
 <script>
+(function(){try{var t=localStorage.getItem("love-base-theme"),f=localStorage.getItem("love-base-font"),r=document.documentElement;if(t==="light"||t==="dark")r.dataset.theme=t;if(f)r.dataset.font=f}catch(e){}})();
 (function(){var v="";try{v=localStorage.getItem("love-base-side")||""}catch(e){}document.documentElement.dataset.side=matchMedia("(max-width:859px)").matches?"mini":(v||"open")})();
 </script>
 <aside class="side" id="side">
   <div class="side-head"><b>戀愛基地</b><button class="side-toggle" type="button" id="sideToggle" aria-controls="sideNav"></button></div>
   <nav id="sideNav" aria-label="區塊" style="display:flex;flex-direction:column;gap:2px">
+    <a href="#today" data-s="today" title="今天"><span class="ic" aria-hidden="true">🏠</span><span class="lb">今天</span></a>
     <a href="#quests" data-s="quests" title="每日任務"><span class="ic" aria-hidden="true">🎮</span><span class="lb">每日任務</span></a>
     <a href="#photos" data-s="photos" title="照片"><span class="ic" aria-hidden="true">📷</span><span class="lb">照片</span></a>
     <a href="#ladder" data-s="ladder" title="成就"><span class="ic" aria-hidden="true">🏆</span><span class="lb">成就</span></a>
@@ -312,7 +343,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <a href="#capsule" data-s="capsule" title="膠囊"><span class="ic" aria-hidden="true">⏳</span><span class="lb">膠囊</span></a>
     <a href="#memories" data-s="memories" title="回憶"><span class="ic" aria-hidden="true">🕰️</span><span class="lb">回憶</span></a>
     <a href="#trash" data-s="trash" title="垃圾桶"><span class="ic" aria-hidden="true">🗑️</span><span class="lb">垃圾桶</span></a>
-    <a href="#tools" data-s="tools" title="備份"><span class="ic" aria-hidden="true">💾</span><span class="lb">備份</span></a>
+    <a href="#tools" data-s="tools" title="設定"><span class="ic" aria-hidden="true">⚙️</span><span class="lb">設定</span></a>
     <a href="#rules" data-s="rules" title="規則"><span class="ic" aria-hidden="true">🧸</span><span class="lb">規則</span></a>
   </nav>
 </aside>
@@ -337,6 +368,19 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <div class="status"><span id="meLabel" hidden></span> <span id="status">連線中…</span> <button type="button" id="rename" hidden style="background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px">換暱稱</button> <button type="button" id="logout" hidden style="background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px">換暗號</button></div>
     </div>
   </header>
+
+  <section id="today">
+    <div class="away" id="awayCard" hidden></div>
+    <div class="hug" id="hugCard" hidden>
+      <div id="hugState" style="display:flex;flex-direction:column;gap:8px"></div>
+      <form class="wishform" id="hugForm" autocomplete="off">
+        <input id="hugText" maxlength="40" placeholder="今天怎麼了（可不填）" aria-label="想對對方說的話">
+        <button class="btn" type="submit" id="hugSave">🤗 討抱抱</button>
+      </form>
+      <div class="hug-foot" id="hugN"></div>
+    </div>
+    <div class="todo" id="todoCard"></div>
+  </section>
 
   <section id="quests">
     <div><h2>🎮 每日任務</h2><p class="sub">每天一個小挑戰，兩個人都做到就打勾領 XP。這週漏掉的也可以補，補打勾有 XP，但不算連續天數。</p></div>
@@ -379,7 +423,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
         <label>今天雖然……<textarea id="dS1" maxlength="200" rows="2"></textarea></label>
         <label>但因為有你……<textarea id="dS2" maxlength="200" rows="2"></textarea></label>
       </div>
-      <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span></div>
+      <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span><button class="btn ghost" type="button" id="dDraftClear" hidden style="font-size:12px;padding:4px 10px">清除草稿</button></div>
     </form>
     <input type="search" id="dSearch" placeholder="🔍 搜尋日記，例：拉麵" aria-label="搜尋日記" autocomplete="off">
     <div class="sub" id="dSearchN"></div>
@@ -469,7 +513,17 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </section>
 
   <section id="tools">
-    <div><h2>💾 備份與垃圾桶</h2></div>
+    <div><h2>⚙️ 設定與備份</h2></div>
+    <details class="rules" id="prefs">
+      <summary>🎨 外觀與版面</summary>
+      <div class="custom">
+        <div class="field">顏色<div class="filter" id="segTheme" role="group" aria-label="顏色"><button type="button" data-v="system">跟著系統</button><button type="button" data-v="light">淺色</button><button type="button" data-v="dark">深色</button></div></div>
+        <div class="field">字體大小<div class="filter" id="segFont" role="group" aria-label="字體大小"><button type="button" data-v="s">小</button><button type="button" data-v="m">標準</button><button type="button" data-v="l">大</button><button type="button" data-v="xl">特大</button></div></div>
+        <div class="field">區塊順序與顯示</div>
+        <div class="log" id="layoutList" style="margin-top:0"></div>
+        <div class="row between"><span class="sub">這些設定只影響你這台裝置，對方的畫面不會變。</span><button class="btn ghost" type="button" id="layoutReset">恢復預設版面</button></div>
+      </div>
+    </details>
     <details class="rules" id="trash">
       <summary>🗑️ 垃圾桶（<span id="trashN">0</span>）</summary>
       <div class="custom">
@@ -566,7 +620,7 @@ const $=id=>document.getElementById(id);
 let done={};      // dateKey -> {dow,xp}
 let entries=[];   // diary docs
 // 新功能的資料存在 done/x~集合~id，沿用現有的 Firebase 規則，不用另外開權限
-const store={wishes:[],rounds:[],answers:[],capsules:[],custom:[],fixes:[]};
+const store={wishes:[],rounds:[],answers:[],capsules:[],custom:[],fixes:[],hugs:[]};
 // 刪除時在原本的資料上標記 trashed，30 天後才真的清掉
 const trash={diary:[],photos:[],wishes:[],capsules:[],custom:[]};
 let db=null, local=false;
@@ -724,7 +778,7 @@ function renderWall(){
     return `<div class="wall-day"><h3>${m}/${dd}（${wk[dt.getDay()]}）</h3><div class="wall-grid">${photosOn(d).map(p=>photoBtn(p,"")).join("")}</div></div>`}).join("");
   $("wallMore").hidden=photos.length<photoLimit;
 }
-function renderPhotosAll(){renderQuests();renderWall();renderCalendar()}
+function renderPhotosAll(){renderQuests();renderWall();renderCalendar();renderToday()}
 
 function loadImg(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const im=new Image();im.onload=()=>res({im,url});im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("decode"))};im.src=url})}
 function shrink(im,side,maxLen,q){
@@ -851,17 +905,17 @@ function startEdit(id){
   for(const [el,f] of Object.entries(FIELDS))$(el).value=e[f]||"";
   happy=Number(e.happy)||0;renderHearts();growAll();
   $("editBar").hidden=false;$("editText").textContent=`✏️ 正在編輯 ${e.date||""} 的日記`;
-  $("diaryForm").classList.add("editing");$("dSave").textContent="儲存修改";$("dMsg").textContent="";
+  $("diaryForm").classList.add("editing");$("dSave").textContent="儲存修改";$("dMsg").textContent="";$("dDraftClear").hidden=true;
   $("diaryForm").scrollIntoView({behavior:"smooth",block:"start"});
 }
 function endEdit(){
   editId=null;$("editBar").hidden=true;$("diaryForm").classList.remove("editing");$("dSave").textContent="寫進日記";
-  for(const el of Object.keys(FIELDS))$(el).value="";$("dDate").value=key(today());happy=0;renderHearts();growAll();
+  for(const el of Object.keys(FIELDS))$(el).value="";$("dDate").value=key(today());happy=0;renderHearts();growAll();restoreDraft();
 }
 $("editCancel").onclick=endEdit;
 (function buildHearts(){
   $("hearts").innerHTML=[...Array(10)].map((_,i)=>`<button type="button" role="radio" aria-label="${i+1} 分" data-v="${i+1}">⭐</button>`).join("")+'<span class="score" id="score"></span>';
-  $("hearts").addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(!b)return;ev.preventDefault();const v=+b.dataset.v;happy=(happy===v?0:v);renderHearts()});
+  $("hearts").addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(!b)return;ev.preventDefault();const v=+b.dataset.v;happy=(happy===v?0:v);renderHearts();saveDraft()});
 })();
 function renderHearts(){
   $("hearts").querySelectorAll("button[data-v]").forEach(b=>{const v=+b.dataset.v;b.classList.toggle("on",v<=happy);b.setAttribute("aria-checked",v===happy)});
@@ -894,7 +948,7 @@ $("diaryForm").addEventListener("submit",async ev=>{
   try{
     if(db){const ref=db.collection("diary").doc();await ref.set(e);if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e})}
     else{e.id="l"+Date.now();entries.push(e);saveLocal()}
-    ["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(counted?"寫好了 💌 今天的日記 XP 已經領過了":`寫好了！+${DIARY_XP} XP 💌`);
+    clearDraft();$("dMsg").textContent="";["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(counted?"寫好了 💌 今天的日記 XP 已經領過了":`寫好了！+${DIARY_XP} XP 💌`);
   }catch(err){$("dMsg").textContent="沒存到，請確認你有這個頁面的編輯權限"}
   $("dSave").disabled=false;
 });
@@ -1021,7 +1075,7 @@ function renderChart(){
     const r=svg.getBoundingClientRect(),px=(ev.clientX-r.left)/r.width*W;
     const p=pts.reduce((a,b)=>Math.abs(x(b.i)-px)<Math.abs(x(a.i)-px)?b:a);
     tip.textContent=`${fmt(p.d)} · ⭐ ${Math.round(p.v*10)/10}`;tip.hidden=false;
-    tip.style.left=Math.min(r.width-40,Math.max(40,x(p.i)/W*r.width))+"px";
+    tip.style.left=Math.min(88,Math.max(12,x(p.i)/W*100))+"%";
   };
   svg.onpointerleave=()=>tip.hidden=true;
 }
@@ -1235,7 +1289,142 @@ if("IntersectionObserver" in window){
   document.querySelectorAll("section[id]").forEach(x=>io.observe(x));
 }
 
-function renderAll(){renderHUD();renderStreak();renderQuests();renderEntries();renderWall();renderWishes();renderDraw();renderCustom();renderCapsules();renderMemories();renderCalendar();renderTrash()}
+// 日記草稿：只存在這台裝置，寫進日記後清掉；編輯舊日記時不動草稿
+const DRAFT_KEY="love-base-draft";
+function saveDraft(){
+  if(editId)return;
+  const d={date:$("dDate").value,happy};
+  for(const [el,f] of Object.entries(FIELDS))d[f]=$(el).value;
+  const has=d.happy||Object.values(FIELDS).some(f=>d[f].trim());
+  try{has?localStorage.setItem(DRAFT_KEY,JSON.stringify(d)):localStorage.removeItem(DRAFT_KEY)}catch(e){}
+}
+function clearDraft(){try{localStorage.removeItem(DRAFT_KEY)}catch(e){}$("dDraftClear").hidden=true}
+function restoreDraft(){
+  let d=null;try{d=JSON.parse(localStorage.getItem(DRAFT_KEY)||"null")}catch(e){}
+  if(!d)return;
+  $("dDate").value=d.date||key(today());
+  for(const [el,f] of Object.entries(FIELDS))$(el).value=d[f]||"";
+  happy=Number(d.happy)||0;renderHearts();growAll();
+  const dt=fromKey($("dDate").value);
+  $("dMsg").textContent=`已恢復 ${dt.getMonth()+1}/${dt.getDate()} 沒寫完的草稿`;$("dDraftClear").hidden=false;
+}
+$("diaryForm").addEventListener("input",saveDraft);
+$("dDraftClear").onclick=()=>{
+  const b=$("dDraftClear");
+  if(!b.dataset.confirm){b.dataset.confirm=1;b.textContent="再按一次";setTimeout(()=>{delete b.dataset.confirm;b.textContent="清除草稿"},3000);return}
+  delete b.dataset.confirm;b.textContent="清除草稿";clearDraft();
+  for(const el of Object.keys(FIELDS))$(el).value="";
+  $("dDate").value=key(today());happy=0;renderHearts();growAll();$("dMsg").textContent="";
+};
+
+// 你不在時：比對這台裝置上次按「知道了」的時間
+const SEEN_KEY="love-base-seen";
+let seenMs=0;
+function initSeen(){
+  let v="";try{v=localStorage.getItem(SEEN_KEY)||""}catch(e){}
+  if(!v){v=nowIso();try{localStorage.setItem(SEEN_KEY,v)}catch(e){}}
+  seenMs=new Date(v).getTime();
+}
+function renderAway(){
+  const card=$("awayCard");
+  if(!db||!seenMs){card.hidden=true;return}
+  const me=myName(),fresh=x=>x.by&&x.by!==me&&x.at&&new Date(x.at).getTime()>seenMs;
+  const groups=[[entries.filter(fresh),n=>`💌 寫了 ${n} 篇日記`,"diary"],[photos.filter(fresh),n=>`📷 傳了 ${n} 張照片`,"photos"],[Object.values(done).filter(fresh),()=>"🎮 完成了每日任務","quests"],[store.answers.filter(fresh),n=>`🎲 回答了 ${n} 題抽題`,"draw"],[store.wishes.filter(fresh),n=>`🌠 許了 ${n} 個願望`,"wishes"],[store.capsules.filter(fresh),n=>`⏳ 封存了 ${n} 顆膠囊`,"capsule"],[store.hugs.filter(fresh),()=>"🤗 來討抱抱","hugCard"],[store.hugs.filter(h=>h.by===me&&h.backBy&&new Date(h.backAt).getTime()>seenMs),()=>"💞 抱了你","hugCard"]].filter(g=>g[0].length&&!layout.hidden.includes(g[2]));
+  if(!groups.length){card.hidden=true;return}
+  const name=groups[0][0][0].by===me?groups[0][0][0].backBy:groups[0][0][0].by;
+  card.innerHTML=`<h3>你不在時，${esc(name)}…</h3><div class="away-list">${groups.map(g=>`<a href="#${g[2]}">${g[1](g[0].length)}</a>`).join("")}</div><button class="btn ghost" type="button" id="awayOk">知道了</button>`;
+  card.hidden=false;
+  $("awayOk").onclick=()=>{const v=nowIso();seenMs=new Date(v).getTime();try{localStorage.setItem(SEEN_KEY,v)}catch(e){}renderAway()};
+}
+
+// 討抱抱
+function renderHug(){
+  const me=myName(),t=x=>{const d=new Date(x);return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+  $("hugCard").hidden=!db;
+  const incoming=store.hugs.filter(h=>h.by&&h.by!==me&&!h.backAt).sort(byAt);
+  const mine=store.hugs.find(h=>h.by===me&&!h.backAt);
+  const back=store.hugs.filter(h=>h.by===me&&h.backAt&&!h.ack).sort(byAt);
+  $("hugState").innerHTML=[
+    ...incoming.map(h=>`<div class="hug-msg"><div><b>🤗 ${esc(h.by)} 想要抱抱</b>${h.text?`<p>${esc(h.text)}</p>`:""}<small>${t(h.at)}</small></div><button class="btn" type="button" data-hugback="${esc(h.id)}">抱回去 💞</button></div>`),
+    ...back.map(h=>`<div class="hug-msg"><div><b>💞 ${esc(h.backBy)} 抱你了！</b><small>${t(h.backAt)}</small></div><button class="btn ghost" type="button" data-hugack="${esc(h.id)}">收到</button></div>`),
+    ...(mine?[`<div class="hug-msg"><div><b>🫂 你討抱抱了，等對方回應…</b>${mine.text?`<p>${esc(mine.text)}</p>`:""}</div><button class="btn ghost" type="button" data-hugcancel="${esc(mine.id)}">收回</button></div>`]:[])
+  ].join("");
+  $("hugForm").hidden=!!mine;
+  const n=store.hugs.filter(h=>h.backAt).length;
+  $("hugN").textContent=n?`已經抱了 ${n} 次`:"";
+  $("hugState").querySelectorAll("[data-hugback]").forEach(b=>b.onclick=()=>{updDoc("hugs",b.dataset.hugback,{backBy:me,backAt:nowIso()});toast("抱回去了 💞")});
+  $("hugState").querySelectorAll("[data-hugack]").forEach(b=>b.onclick=()=>updDoc("hugs",b.dataset.hugack,{ack:true}));
+  $("hugState").querySelectorAll("[data-hugcancel]").forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.hugcancel,old=store.hugs;store.hugs=old.filter(h=>h.id!==id);renderAll();
+    try{await xRef("hugs",id).delete()}catch(e){store.hugs=old;renderAll();toast(NOSAVE)}
+  });
+}
+bindForm("hugForm","hugSave",()=>({c:"hugs",doc:{text:$("hugText").value.trim(),by:myName(),at:nowIso()}}),()=>{$("hugText").value="";toast("討抱抱送出去了 🤗")});
+$("hugForm").addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.isComposing||ev.keyCode===229))ev.preventDefault()});
+
+// 今天還差什麼
+function renderTodo(){
+  const t=today(),tk=key(t),me=myName(),items=[];
+  if(store.hugs.some(h=>h.by&&h.by!==me&&!h.backAt))items.push([false,"🤗 抱抱對方","hugCard"]);
+  items.push([!!done[tk],"🎮 完成每日任務","quests"]);
+  if(db&&isPhotoDay(dow(t))&&!taskFor(t).custom)items.push([!!myPhoto(tk),"📷 上傳我的照片","quests"]);
+  items.push([entries.some(e=>e.by===me&&dayOf(e.at)===tk),"💌 寫今天的日記","diary"]);
+  const r=curRound(),ans=r?pairOf(r.id):[],answered=ans.some(a=>a.by===me),over=!!r&&ans.length>=need();
+  if(r&&!over)items.push(answered?[true,"🎲 已回答抽題，等對方揭曉","draw"]:[false,"🎲 回答抽題","draw"]);
+  else if(over&&dayOf(r.at)===tk)items.push([true,"🎲 今天的抽題過關了","draw"]);
+  else items.push([false,"🎲 抽今天的題目","draw"]);
+  for(let i=items.length-1;i>=0;i--)if(layout.hidden.includes(items[i][2]))items.splice(i,1);
+  const n=items.filter(x=>x[0]).length,all=n===items.length;
+  $("todoCard").innerHTML=`<div class="row between"><h3>${all?"今天都完成了 🎉":"今天還差什麼"}</h3><span class="num">${n} / ${items.length}</span></div>${items.map(([ok,label,id])=>`<a class="todo-i ${ok?"ok":""}" href="#${id}"><span class="tick" aria-hidden="true">✓</span>${label}${ok?'<span class="sr-only">（已完成）</span>':""}</a>`).join("")}`;
+}
+function renderToday(){renderAway();renderHug();renderTodo()}
+
+// 外觀與版面：都存在這台裝置，兩個人可以各自設定
+const LAYOUT_KEY="love-base-layout";
+const secLinks=[...$("sideNav").querySelectorAll("a")].filter(a=>!["trash","tools"].includes(a.dataset.s));
+const SEC_DEFAULT=secLinks.map(a=>a.dataset.s);
+function loadLayout(){
+  let v=null;try{v=JSON.parse(localStorage.getItem(LAYOUT_KEY)||"null")}catch(e){}
+  const order=(v?.order||[]).filter(id=>SEC_DEFAULT.includes(id));
+  return {order:[...order,...SEC_DEFAULT.filter(id=>!order.includes(id))],hidden:(v?.hidden||[]).filter(id=>SEC_DEFAULT.includes(id))};
+}
+let layout=loadLayout();
+function applyLayout(){
+  const wrap=document.querySelector(".wrap"),nav=$("sideNav");
+  layout.order.forEach(id=>{const off=layout.hidden.includes(id),sec=$(id),a=nav.querySelector(`[data-s="${id}"]`);sec.hidden=off;a.hidden=off;wrap.append(sec);nav.append(a)});
+  wrap.append($("tools"));
+  ["trash","tools"].forEach(id=>nav.append(nav.querySelector(`[data-s="${id}"]`)));
+}
+function renderLayoutList(){
+  const box=$("layoutList"),last=layout.order.length-1;
+  box.innerHTML=layout.order.map((id,i)=>{
+    const a=$("sideNav").querySelector(`[data-s="${id}"]`),label=a.title,ic=a.querySelector(".ic").textContent,off=layout.hidden.includes(id);
+    return `<div class="citem ${off?"off":""}"><span>${ic} ${label}</span><div class="layout-acts"><button class="btn ghost" type="button" data-move="-1" data-id="${id}" aria-label="${label} 往前" ${i?"":"disabled"}>↑</button><button class="btn ghost" type="button" data-move="1" data-id="${id}" aria-label="${label} 往後" ${i<last?"":"disabled"}>↓</button><button class="btn ghost" type="button" data-toggle="${id}" aria-pressed="${off}" aria-label="${off?"顯示":"隱藏"} ${label}">${off?"顯示":"隱藏"}</button></div></div>`}).join("");
+  box.querySelectorAll("[data-move]").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.id,d=+b.dataset.move,i=layout.order.indexOf(id);
+    layout.order.splice(i,1);layout.order.splice(i+d,0,id);commitLayout();
+    box.querySelector(`[data-id="${id}"][data-move="${d}"]`)?.focus();
+  });
+  box.querySelectorAll("[data-toggle]").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.toggle;
+    layout.hidden=layout.hidden.includes(id)?layout.hidden.filter(x=>x!==id):[...layout.hidden,id];commitLayout();
+    box.querySelector(`[data-toggle="${id}"]`)?.focus();
+  });
+}
+function commitLayout(){try{localStorage.setItem(LAYOUT_KEY,JSON.stringify(layout))}catch(e){}applyLayout();renderLayoutList();renderAll()}
+$("layoutReset").onclick=()=>{try{localStorage.removeItem(LAYOUT_KEY)}catch(e){}layout=loadLayout();commitLayout();try{localStorage.removeItem(LAYOUT_KEY)}catch(e){}toast("版面恢復預設了")};
+function bindSeg(id,store_,get,apply){
+  const seg=$(id),paint=()=>seg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===get()));
+  seg.querySelectorAll("button").forEach(b=>b.onclick=()=>{apply(b.dataset.v);try{localStorage.setItem(store_,b.dataset.v)}catch(e){}paint();renderChart()});
+  paint();
+}
+const R=document.documentElement;
+bindSeg("segTheme","love-base-theme",()=>R.dataset.theme||"system",v=>{if(v==="system")delete R.dataset.theme;else R.dataset.theme=v});
+bindSeg("segFont","love-base-font",()=>R.dataset.font||"m",v=>{R.dataset.font=v});
+applyLayout();
+renderLayoutList();
+
+function renderAll(){renderHUD();renderStreak();renderQuests();renderEntries();renderWall();renderWishes();renderDraw();renderCustom();renderCapsules();renderMemories();renderCalendar();renderTrash();renderToday()}
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,...store,trash}))}catch(e){}}
 function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];Object.keys(store).forEach(c=>store[c]=s[c]||[]);if(s.trash)Object.assign(trash,s.trash);delete done["draw-state"]}}catch(e){}}
 
@@ -1243,7 +1432,7 @@ $("dSearch").addEventListener("input",renderEntries);
 $("filter").querySelectorAll("button").forEach(b=>b.onclick=()=>{who=b.dataset.w;$("filter").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));renderEntries()});
 $("dDate").value=key(today());
 $("capDate").min=key(addDays(today(),1));$("capDate").value=key(nextAnniv());
-renderHearts();renderAll();renderInstall();showLastBackup();
+renderHearts();renderAll();renderInstall();showLastBackup();restoreDraft();
 
 /* ===== 伺服器連線（Firebase） ===== */
 const ROOM_KEY="love-base-room";
@@ -1277,6 +1466,7 @@ $("logout").onclick=()=>{try{localStorage.removeItem(ROOM_KEY)}catch(e){}locatio
   firebase.initializeApp(FIREBASE_CONFIG);
   db=firebase.firestore().collection("rooms").doc(room);
   $("logout").hidden=false;
+  initSeen();
   let got={done:false,diary:false};
   const timer=setTimeout(()=>{$("status").textContent="暫時連不上，資料可能不是最新"},10000);
   const ready=()=>{if(got.done&&got.diary){clearTimeout(timer);$("status").textContent="● 兩人同步中";purgeExpired()}};
