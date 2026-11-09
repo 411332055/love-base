@@ -472,15 +472,6 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
         </div>
         <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span><button class="btn ghost" type="button" id="dDraftClear" hidden style="font-size:12px;padding:4px 10px">清除草稿</button></div>
       </form>
-      <details class="month" id="diaryMore">
-        <summary>全部日記<span id="diaryN"></span></summary>
-        <div class="month-body">
-      <input type="search" id="dSearch" placeholder="🔍 搜尋日記，例：拉麵" aria-label="搜尋日記" autocomplete="off">
-      <div class="sub" id="dSearchN"></div>
-      <div class="filter" id="filter" role="group" aria-label="篩選日記"><button type="button" data-w="all" aria-pressed="true">全部</button><button type="button" data-w="me" aria-pressed="false">✍️ 我寫的</button><button type="button" data-w="them" aria-pressed="false">💌 對方寫的</button></div>
-      <div class="entries" id="entries"><div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div></div>
-        </div>
-      </details>
       </div>
     <input type="file" id="photoFile" accept="image/*" hidden>
   </section>
@@ -507,6 +498,15 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <div class="cal-legend"><span><i class="d-diary"></i>日記</span><span><i class="d-photo"></i>照片</span><span><i class="d-task"></i>一起完成</span><span><i class="d-wish"></i>願望</span></div>
     </div>
     <div class="entries" id="calDetail"></div>
+      <details class="month" id="diaryMore">
+        <summary>全部日記<span id="diaryN"></span></summary>
+        <div class="month-body">
+      <input type="search" id="dSearch" placeholder="🔍 搜尋日記，例：拉麵" aria-label="搜尋日記" autocomplete="off">
+      <div class="sub" id="dSearchN"></div>
+      <div class="filter" id="filter" role="group" aria-label="篩選日記"><button type="button" data-w="all" aria-pressed="true">全部</button><button type="button" data-w="me" aria-pressed="false">✍️ 我寫的</button><button type="button" data-w="them" aria-pressed="false">💌 對方寫的</button></div>
+      <div class="entries" id="entries"><div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div></div>
+        </div>
+      </details>
   </section>
 
   <section id="wishes" class="fold">
@@ -981,7 +981,7 @@ function startEdit(id){
   happy=Number(e.happy)||0;renderHearts();growAll();
   $("editBar").hidden=false;$("editText").textContent=`✏️ 正在編輯 ${e.date||""} 的日記`;
   $("diaryForm").classList.add("editing");$("dSave").textContent="儲存修改";$("dMsg").textContent="";$("dDraftClear").hidden=true;
-  $("diaryForm").scrollIntoView({behavior:"smooth",block:"start"});
+  openFor("diaryForm");
 }
 function endEdit(){
   editId=null;$("editBar").hidden=true;$("diaryForm").classList.remove("editing");$("dSave").textContent="寫進日記";
@@ -1220,9 +1220,10 @@ function renderCalDetail(){
   const box=$("calDetail"),k=calDay;
   if(!k){box.innerHTML='<div class="empty">點一個日期，看那天的紀錄。</div>';return}
   const dt=fromKey(k),label=`${dt.getMonth()+1}/${dt.getDate()}（${"日一二三四五六"[dt.getDay()]}）`;
-  const es=entries.filter(e=>e.date===k).sort(byAt),ps=calAllPhotos().filter(p=>p.date===k),ws=store.wishes.filter(w=>w.done&&w.doneDate===k);
+  const es=entries.filter(e=>e.date===k).sort(byAt),ps=calAllPhotos().filter(p=>p.date===k&&!p.entry),ws=store.wishes.filter(w=>w.done&&w.doneDate===k);
   if(!es.length&&!ps.length&&!ws.length){box.innerHTML=`<div class="empty">${label} 還沒有紀錄。</div>`;return}
-  box.innerHTML=`<article class="entry"><header><b>📅 ${label}</b></header>${ws.map(w=>`<div>🌠 達成願望：${esc(w.text)}</div>`).join("")}${ps.length?`<div class="wall-grid">${ps.map(p=>photoBtn(p,"")).join("")}</div>`:""}</article>`+es.map(e=>`<article class="entry ${e.by?(e.by===myName()?"me":"them"):""}"><header><div>${byChip(e.by)}</div><span>${e.happy?"⭐ "+esc(e.happy)+"/10":""}</span></header><dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}</article>`).join("");
+  box.innerHTML=`<article class="entry"><header><b>📅 ${label}</b></header>${ws.map(w=>`<div>🌠 達成願望：${esc(w.text)}</div>`).join("")}${ps.length?`<div class="wall-grid">${ps.map(p=>photoBtn(p,"")).join("")}</div>`:""}</article>`+es.map(e=>`<article class="entry ${e.by?(e.by===myName()?"me":"them"):""}"><header><div>${byChip(e.by)}</div><span>${e.happy?"⭐ "+esc(e.happy)+"/10":""}</span></header><dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}${entryExtras(e,"cal")}</article>`).join("");
+  attachReply("cal");
 }
 function shiftCal(n){
   const [y,m]=calMonth.split("-").map(Number);
@@ -1448,7 +1449,7 @@ function renderAway(){
   const card=$("awayCard");
   if(!db||!seenMs){card.hidden=true;return}
   const me=myName(),fresh=x=>x.by&&x.by!==me&&x.at&&new Date(x.at).getTime()>seenMs;
-  const groups=[[entries.filter(fresh),n=>`💌 寫了 ${n} 篇日記`,"diary"],[photos.filter(fresh),n=>`📷 傳了 ${n} 張照片`,"photos"],[store.answers.filter(fresh),n=>`🎲 回答了 ${n} 題抽題`,"draw"],[store.wishes.filter(fresh),n=>`🌠 許了 ${n} 個願望`,"wishes"],[store.capsules.filter(fresh),n=>`⏳ 封存了 ${n} 顆膠囊`,"capsule"],[store.replies.filter(fresh).filter(r=>r.kind==="text"&&entries.find(e=>e.id===r.entry)?.by===me),n=>`💬 回應了你的日記（${n}）`,"diary"],[store.reviews.filter(fresh),()=>"📝 寫了這週回顧","memories"],[store.hugs.filter(fresh),()=>"🤗 來討抱抱","hugCard"],[store.hugs.filter(h=>h.by===me&&h.backBy&&new Date(h.backAt).getTime()>seenMs),()=>"💞 抱了你","hugCard"]].filter(g=>g[0].length&&!layout.hidden.includes(g[2]==="diary"?"quests":g[2]));
+  const groups=[[entries.filter(fresh),n=>`💌 寫了 ${n} 篇日記`,"diary"],[photos.filter(fresh),n=>`📷 傳了 ${n} 張照片`,"photos"],[store.answers.filter(fresh),n=>`🎲 回答了 ${n} 題抽題`,"draw"],[store.wishes.filter(fresh),n=>`🌠 許了 ${n} 個願望`,"wishes"],[store.capsules.filter(fresh),n=>`⏳ 封存了 ${n} 顆膠囊`,"capsule"],[store.replies.filter(fresh).filter(r=>r.kind==="text"&&entries.find(e=>e.id===r.entry)?.by===me),n=>`💬 回應了你的日記（${n}）`,"calendar"],[store.reviews.filter(fresh),()=>"📝 寫了這週回顧","memories"],[store.hugs.filter(fresh),()=>"🤗 來討抱抱","hugCard"],[store.hugs.filter(h=>h.by===me&&h.backBy&&new Date(h.backAt).getTime()>seenMs),()=>"💞 抱了你","hugCard"]].filter(g=>g[0].length&&!layout.hidden.includes(g[2]==="diary"?"quests":g[2]));
   if(!groups.length){card.hidden=true;return}
   const name=groups[0][0][0].by===me?groups[0][0][0].backBy:groups[0][0][0].by;
   card.innerHTML=`<h3>你不在時，${esc(name)}…</h3><div class="away-list">${groups.map(g=>`<a href="#${g[2]}">${g[1](g[0].length)}</a>`).join("")}</div><button class="btn ghost" type="button" id="awayOk">知道了</button>`;
