@@ -194,6 +194,7 @@ form.wishform{display:flex;gap:8px}
 .wish .t b{font-size:14px}
 .wish .t div{font-size:13px;color:var(--muted)}
 .wish.done{background:var(--ok-soft);border-color:transparent}
+.wish:not(.done) .check[aria-pressed="true"]{border-color:var(--ok);color:var(--ok)}
 .wish.done .check{background:var(--ok);border-color:var(--ok);color:#fff}
 .wish .del{font-size:12px;padding:4px 10px}
 .streak{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px}
@@ -332,7 +333,6 @@ section.fold.open .fold-btn::after{content:"▾"}
 .ph-pair{max-width:260px}
 .ph-slot{font-size:13px}
 .done-line{color:var(--ok);font-weight:700}
-#todayUndo{font-size:12px;padding:2px 10px}
 @media (max-width:859px){.wrap{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}
 
 .hug.mini{background:none;padding:0;flex-direction:row;align-items:center;justify-content:space-between}
@@ -446,7 +446,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <div id="todayCard" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
   <div class="diary-block" id="diary">
-      <p class="sub" style="margin:0">寫日記或傳照片，今天就算有紀錄。每個人每天第一篇日記、第一張照片各 +10 XP。</p>
+      <p class="sub" style="margin:0">寫日記或傳照片，今天就算有紀錄。兩個人都寫日記 +10 XP，兩個人都傳照片再 +10 XP。</p>
       <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
       <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填）" aria-label="照片說明">
       <div class="entries" id="diaryToday"></div>
@@ -499,13 +499,13 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <div class="row between"><button class="btn ghost" type="button" id="calPrev" aria-label="上個月">‹</button><h3 id="calTitle"></h3><button class="btn ghost" type="button" id="calNext" aria-label="下個月">›</button></div>
       <div class="cal-head" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
       <div class="cal" id="calGrid"></div>
-      <div class="cal-legend"><span><i class="d-diary"></i>日記</span><span><i class="d-photo"></i>照片</span><span><i class="d-task"></i>紀錄</span><span><i class="d-wish"></i>願望</span></div>
+      <div class="cal-legend"><span><i class="d-diary"></i>日記</span><span><i class="d-photo"></i>照片</span><span><i class="d-task"></i>一起完成</span><span><i class="d-wish"></i>願望</span></div>
     </div>
     <div class="entries" id="calDetail"></div>
   </section>
 
   <section id="wishes" class="fold">
-    <div><h2>🌠 願望清單</h2><p class="sub">想去的地方、想吃的店、想一起做的事。每天第一個完成的願望 +10 XP。</p></div>
+    <div><h2>🌠 願望清單</h2><p class="sub">想去的地方、想吃的店、想一起做的事。兩個人都打勾才算達成，每天第一個達成的願望 +10 XP。</p></div>
     <form class="wishform" id="wishForm" autocomplete="off">
       <input id="wText" maxlength="80" required placeholder="例：一起去看一次日出" aria-label="新增願望">
       <button class="btn" type="submit" id="wSave">許願</button>
@@ -742,8 +742,8 @@ function armDelete(box,c){box.querySelectorAll(".del").forEach(b=>{b.onclick=()=
 
 function taskFor(d){return TASKS[dow(d)]}
 
-// 當天打勾才算連續，或用補簽卡補上的日子
-function onTimeDays(){return Object.entries(done).filter(([k,v])=>v.at&&dayOf(v.at)===k).map(([k])=>k)}
+// 兩個人當天都有寫日記或傳照片才算連續，或用補簽卡補上的日子
+function onTimeDays(){return [...dayRecords()].filter(([,r])=>r.onTime.size>=need()).map(([d])=>d)}
 function activeDays(){return new Set([...onTimeDays(),...store.fixes.map(f=>f.day)])}
 function streakBonus(){
   let bonus=0,run=0,prev=null;
@@ -764,11 +764,24 @@ function renderStreak(){
   if(repair)$("fixBtn").onclick=async()=>{try{await addDoc("fixes",{day:key(c),at:nowIso(),by:myName()});toast("補簽成功 🎫")}catch(e){toast(NOSAVE)}};
 }
 
-// 日記每人每天算一次、願望每天算一次，照片加分存在 bonus（每人每天一筆）；週一到週六的紀錄不給分
+// 所有 XP 都要兩個人一起達成：日期 -> 誰寫了日記、誰傳了照片、誰當天就完成
+function dayRecords(){
+  const m=new Map(),get=d=>{if(!m.has(d))m.set(d,{diary:new Set,photo:new Set,onTime:new Set});return m.get(d)};
+  entries.forEach(e=>{if(!e.by)return;const r=get(e.date);r.diary.add(e.by);if(dayOf(e.at)===e.date)r.onTime.add(e.by)});
+  store.bonus.forEach(b=>{if(!b.by)return;const r=get(b.date);r.photo.add(b.by);if(dayOf(b.at)===b.date)r.onTime.add(b.by)});
+  return m;
+}
+const whoDid=r=>new Set([...r.diary,...r.photo]);
+function togetherDays(){return [...dayRecords()].filter(([,r])=>whoDid(r).size>=need()).map(([d])=>d)}
 function totalXP(){
-  const diaryDays=new Set(entries.map(e=>dayOf(e.at)+"|"+(e.by||"")));
+  let xp=0;
+  for(const [d,r] of dayRecords()){
+    if(r.diary.size>=need())xp+=DIARY_XP;
+    if(r.photo.size>=need())xp+=PHOTO_BONUS;
+    if(dow(fromKey(d))===6&&whoDid(r).size>=need())xp+=TASKS[6].xp;
+  }
   const wishDays=new Set(store.wishes.filter(w=>w.done).map(w=>w.doneDate));
-  return Object.entries(done).reduce((s,[k,v])=>s+(dow(fromKey(k))===6?Number(v.xp)||0:0),0)+diaryDays.size*DIARY_XP+wishDays.size*WISH_XP+streakBonus()+store.bonus.reduce((n,b)=>n+(Number(b.xp)||0),0);
+  return xp+wishDays.size*WISH_XP+streakBonus();
 }
 
 function nextAnniv(){const t=today(),m=LOVE_START.getMonth(),d=LOVE_START.getDate();let n=new Date(t.getFullYear(),m,d);if(n<=t)n=new Date(t.getFullYear()+1,m,d);return n}
@@ -795,12 +808,10 @@ function renderHUD(){
 }
 
 function renderQuests(){
-  const t=today(), tk=key(t), ti=dow(t), task=taskFor(t), isDone=!!done[tk];
+  const t=today(), tk=key(t), ti=dow(t), task=taskFor(t), rec=dayRecords().get(tk), did=rec?whoDid(rec):new Set, both=did.size>=need();
   $("todayBox").hidden=ti!==6;
   $("todayCard").innerHTML=`<div class="tag">今天 · 星期${task.day}</div><h3>${esc(task.name)} <span class="xpchip num" style="font-size:16px">+${task.xp} XP</span></h3><p>${esc(task.text)}</p>
-  <div class="row">${isDone?'<span class="done-line">✓ 今天的任務完成了</span><button class="btn ghost" type="button" id="todayUndo">取消</button>':'<button class="btn" id="todayBtn" type="button">我們完成了！</button>'}</div>`;
-  if(!isDone)$("todayBtn").onclick=()=>toggle(tk,ti,true);
-  if(isDone)$("todayUndo").onclick=()=>toggle(tk,ti,false);
+  <div class="done-line">${both?"✓ 兩個人都完成了":did.has(myName())?"你完成了，等對方":`寫日記或傳照片，兩個人都做到 +${task.xp} XP`}</div>`;
   renderTodayPhotos();
 }
 
@@ -869,15 +880,13 @@ $("photoFile").addEventListener("change",async()=>{
     await db.collection("pics").doc(id).set({img,date,by:myName()});
     await db.collection("photos").doc(id).set(meta);
     photos=photos.filter(p=>p.id!==id).concat([{id,...meta}]);
-    const [y,m,d]=date.split("-").map(Number), i=dow(new Date(y,m-1,d));
     uploading=null;
-    const had=!!done[date],bonus=earned;
+    const bonus=earned,partner=store.bonus.some(b=>b.date===date&&b.by!==myName());
     if(bonus){
       const doc={date,xp:PHOTO_BONUS,by:myName(),at:new Date().toISOString()};
       try{await commit(xRef("bonus",id).set(doc));if(!store.bonus.some(b=>b.id===id))store.bonus.push({id,...doc})}catch(err){}
     }
-    if(!had)toggle(date,i,true);
-    if(bonus)toast(`照片上傳好了 📸 +${PHOTO_BONUS} XP！`);else if(had)toast("照片上傳好了 📸");
+    toast(bonus&&partner?`兩個人都傳了！+${PHOTO_BONUS} XP 📸`:bonus?`照片上傳好了 📸 等對方也傳就 +${PHOTO_BONUS} XP`:"照片上傳好了 📸");
   }catch(e){
     toast(e&&e.code==="permission-denied"?"照片功能還沒開通，要先更新 Firebase 規則":e&&e.message==="decode"?"這張照片讀不到，換一張試試":"上傳失敗，請再試一次");
   }
@@ -915,16 +924,6 @@ const NAME_KEY="love-base-name", NAMES=["寒冰","夏夏"];
 function myName(){try{return localStorage.getItem(NAME_KEY)||""}catch(e){return ""}}
 let who="all";
 function byChip(n){if(!n)return '<span class="by">未署名</span>';const me=n===myName();return `<span class="by ${me?"me":"them"}">✍️ ${esc(n)}${me?"（我）":""}</span>`}
-async function toggle(k,i,on){
-  const prev=done[k],T=taskFor(fromKey(k));
-  if(on)done[k]={dow:i,xp:T.xp,at:Date.now(),by:myName()};else delete done[k];
-  renderAll();
-  if(on&&T.xp)toast(`+${T.xp} XP！`);
-  try{
-    if(db){on?await db.collection("done").doc(k).set(done[k]):await db.collection("done").doc(k).delete()}
-    else saveLocal();
-  }catch(e){if(prev)done[k]=prev;else delete done[k];renderAll();toast("沒存到，請確認你有這個頁面的編輯權限")}
-}
 
 let monthOpen={}; // 月份 -> 使用者手動開合的狀態
 function renderEntries(){
@@ -1021,11 +1020,11 @@ $("diaryForm").addEventListener("submit",async ev=>{
     }catch(err){$("dMsg").textContent="沒存到，請再試一次"}
     $("dSave").disabled=false;return;
   }
-  const counted=entries.some(x=>x.by===myName()&&dayOf(x.at)===key(today()));
+  const counted=entries.some(x=>x.by===myName()&&x.date===e.date),partner=entries.some(x=>x.by&&x.by!==myName()&&x.date===e.date);
   try{
     if(db){const ref=db.collection("diary").doc();await commit(ref.set(e));if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e})}
     else{e.id="l"+Date.now();entries.push(e);saveLocal()}
-    const autoDone=e.date===key(today())&&!done[key(today())];if(autoDone)toggle(key(today()),dow(today()),true);diaryFormOpen=false;$("dDate").value=key(today());clearDraft();$("dMsg").textContent="";["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(counted?"寫好了 💌 今天的日記 XP 已經領過了":`寫好了！+${DIARY_XP} XP 💌`);
+    diaryFormOpen=false;$("dDate").value=key(today());clearDraft();$("dMsg").textContent="";["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(counted?"寫好了 💌":partner?`兩個人都寫了！+${DIARY_XP} XP 💌`:`寫好了 💌 等對方也寫就 +${DIARY_XP} XP`);
   }catch(err){$("dMsg").textContent="沒存到，請確認你有這個頁面的編輯權限"}
   $("dSave").disabled=false;
 });
@@ -1093,15 +1092,18 @@ function renderWishes(){
   if(!wishes.length){box.innerHTML='<div class="empty">還沒有願望。寫下第一件想一起完成的事。</div>';return}
   const open=wishes.filter(w=>!w.done).sort((a,b)=>byAt(b,a));
   const closed=wishes.filter(w=>w.done).sort((a,b)=>String(b.doneDate).localeCompare(String(a.doneDate)));
-  box.innerHTML=[...open,...closed].map(w=>`<div class="wish ${w.done?"done":""}"><button class="check" type="button" data-id="${esc(w.id)}" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}：${w.done?"已完成，點一下取消":"標記完成"}">✓</button><div class="t"><b>${esc(w.text)}</b>${w.done?`<div>${esc(w.doneDate)} 完成</div>`:""}</div><button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`).join("");
+  box.innerHTML=[...open,...closed].map(w=>`<div class="wish ${w.done?"done":""}"><button class="check" type="button" data-id="${esc(w.id)}" aria-pressed="${!!w.done||(w.checks||[]).includes(myName())}" aria-label="${esc(w.text)}：${w.done?"已完成，點一下取消":"標記完成"}">✓</button><div class="t"><b>${esc(w.text)}</b>${w.done?`<div>${esc(w.doneDate)} 完成</div>`:(w.checks||[]).length?`<div>${esc(w.checks.join("、"))} 打勾了，等對方</div>`:""}</div><button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`).join("");
   box.querySelectorAll(".check").forEach(b=>b.onclick=()=>toggleWish(b.dataset.id));
   armDelete(box,"wishes");
 }
 function toggleWish(id){
   const w=store.wishes.find(x=>x.id===id);if(!w)return;
-  const on=!w.done,td=key(today()),fresh=on&&!store.wishes.some(x=>x.done&&x.doneDate===td);
-  updDoc("wishes",id,{done:on,doneDate:on?td:null});
-  if(on)toast(fresh?`願望達成 🌠 +${WISH_XP} XP！`:"願望達成 🌠 今天的願望 XP 已經領過了");
+  const me=myName(),td=key(today()),old=w.checks||[];
+  if(w.done&&!old.length){updDoc("wishes",id,{done:false,doneDate:null,checks:[]});return}
+  const mine=old.includes(me),checks=mine?old.filter(x=>x!==me):[...old,me],both=checks.length>=need();
+  const fresh=both&&!w.done&&!store.wishes.some(x=>x.done&&x.doneDate===td);
+  updDoc("wishes",id,{checks,done:both,doneDate:both?(w.done?w.doneDate:td):null});
+  if(both&&!w.done)toast(fresh?`願望達成 🌠 +${WISH_XP} XP！`:"願望達成 🌠");else if(!mine)toast("打勾了，等對方也打勾");
 }
 bindForm("wishForm","wSave",()=>{const text=$("wText").value.trim();return text&&{c:"wishes",doc:{text,done:false,doneDate:null,by:myName(),at:nowIso()}}},()=>{$("wText").value="";toast("許願成功 🌠")});
 
@@ -1162,7 +1164,7 @@ function renderMonth(){
   pick.value=months.includes(keep)?keep:cur;
   const m=pick.value,es=entries.filter(e=>String(e.date).startsWith(m)),rated=es.filter(e=>e.happy);
   const avg=rated.length?(rated.reduce((a,e)=>a+ +e.happy,0)/rated.length).toFixed(1):"—";
-  const tiles=[["日記",es.length+" 篇"],["有紀錄",Object.keys(done).filter(k=>k.startsWith(m)).length+" 天"],["達成願望",store.wishes.filter(w=>w.done&&String(w.doneDate).startsWith(m)).length+" 個"],["平均幸福",avg]];
+  const tiles=[["日記",es.length+" 篇"],["一起完成",togetherDays().filter(k=>k.startsWith(m)).length+" 天"],["達成願望",store.wishes.filter(w=>w.done&&String(w.doneDate).startsWith(m)).length+" 個"],["平均幸福",avg]];
   $("mStats").innerHTML=tiles.map(([a,b])=>`<div class="stat"><span>${a}</span><b>${b}</b></div>`).join("");
   const best=[...rated].sort((a,b)=>b.happy-a.happy||String(b.date).localeCompare(String(a.date)))[0],funny=es.filter(e=>e.funny).slice(-3);
   $("mBest").innerHTML=(best?`<p>⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(best.say||best.mood||"")}</p>`:"")+funny.map(e=>`<p>🤪 ${esc(e.date)}：${esc(e.funny)}</p>`).join("")||'<p class="sub">這個月還沒有日記。</p>';
@@ -1187,7 +1189,7 @@ function loadCalPhotos(m){
 function renderCalendar(){
   loadCalPhotos(calMonth);
   const [y,m]=calMonth.split("-").map(Number),t=today(),tk=key(t),cur=tk.slice(0,7);
-  const offset=dow(new Date(y,m-1,1)),count=new Date(y,m,0).getDate(),ps=calAllPhotos();
+  const offset=dow(new Date(y,m-1,1)),count=new Date(y,m,0).getDate(),ps=calAllPhotos(),together=new Set(togetherDays());
   const earliest=[key(LOVE_START).slice(0,7),...entries.map(e=>String(e.date).slice(0,7))].sort()[0];
   $("calTitle").textContent=`${y} 年 ${m} 月`;
   $("calPrev").disabled=calMonth<=earliest;
@@ -1195,7 +1197,7 @@ function renderCalendar(){
   let h='<span></span>'.repeat(offset);
   for(let d=1;d<=count;d++){
     const k=calMonth+"-"+pad(d);
-    const marks=[[entries.some(e=>e.date===k),"diary","日記"],[ps.some(p=>p.date===k),"photo","照片"],[!!done[k],"task","紀錄"],[store.wishes.some(w=>w.done&&w.doneDate===k),"wish","願望"]].filter(x=>x[0]);
+    const marks=[[entries.some(e=>e.date===k),"diary","日記"],[ps.some(p=>p.date===k),"photo","照片"],[together.has(k),"task","一起完成"],[store.wishes.some(w=>w.done&&w.doneDate===k),"wish","願望"]].filter(x=>x[0]);
     h+=`<button type="button" data-d="${k}" class="${marks.length?"has":""} ${k===tk?"today":""}" aria-pressed="${k===calDay}" aria-label="${m} 月 ${d} 日${marks.length?"，有"+marks.map(x=>x[2]).join("、"):""}" ${k>tk?"disabled":""}>${d}<span class="dots">${marks.map(x=>`<i class="d-${x[1]}"></i>`).join("")}</span></button>`;
   }
   $("calGrid").innerHTML=h;
@@ -1689,7 +1691,7 @@ function renderBook(){
   if(!es.length&&!ps.length){$("bookBody").innerHTML='<div class="empty">這一年還沒有回憶，寫下第一篇日記吧。</div>';return}
   const rated=es.filter(e=>e.happy),avg=rated.length?(rated.reduce((s,e)=>s+ +e.happy,0)/rated.length).toFixed(1):"—";
   const dayN=Math.round((Math.min(to,today())-from)/864e5)+1;
-  const tiles=[["日記",es.length+" 篇"],["照片",ps.length+" 張"],["有紀錄",Object.keys(done).filter(inR).length+" 天"],["達成願望",store.wishes.filter(w=>w.done&&inR(w.doneDate)).length+" 個"],["抽題過關",store.rounds.filter(r=>inR(dayOf(r.at))&&pairOf(r.id).length>=need()).length+" 題"],["抱抱",store.hugs.filter(h=>h.backAt&&inR(dayOf(h.backAt))).length+" 次"],["回應日記",store.replies.filter(r=>r.kind==="text"&&es.some(e=>e.id===r.entry)).length+" 則"],["平均幸福",avg]];
+  const tiles=[["日記",es.length+" 篇"],["照片",ps.length+" 張"],["一起完成",togetherDays().filter(inR).length+" 天"],["達成願望",store.wishes.filter(w=>w.done&&inR(w.doneDate)).length+" 個"],["抽題過關",store.rounds.filter(r=>inR(dayOf(r.at))&&pairOf(r.id).length>=need()).length+" 題"],["抱抱",store.hugs.filter(h=>h.backAt&&inR(dayOf(h.backAt))).length+" 次"],["回應日記",store.replies.filter(r=>r.kind==="text"&&es.some(e=>e.id===r.entry)).length+" 則"],["平均幸福",avg]];
   const say=e=>e.say||((e.s1||e.s2)?`今天雖然${e.s1||"＿＿"}，但因為有你${e.s2||"＿＿"}。`:"")||e.mood||e.funny||"";
   const best=[...rated].sort((x,y)=>y.happy-x.happy||String(y.date).localeCompare(String(x.date)))[0];
   const pages=months.map(m=>{
