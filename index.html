@@ -219,6 +219,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div><h2>🎲 今日隨機抽題</h2><p class="sub">輪流抽一題，兩個人都要回答才算過關。</p></div>
     <div class="draw">
       <div class="card" id="qCard">按下面的按鈕抽一題</div>
+      <div class="hint" id="drawWho" hidden></div>
       <button class="btn dark" id="drawBtn" type="button">🎲 抽一題！</button>
       <div class="hint" id="drawHint">題庫共 0 題，這輪不會重複</div>
     </div>
@@ -412,14 +413,35 @@ $("diaryForm").addEventListener("submit",async ev=>{
 });
 
 // draw
-let pool=[];
-function drawQ(){if(!pool.length)pool=QUESTIONS.slice().sort(()=>Math.random()-.5);const q=pool.pop();const c=$("qCard");c.classList.remove("flip");void c.offsetWidth;c.classList.add("flip");setTimeout(()=>c.textContent=q,200);$("drawHint").textContent=`這輪還剩 ${pool.length} 題 · 抽到題目後，兩個人都要回答才算過關！`}
+// 抽題狀態兩人共用：存在伺服器的 done/draw-state，誰抽了對方畫面也會跟著變
+let drawState={qi:null,by:"",at:0,used:[]};
+function renderDraw(animate){
+  const c=$("qCard"), q=drawState.qi!=null?QUESTIONS[drawState.qi]:null;
+  const show=()=>c.textContent=q||"按下面的按鈕抽一題";
+  if(animate){c.classList.remove("flip");void c.offsetWidth;c.classList.add("flip");setTimeout(show,200)}else show();
+  if(q&&drawState.at){const d=new Date(drawState.at);$("drawWho").hidden=false;
+    $("drawWho").textContent=`🎲 ${drawState.by||"有人"}${drawState.by===myName()?"（我）":""} 在 ${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 抽的`}
+  else $("drawWho").hidden=true;
+  const left=QUESTIONS.length-(drawState.used||[]).filter(i=>i<QUESTIONS.length).length;
+  $("drawHint").textContent=q?`這輪還剩 ${left} 題 · 兩個人都要回答才算過關！`:`題庫共 ${QUESTIONS.length} 題，這輪不會重複`;
+}
+async function drawQ(){
+  let used=(drawState.used||[]).filter(i=>i<QUESTIONS.length);
+  if(used.length>=QUESTIONS.length)used=[];
+  const rem=QUESTIONS.map((_,i)=>i).filter(i=>!used.includes(i));
+  const qi=rem[Math.floor(Math.random()*rem.length)];
+  const prev=drawState;
+  drawState={qi,by:myName(),at:Date.now(),used:[...used,qi]};
+  renderDraw(true);
+  try{if(db)await db.collection("done").doc("draw-state").set(drawState);else saveLocal()}
+  catch(e){drawState=prev;renderDraw(false);toast("沒抽成功，請再試一次")}
+}
 $("drawBtn").onclick=drawQ;
-$("drawHint").textContent=`題庫共 ${QUESTIONS.length} 題，這輪不會重複`;
+renderDraw(false);
 
 function renderAll(){renderHUD();renderQuests();renderEntries()}
-function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries}))}catch(e){}}
-function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[]}}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,draw:drawState}))}catch(e){}}
+function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];if(s.draw)drawState=s.draw;delete done["draw-state"]}}catch(e){}}
 
 $("filter").querySelectorAll("button").forEach(b=>b.onclick=()=>{who=b.dataset.w;$("filter").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));renderEntries()});
 $("dDate").value=key(today());
@@ -447,7 +469,7 @@ $("logout").onclick=()=>{try{localStorage.removeItem(ROOM_KEY)}catch(e){}locatio
 
 (async()=>{
   const configured=FIREBASE_CONFIG.apiKey&&!FIREBASE_CONFIG.apiKey.startsWith("請貼上");
-  if(!configured||!window.firebase){local=true;loadLocal();renderAll();$("status").textContent=configured?"連不上伺服器 · 先存在這台裝置":"尚未設定伺服器 · 只存在這台裝置";return}
+  if(!configured||!window.firebase){local=true;loadLocal();renderAll();renderDraw(false);$("status").textContent=configured?"連不上伺服器 · 先存在這台裝置":"尚未設定伺服器 · 只存在這台裝置";return}
   const room=getRoom();
   if(!room||!myName()){$("status").textContent=room?"請填你的暱稱":"請輸入你們的暗號";showGate();return}
   $("meLabel").hidden=false;$("meLabel").textContent="你是 "+myName()+" ·";$("rename").hidden=false;
@@ -457,7 +479,7 @@ $("logout").onclick=()=>{try{localStorage.removeItem(ROOM_KEY)}catch(e){}locatio
   let got={done:false,diary:false};
   const timer=setTimeout(()=>{$("status").textContent="暫時連不上，資料可能不是最新"},10000);
   const ready=()=>{if(got.done&&got.diary){clearTimeout(timer);$("status").textContent="● 兩人同步中"}};
-  db.collection("done").onSnapshot(s=>{done={};s.docs.forEach(d=>done[d.id]=d.data());if(!s.metadata?.fromCache)got.done=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
+  db.collection("done").onSnapshot(s=>{done={};s.docs.forEach(d=>{if(d.id==="draw-state"){const nd=d.data()||{};const changed=nd.at!==drawState.at;drawState={qi:nd.qi??null,by:nd.by||"",at:nd.at||0,used:nd.used||[]};renderDraw(changed)}else done[d.id]=d.data()});if(!s.metadata?.fromCache)got.done=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
   db.collection("diary").onSnapshot(s=>{entries=s.docs.map(d=>({id:d.id,...d.data()}));if(!s.metadata?.fromCache)got.diary=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
 })();
 </script>
