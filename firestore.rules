@@ -3,9 +3,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // 只有知道「暗號」的人能讀寫自己那間房間；沒有人能列出所有房間。
     match /rooms/{room}/{coll}/{docId} {
-      allow read, delete: if room.size() >= 8 && coll in ['done', 'diary'];
+      allow read, delete: if room.size() >= 8
+                          && coll in ['done', 'diary', 'photos', 'pics'];
       allow create, update: if room.size() >= 8
-                            && coll in ['done', 'diary']
+                            && coll in ['done', 'diary', 'photos', 'pics']
                             && request.resource.data.size() <= 12;
     }
   }

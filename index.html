@@ -157,6 +157,28 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 .pick button{border:2px solid var(--line);background:var(--bg);color:var(--fg);border-radius:12px;padding:12px 8px;font-size:16px;font-weight:700}
 .pick button[aria-pressed="true"]{border-color:var(--pink);background:var(--pink-soft);color:var(--pink)}
 .gate-box{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:12px}
+.ph-pair{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.ph-slot{aspect-ratio:1;max-width:100%;border-radius:12px;background:var(--surface);border:2px dashed var(--pink);display:grid;place-items:center;overflow:hidden;position:relative;color:var(--pink);font-size:14px;font-weight:700;text-align:center;padding:0;line-height:1.5}
+.ph-slot.wait{border-color:var(--line);color:var(--muted);font-weight:500}
+.ph-slot.has{border:0}
+.ph-slot:disabled{opacity:.5;cursor:default}
+.ph-slot img{width:100%;height:100%;object-fit:cover;display:block}
+.ph-slot .nm{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;font-weight:700;border-radius:99px;padding:2px 8px}
+.ph-note{font-size:13px;color:var(--muted)}
+.thumbs{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;align-items:center}
+.thumbs button{padding:0;border:0;background:none;width:40px;height:40px;border-radius:8px;overflow:hidden}
+.thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+.thumbs .cam{border:1px dashed var(--line);color:var(--muted);font-size:16px;background:var(--surface)}
+.wall{display:flex;flex-direction:column;gap:16px}
+.wall-day h3{font-size:14px;color:var(--muted);font-weight:700;margin:0 0 6px}
+.wall-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.wall-grid button{padding:0;border:0;aspect-ratio:1;max-width:100%;border-radius:10px;overflow:hidden;background:var(--sunk);position:relative}
+.wall-grid img{width:100%;height:100%;object-fit:cover;display:block}
+.wall-grid .nm{position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;font-weight:700;border-radius:99px;padding:1px 7px}
+.lightbox{position:fixed;inset:0;background:rgba(12,6,10,.92);z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.lightbox img{max-width:100%;max-height:70vh;border-radius:12px;object-fit:contain}
+.lightbox .cap{color:#fff;text-align:center;max-width:36em;font-size:15px;white-space:pre-wrap}
+.lightbox .btn.ghost{color:#fff;border-color:rgba(255,255,255,.35)}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -181,13 +203,24 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </header>
 
   <nav class="chips" aria-label="區塊">
-    <a href="#quests">🎮 每日任務</a><a href="#ladder">🏆 成就</a><a href="#diary">💌 日記</a><a href="#draw">🎲 抽題</a><a href="#rules">🧸 規則</a>
+    <a href="#quests">🎮 每日任務</a><a href="#photos">📷 照片</a><a href="#ladder">🏆 成就</a><a href="#diary">💌 日記</a><a href="#draw">🎲 抽題</a><a href="#rules">🧸 規則</a>
   </nav>
 
   <section id="quests">
     <div><h2>🎮 每日任務</h2><p class="sub">每天一個小挑戰，兩個人都做到就打勾領 XP。這週漏掉的也可以補。</p></div>
-    <div class="today" id="todayCard"></div>
+    <div class="today">
+      <div id="todayCard" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
+      <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填，上傳前先寫）" aria-label="照片說明">
+    </div>
     <div class="week" id="week"></div>
+    <input type="file" id="photoFile" accept="image/*" hidden>
+  </section>
+
+  <section id="photos">
+    <div><h2>📷 生活照片牆</h2><p class="sub">兩個人分享的每一張照片都在這裡，點開看大圖。</p></div>
+    <div class="wall" id="wall"><div class="empty">還沒有照片。在上面的每日任務上傳第一張吧！</div></div>
+    <button class="btn ghost" type="button" id="wallMore" hidden>看更早的照片</button>
   </section>
 
   <section id="ladder">
@@ -247,6 +280,11 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </section>
 </div>
 <div class="toast" id="toast" hidden></div>
+<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="照片">
+  <img id="lbImg" alt="">
+  <div class="cap" id="lbCap"></div>
+  <div class="row" style="justify-content:center"><button class="btn ghost" type="button" id="lbDel" hidden>刪除這張</button><button class="btn" type="button" id="lbClose">關閉</button></div>
+</div>
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
@@ -322,8 +360,118 @@ function renderQuests(){
   $("todayBtn").onclick=()=>toggle(tk,ti,true);
   if(isDone)$("todayUndo").onclick=()=>toggle(tk,ti,false);
   $("week").innerHTML=weekDates().map((d,i)=>{const k=key(d),T=TASKS[i],dn=!!done[k],future=d>t;
-    return `<div class="q ${dn?"done":""} ${k===tk?"is-today":""}"><div class="d">${T.day}</div><div class="t"><b>${T.name}</b>${dn&&done[k].by?` <span class="who">· ${esc(done[k].by)} 打勾</span>`:""}<div>${T.text}</div></div><div class="s"><span class="xpchip num">+${T.xp}</span><button class="check" type="button" data-k="${k}" data-i="${i}" aria-pressed="${dn}" aria-label="星期${T.day}${dn?"已完成，點一下取消":"標記完成"}" ${future?"disabled":""}>✓</button></div></div>`}).join("");
+    return `<div class="q ${dn?"done":""} ${k===tk?"is-today":""}"><div class="d">${T.day}</div><div class="t"><b>${T.name}</b>${dn&&done[k].by?` <span class="who">· ${esc(done[k].by)} 打勾</span>`:""}<div>${T.text}</div>${weekThumbs(k,i,future)}</div><div class="s"><span class="xpchip num">+${T.xp}</span><button class="check" type="button" data-k="${k}" data-i="${i}" aria-pressed="${dn}" aria-label="星期${T.day}${dn?"已完成，點一下取消":"標記完成"}" ${future?"disabled":""}>✓</button></div></div>`}).join("");
   document.querySelectorAll(".check").forEach(b=>b.onclick=()=>toggle(b.dataset.k,+b.dataset.i,!done[b.dataset.k]));
+  renderTodayPhotos();
+}
+
+/* ===== 生活紀錄照片 =====
+   photos/{日期_名字}：縮圖 th + 說明（列表用，檔案小）
+   pics/{日期_名字}：原圖 img（點開才載入） */
+let photos=[], photoLimit=30, photoUnsub=null, photoErr="", uploading=null, pendingDate=null;
+const isPhotoDay=i=>i<6;
+function photosOn(d){return photos.filter(p=>p.date===d)}
+function myPhoto(d){return photos.find(p=>p.date===d&&p.by===myName())}
+function photoBtn(p,cls){return `<button type="button" class="${cls}" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片"><img src="${p.th}" alt="" loading="lazy"><span class="nm">${esc(p.by)}${p.by===myName()?"（我）":""}</span></button>`}
+function weekThumbs(k,i,future){
+  if(!isPhotoDay(i)||future)return "";
+  const ps=photosOn(k), canUp=!!db&&!photoErr&&!myPhoto(k)&&k!==key(today());
+  if(!ps.length&&!canUp)return "";
+  return `<div class="thumbs">${ps.map(p=>`<button type="button" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片"><img src="${p.th}" alt="" loading="lazy"></button>`).join("")}${canUp?`<button type="button" class="cam" data-up="${k}" aria-label="補傳這天的照片">${uploading===k?"…":"📷"}</button>`:""}</div>`;
+}
+function renderTodayPhotos(){
+  const t=today(), k=key(t), box=$("todayPhotos");
+  const show=isPhotoDay(dow(t));
+  box.hidden=!show;$("photoCap").hidden=!show||!db||!!photoErr||!!myPhoto(k);
+  if(!show)return;
+  if(!db){box.innerHTML='<div class="ph-note">📸 要連上伺服器才能上傳照片。</div>';return}
+  if(photoErr==="rules"){box.innerHTML='<div class="ph-note">📸 照片功能還沒開通：要先到 Firebase 更新一次「規則」。</div>';return}
+  const mine=myPhoto(k), others=photosOn(k).filter(p=>p.by!==myName()), up=uploading===k;
+  let h='<div class="ph-pair">';
+  h+=mine?photoBtn(mine,"ph-slot has"):`<button type="button" class="ph-slot" data-up="${k}" ${up?"disabled":""}>${up?"上傳中…":"📸<br>上傳我的照片"}</button>`;
+  h+=others.length?others.map(p=>photoBtn(p,"ph-slot has")).join(""):'<div class="ph-slot wait">等對方上傳…</div>';
+  h+='</div>';
+  if(mine)h+=`<div class="row"><button class="btn ghost" type="button" data-up="${k}" ${up?"disabled":""}>${up?"上傳中…":"換一張"}</button>${mine.cap?`<span class="ph-note">「${esc(mine.cap)}」</span>`:""}</div>`;
+  box.innerHTML=h;
+}
+function renderWall(){
+  const w=$("wall");
+  if(!db){w.innerHTML='<div class="empty">要連上伺服器才看得到照片。</div>';$("wallMore").hidden=true;return}
+  if(photoErr==="rules"){w.innerHTML='<div class="empty">照片功能還沒開通：要先到 Firebase 更新一次「規則」。</div>';$("wallMore").hidden=true;return}
+  if(!photos.length){w.innerHTML='<div class="empty">還沒有照片。在上面的每日任務上傳第一張吧！</div>';$("wallMore").hidden=true;return}
+  const days=[...new Set(photos.map(p=>p.date))].sort().reverse();
+  const wk="日一二三四五六";
+  w.innerHTML=days.map(d=>{const [y,m,dd]=d.split("-").map(Number);const dt=new Date(y,m-1,dd);
+    return `<div class="wall-day"><h3>${m}/${dd}（${wk[dt.getDay()]}）</h3><div class="wall-grid">${photosOn(d).map(p=>photoBtn(p,"")).join("")}</div></div>`}).join("");
+  $("wallMore").hidden=photos.length<photoLimit;
+}
+function renderPhotosAll(){renderQuests();renderWall()}
+
+function loadImg(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const im=new Image();im.onload=()=>res({im,url});im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("decode"))};im.src=url})}
+function shrink(im,side,maxLen,q){
+  let out="";
+  for(let n=0;n<10;n++){
+    const s=Math.min(1,side/Math.max(im.naturalWidth,im.naturalHeight));
+    const w=Math.max(1,Math.round(im.naturalWidth*s)),h=Math.max(1,Math.round(im.naturalHeight*s));
+    const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(im,0,0,w,h);
+    out=c.toDataURL("image/jpeg",q);if(out.length<=maxLen)return out;
+    if(q>.55)q-=.1;else side*=.8;
+  }
+  return out;
+}
+$("wallMore").onclick=()=>{photoLimit+=30;subPhotos()};
+document.addEventListener("click",ev=>{
+  const u=ev.target.closest("[data-up]");
+  if(u&&!u.disabled){if(!db||photoErr||uploading)return;pendingDate=u.dataset.up;$("photoFile").value="";$("photoFile").click();return}
+  const o=ev.target.closest("[data-open]");if(o)openPhoto(o.dataset.open);
+});
+$("photoFile").addEventListener("change",async()=>{
+  const f=$("photoFile").files[0], date=pendingDate;if(!f||!date)return;
+  if(!myName()){toast("請先按「換暱稱」選你是誰");return}
+  uploading=date;renderPhotosAll();
+  try{
+    const {im,url}=await loadImg(f);
+    const img=shrink(im,1600,900000,.82), th=shrink(im,420,60000,.72);URL.revokeObjectURL(url);
+    const id=date+"_"+myName(), isToday=date===key(today());
+    const meta={date,by:myName(),th,cap:isToday?$("photoCap").value.trim():"",at:new Date().toISOString()};
+    await db.collection("pics").doc(id).set({img,date,by:myName()});
+    await db.collection("photos").doc(id).set(meta);
+    photos=photos.filter(p=>p.id!==id).concat([{id,...meta}]);
+    if(isToday)$("photoCap").value="";
+    const [y,m,d]=date.split("-").map(Number), i=dow(new Date(y,m-1,d));
+    uploading=null;
+    if(isPhotoDay(i)&&!done[date])toggle(date,i,true);else toast("照片上傳好了 📸");
+  }catch(e){
+    toast(e&&e.code==="permission-denied"?"照片功能還沒開通，要先更新 Firebase 規則":e&&e.message==="decode"?"這張照片讀不到，換一張試試":"上傳失敗，請再試一次");
+  }
+  uploading=null;renderPhotosAll();
+});
+let lbId=null;
+function openPhoto(id){
+  const p=photos.find(x=>x.id===id);if(!p)return;lbId=id;
+  $("lbImg").src=p.th;$("lbImg").alt=p.by+" 的照片";
+  const [,m,d]=p.date.split("-").map(Number);
+  $("lbCap").textContent=`${m}/${d} · ${p.by}${p.by===myName()?"（我）":""}${p.cap?"\n「"+p.cap+"」":""}`;
+  const del=$("lbDel");del.hidden=p.by!==myName();delete del.dataset.confirm;del.textContent="刪除這張";
+  $("lightbox").hidden=false;
+  db.collection("pics").doc(id).get().then(s=>{const d=s.exists?s.data():null;if(lbId===id&&d&&d.img)$("lbImg").src=d.img}).catch(()=>{});
+}
+function closePhoto(){$("lightbox").hidden=true;lbId=null;$("lbImg").removeAttribute("src")}
+$("lbClose").onclick=closePhoto;
+$("lightbox").addEventListener("click",ev=>{if(ev.target.id==="lightbox")closePhoto()});
+document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!$("lightbox").hidden)closePhoto()});
+$("lbDel").onclick=async()=>{
+  const b=$("lbDel"),id=lbId;if(!id)return;
+  if(!b.dataset.confirm){b.dataset.confirm=1;b.textContent="確定刪除？再按一次";return}
+  try{await db.collection("photos").doc(id).delete();await db.collection("pics").doc(id).delete();photos=photos.filter(p=>p.id!==id);closePhoto();renderPhotosAll();toast("照片刪掉了")}
+  catch(e){toast("刪除失敗，請再試一次")}
+};
+function subPhotos(){
+  if(!db)return;
+  if(photoUnsub)photoUnsub();
+  photoUnsub=db.collection("photos").orderBy("date","desc").limit(photoLimit).onSnapshot(
+    s=>{photos=s.docs.map(d=>({id:d.id,...d.data()}));photoErr="";renderPhotosAll()},
+    e=>{photoErr=e&&e.code==="permission-denied"?"rules":"net";renderPhotosAll()});
 }
 
 const NAME_KEY="love-base-name";
@@ -445,7 +593,7 @@ async function drawQ(){
 $("drawBtn").onclick=drawQ;
 renderDraw(false);
 
-function renderAll(){renderHUD();renderQuests();renderEntries()}
+function renderAll(){renderHUD();renderQuests();renderEntries();renderWall()}
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,draw:drawState}))}catch(e){}}
 function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];if(s.draw)drawState=s.draw;delete done["draw-state"]}}catch(e){}}
 
@@ -489,6 +637,7 @@ $("logout").onclick=()=>{try{localStorage.removeItem(ROOM_KEY)}catch(e){}locatio
   const timer=setTimeout(()=>{$("status").textContent="暫時連不上，資料可能不是最新"},10000);
   const ready=()=>{if(got.done&&got.diary){clearTimeout(timer);$("status").textContent="● 兩人同步中"}};
   db.collection("done").onSnapshot(s=>{done={};s.docs.forEach(d=>{if(d.id==="draw-state"){const nd=d.data()||{};const changed=nd.at!==drawState.at;drawState={qi:nd.qi??null,by:nd.by||"",at:nd.at||0,used:nd.used||[]};renderDraw(changed)}else done[d.id]=d.data()});if(!s.metadata?.fromCache)got.done=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
+  subPhotos();
   db.collection("diary").onSnapshot(s=>{entries=s.docs.map(d=>({id:d.id,...d.data()}));if(!s.metadata?.fromCache)got.diary=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
 })();
 </script>
