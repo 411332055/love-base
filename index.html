@@ -339,6 +339,9 @@ details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:
 #hugClose{padding:0 14px}
 .btn.ghost.small{font-size:12px;padding:4px 10px}
 
+/* iPhone 點輸入框時，字小於 16px 會自動放大整頁 */
+@media (hover:none) and (pointer:coarse){input,textarea,select{font-size:16px}}
+
 details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 details.rules summary{font-weight:700;cursor:pointer}
 details.rules ol{margin:10px 0 4px;padding-left:1.4em}
