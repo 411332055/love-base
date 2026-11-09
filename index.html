@@ -104,7 +104,7 @@ form.diary{background:var(--surface);border:1px solid var(--line);border-radius:
 form.diary .full{grid-column:1/-1}
 label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500;min-width:0}
 input,textarea,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%}
-textarea{resize:vertical;min-height:44px}
+textarea{resize:none;min-height:44px;overflow:hidden;line-height:1.6}
 .summary{display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--fg)}
 .summary .lbl{font-size:13px;color:var(--muted);font-weight:500}
 .field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500;min-width:0}
@@ -343,7 +343,7 @@ function renderEntries(){
   const shown=sorted.slice().reverse().filter(e=>who==="all"||(who==="me"?e.by===me:e.by!==me));
   if(!shown.length){box.innerHTML=`<div class="empty">${who==="me"?"你還沒寫過日記。":"對方還沒寫過日記。"}</div>`;return}
   box.innerHTML=shown.map(e=>`<article class="entry ${e.by?(e.by===me?"me":"them"):""}"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b><span>${esc(e.date)}${e.happy?" · ⭐ "+esc(e.happy)+"/10":""}</span></header>
-  <div>${byChip(e.by)}${e.edited?' <span class="edited">· 已編輯</span>':""}</div>
+  <div>${byChip(e.by)}</div>
   <dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>
   ${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}
   <div class="acts">${(!e.by||e.by===me)?`<button class="btn ghost edit" type="button" data-id="${esc(e.id)}">✏️ 編輯</button>`:""}<button class="btn ghost del" type="button" data-id="${esc(e.id)}">刪除</button></div></article>`).join("");
@@ -362,14 +362,14 @@ function startEdit(id){
   const e=entries.find(x=>x.id===id);if(!e)return;
   editId=id;$("dDate").value=e.date||key(today());
   for(const [el,f] of Object.entries(FIELDS))$(el).value=e[f]||"";
-  happy=Number(e.happy)||0;renderHearts();
+  happy=Number(e.happy)||0;renderHearts();growAll();
   $("editBar").hidden=false;$("editText").textContent=`✏️ 正在編輯 ${e.date||""} 的日記`;
   $("diaryForm").classList.add("editing");$("dSave").textContent="儲存修改";$("dMsg").textContent="";
   $("diaryForm").scrollIntoView({behavior:"smooth",block:"start"});
 }
 function endEdit(){
   editId=null;$("editBar").hidden=true;$("diaryForm").classList.remove("editing");$("dSave").textContent="寫進日記";
-  for(const el of Object.keys(FIELDS))$(el).value="";$("dDate").value=key(today());happy=0;renderHearts();
+  for(const el of Object.keys(FIELDS))$(el).value="";$("dDate").value=key(today());happy=0;renderHearts();growAll();
 }
 $("editCancel").onclick=endEdit;
 (function buildHearts(){
@@ -380,6 +380,10 @@ function renderHearts(){
   $("hearts").querySelectorAll("button[data-v]").forEach(b=>{const v=+b.dataset.v;b.classList.toggle("on",v<=happy);b.setAttribute("aria-checked",v===happy)});
   $("score").textContent=happy?happy+" / 10":"點星星打分數";
 }
+// 填寫時框框自動變高
+function grow(t){t.style.height="auto";t.style.height=t.scrollHeight+2+"px"}
+function growAll(){document.querySelectorAll("#diaryForm textarea").forEach(grow)}
+$("diaryForm").addEventListener("input",ev=>{if(ev.target.tagName==="TEXTAREA")grow(ev.target)});
 // 單行欄位按 Enter 不要送出（中文選字的 Enter 也不會）
 $("diaryForm").addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.tagName==="INPUT"&&!ev.isComposing&&ev.keyCode!==229)ev.preventDefault()});
 
@@ -402,7 +406,7 @@ $("diaryForm").addEventListener("submit",async ev=>{
   try{
     if(db){const ref=db.collection("diary").doc();await ref.set(e);if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e})}
     else{e.id="l"+Date.now();entries.push(e);saveLocal()}
-    ["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();renderAll();toast("寫好了！+5 XP 💌");
+    ["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast("寫好了！+5 XP 💌");
   }catch(err){$("dMsg").textContent="沒存到，請確認你有這個頁面的編輯權限"}
   $("dSave").disabled=false;
 });
