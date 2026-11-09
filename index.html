@@ -146,6 +146,58 @@ form.diary.editing{border:2px solid var(--pink)}
 .draw .btn{width:100%}
 .hint{font-size:12px;color:var(--muted);text-align:center}
 
+/* anniversary, wishes, streak, shared draw, capsules, memories */
+.anniv{font-size:15px;font-weight:700}
+.anniv .num{font-size:22px;font-weight:400;color:var(--gold);margin-inline:2px}
+.anniv .left{display:inline-block;font-size:13px;font-weight:500;opacity:.8;margin-left:8px}
+form.wishform{display:flex;gap:8px}
+.wishform input{flex:1;min-width:0}
+.wishform .btn{flex:none}
+.wishes{display:flex;flex-direction:column;gap:8px}
+.wish{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.wish .t{min-width:0;overflow-wrap:anywhere}
+.wish .t b{font-size:14px}
+.wish .t div{font-size:13px;color:var(--muted)}
+.wish.done{background:var(--ok-soft);border-color:transparent}
+.wish.done .check{background:var(--ok);border-color:var(--ok);color:#fff}
+.wish .del{font-size:12px;padding:4px 10px}
+.streak{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px}
+.streak .num{font-size:24px;color:var(--pink);margin-inline:2px}
+.streak .muted{color:var(--muted);font-size:13px}
+.streak .btn{padding:6px 14px;font-size:13px}
+.ans{display:flex;flex-direction:column;gap:8px}
+.ans .btn{align-self:flex-end;width:auto}
+.reveal{display:grid;gap:8px}
+.reveal div{background:var(--pink-soft);border-radius:10px;padding:8px 12px;overflow-wrap:anywhere;white-space:pre-wrap}
+.reveal b{margin-right:8px;color:var(--pink)}
+.log,.custom{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.left-hint{text-align:left}
+.ctform{display:grid;grid-template-columns:auto 1fr 2fr auto;gap:8px}
+@media (max-width:520px){.ctform{grid-template-columns:1fr}}
+.citem{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px}
+.citem span{min-width:0;overflow-wrap:anywhere}
+.citem .del{font-size:12px;padding:4px 10px}
+.entry.sealed{background:var(--sunk)}
+.entry .letter{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.panel h3{font-size:15px;font-weight:900}
+.panel select{width:auto}
+.between{justify-content:space-between}
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .axis{fill:var(--muted);font-size:11px}
+.chart .line{fill:none;stroke:var(--pink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart .dot{fill:var(--pink);stroke:var(--surface);stroke-width:2}
+.tip{position:absolute;top:0;transform:translateX(-50%);background:var(--fg);color:var(--bg);font-size:12px;font-weight:700;border-radius:8px;padding:3px 8px;white-space:nowrap;pointer-events:none}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media (max-width:520px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--sunk);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column}
+.stat span{font-size:12px;color:var(--muted)}
+.stat b{font-family:var(--f-display);font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}
+.best{font-size:14px;overflow-wrap:anywhere}
+.best p{margin:0}
+
 details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 details.rules summary{font-weight:700;cursor:pointer}
 details.rules ol{margin:10px 0 4px;padding-left:1.4em}
@@ -191,6 +243,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <h1>我們的戀愛遊戲基地</h1>
       <div class="party">耍白痴、講幹話、放閃、撒嬌，也記錄生活裡的每個小瞬間。</div>
     </div>
+    <div class="anniv" id="anniv"></div>
     <div class="lvl">
       <div><div class="next" style="opacity:.7">目前稱號</div><div class="title" id="curTitle">尚未解鎖</div></div>
       <div class="xp num"><span id="xp">0</span><small>XP</small></div>
@@ -203,11 +256,12 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </header>
 
   <nav class="chips" aria-label="區塊">
-    <a href="#quests">🎮 每日任務</a><a href="#photos">📷 照片</a><a href="#ladder">🏆 成就</a><a href="#diary">💌 日記</a><a href="#draw">🎲 抽題</a><a href="#rules">🧸 規則</a>
+    <a href="#quests">🎮 每日任務</a><a href="#photos">📷 照片</a><a href="#ladder">🏆 成就</a><a href="#diary">💌 日記</a><a href="#wishes">🌠 願望</a><a href="#draw">🎲 抽題</a><a href="#capsule">⏳ 膠囊</a><a href="#memories">🕰️ 回憶</a><a href="#rules">🧸 規則</a>
   </nav>
 
   <section id="quests">
-    <div><h2>🎮 每日任務</h2><p class="sub">每天一個小挑戰，兩個人都做到就打勾領 XP。這週漏掉的也可以補。</p></div>
+    <div><h2>🎮 每日任務</h2><p class="sub">每天一個小挑戰，兩個人都做到就打勾領 XP。這週漏掉的也可以補，補打勾有 XP，但不算連續天數。</p></div>
+    <div class="streak" id="streak"></div>
     <div class="today">
       <div id="todayCard" style="display:flex;flex-direction:column;gap:10px"></div>
       <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
@@ -230,7 +284,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </section>
 
   <section id="diary">
-    <div><h2>💌 戀愛日記</h2><p class="sub">每天留一則，以後一起回顧。</p></div>
+    <div><h2>💌 戀愛日記</h2><p class="sub">每天留一則，以後一起回顧。每天第一篇 +5 XP。</p></div>
     <form class="diary" id="diaryForm" autocomplete="off">
       <div class="full editbar" id="editBar" hidden><span id="editText">✏️ 正在編輯</span><button class="btn ghost" type="button" id="editCancel">取消編輯</button></div>
       <label>📅 日期<input type="date" id="dDate" required></label>
@@ -251,13 +305,73 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div class="entries" id="entries"><div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div></div>
   </section>
 
+  <section id="wishes">
+    <div><h2>🌠 願望清單</h2><p class="sub">想去的地方、想吃的店、想一起做的事。每天第一個完成的願望 +10 XP。</p></div>
+    <form class="wishform" id="wishForm" autocomplete="off">
+      <input id="wText" maxlength="80" required placeholder="例：一起去看一次日出" aria-label="新增願望">
+      <button class="btn" type="submit" id="wSave">許願</button>
+    </form>
+    <div class="wishes" id="wishList"></div>
+  </section>
+
   <section id="draw">
-    <div><h2>🎲 今日隨機抽題</h2><p class="sub">輪流抽一題，兩個人都要回答才算過關。</p></div>
+    <div><h2>🎲 今日隨機抽題</h2><p class="sub">兩個人看同一題，都答完才會揭曉，答案會留在過關紀錄。</p></div>
     <div class="draw">
       <div class="card" id="qCard">按下面的按鈕抽一題</div>
       <div class="hint" id="drawWho" hidden></div>
+      <form class="ans" id="ansForm" autocomplete="off" hidden>
+        <textarea id="ansText" maxlength="300" rows="2" required placeholder="寫下你的答案" aria-label="你的答案"></textarea>
+        <button class="btn" type="submit" id="ansSave">送出答案</button>
+      </form>
+      <div class="reveal" id="reveal" hidden></div>
+      <div class="hint" id="ansHint"></div>
       <button class="btn dark" id="drawBtn" type="button">🎲 抽一題！</button>
-      <div class="hint" id="drawHint">題庫共 0 題，這輪不會重複</div>
+      <div class="hint" id="drawHint"></div>
+    </div>
+    <details class="rules">
+      <summary>📚 過關紀錄（<span id="logN">0</span>）</summary>
+      <div class="log" id="logList"></div>
+    </details>
+    <details class="rules">
+      <summary>✏️ 自訂題庫和任務</summary>
+      <div class="custom">
+        <form class="wishform" id="cqForm" autocomplete="off">
+          <input id="cqText" maxlength="100" required placeholder="新增題目，放你們才懂的梗" aria-label="新增題目">
+          <button class="btn" type="submit" id="cqSave">加入題庫</button>
+        </form>
+        <form class="ctform" id="ctForm" autocomplete="off">
+          <select id="ctDay" aria-label="星期"><option value="0">星期一</option><option value="1">星期二</option><option value="2">星期三</option><option value="3">星期四</option><option value="4">星期五</option><option value="5">星期六</option><option value="6">星期日</option></select>
+          <input id="ctName" maxlength="12" required placeholder="任務名稱" aria-label="任務名稱">
+          <input id="ctText" maxlength="80" required placeholder="任務內容" aria-label="任務內容">
+          <button class="btn" type="submit" id="ctSave">加入任務</button>
+        </form>
+        <div class="hint left-hint">自訂任務固定 +10 XP，會和同一天的原本任務每週輪流出現；輪到自訂任務的那天不用上傳照片。</div>
+        <div class="log" id="customList"></div>
+      </div>
+    </details>
+  </section>
+
+  <section id="capsule">
+    <div><h2>⏳ 時光膠囊</h2><p class="sub">寫給未來的你們，到了指定日期才打得開。</p></div>
+    <form class="diary" id="capForm" autocomplete="off">
+      <label class="full">💌 想對未來說的話<textarea id="capText" maxlength="1000" rows="3" required></textarea></label>
+      <label>📅 打開的日期<input type="date" id="capDate" required></label>
+      <div class="full row"><button class="btn" type="submit" id="capSave">封存</button><span class="sub" id="capMsg"></span></div>
+    </form>
+    <div class="entries" id="capList"></div>
+  </section>
+
+  <section id="memories">
+    <div><h2>🕰️ 回憶</h2><p class="sub">從日記裡翻出來的你們。</p></div>
+    <div class="entries" id="onThisDay"></div>
+    <div class="panel">
+      <h3>幸福指數 · 最近 30 天</h3>
+      <div class="chart" id="hChart"></div>
+    </div>
+    <div class="panel">
+      <div class="row between"><h3>月度回顧</h3><select id="mPick" aria-label="選擇月份"></select></div>
+      <div class="stats" id="mStats"></div>
+      <div class="best" id="mBest"></div>
     </div>
   </section>
 
@@ -326,9 +440,15 @@ const TASKS=[ // index 0 = Monday
 const TITLES=[[50,"🐣 戀愛新手村"],[100,"🧸 黏踢踢小情侶"],[200,"🤡 專業互鬧選手"],[300,"💗 甜蜜製造機"],[500,"👑 戀愛滿等玩家"]];
 const QUESTIONS=["你覺得我最欠揍但又最可愛的地方是什麼？","如果我變成一隻蟑螂，你還會愛我嗎？","如果我們一起被困在荒島，你覺得誰會先崩潰？","最近哪一個瞬間讓你突然很想我？","第一次見到我的時候，你心裡在想什麼？","我做過最讓你傻眼的一件事是什麼？","用三個詞形容我們這段關係。","如果明天放假一整天，你想跟我做什麼？","你覺得我們誰比較會吃醋？","我最常對你說的一句話是什麼？","如果要幫我們拍一部電影，片名叫什麼？","你偷偷覺得我哪一個習慣很好笑？","我們吵架之後，你最希望我怎麼哄你？","你最想跟我一起完成的一件事是什麼？","如果可以交換身份一天，你最想用我的身份做什麼？","你覺得我們十年後會在幹嘛？","我哪一個表情你最受不了（但其實很喜歡）？","你最想吃我煮的哪一道菜？","我們之間最好笑的一個暗號或梗是什麼？","哪一首歌會讓你想到我？","如果我們養一隻寵物，要叫什麼名字？","我最近做了什麼讓你覺得被照顧到？","你覺得我們的戀愛像哪一種遊戲？","你今天最想對我撒嬌的一句話是？","如果只能用一個 emoji 代表我，你會選哪個？","我們第一次約會，你最記得哪個畫面？","你覺得我身上最像小孩的地方是什麼？","如果我們一起去旅行，誰負責迷路？"];
 
+const LOVE_START=new Date(2026,10,4);
+const DIARY_XP=5, WISH_XP=10, CUSTOM_XP=10, STREAK_BONUS=10, STREAK_STEP=7;
+const NOSAVE="沒存到，請再試一次";
+
 const $=id=>document.getElementById(id);
 let done={};      // dateKey -> {dow,xp}
 let entries=[];   // diary docs
+// 新功能的資料存在 done/x~集合~id，沿用現有的 Firebase 規則，不用另外開權限
+const store={wishes:[],rounds:[],answers:[],capsules:[],custom:[],fixes:[]};
 let db=null, local=false;
 const LS="love-base-v1";
 
@@ -340,9 +460,79 @@ function weekDates(){const t=today();const m=new Date(t);m.setDate(t.getDate()-d
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2200)}
 
-function totalXP(){return Object.values(done).reduce((s,v)=>s+(Number(v.xp)||0),0)+entries.length*5}
+function dayOf(iso){const d=new Date(iso);return isNaN(d)?"":key(d)}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+function fromKey(k){const [y,m,d]=k.split("-").map(Number);return new Date(y,m-1,d)}
+const byAt=(a,b)=>String(a.at).localeCompare(String(b.at));
+const nameOf=n=>n?n+(n===myName()?"（我）":""):"未署名";
+const nowIso=()=>new Date().toISOString();
+const xRef=(c,id)=>db.collection("done").doc(`x~${c}~${id}`);
+
+async function addDoc(c,data){
+  const id=db?db.collection("done").doc().id:"l"+Date.now()+Math.random().toString(36).slice(2,6);
+  if(db)await xRef(c,id).set(data);
+  if(!store[c].find(x=>x.id===id))store[c].push({id,...data});
+  if(!db)saveLocal();
+  renderAll();
+}
+async function updDoc(c,id,data){
+  const w=store[c].find(x=>x.id===id);if(!w)return;
+  const old={...w};Object.assign(w,data);renderAll();
+  try{db?await xRef(c,id).update(data):saveLocal()}catch(e){Object.assign(w,old);renderAll();toast(NOSAVE)}
+}
+async function delDoc(c,id){
+  const old=store[c];store[c]=old.filter(x=>x.id!==id);renderAll();
+  try{db?await xRef(c,id).delete():saveLocal()}catch(e){store[c]=old;renderAll();toast("刪除失敗")}
+}
+function armDelete(box,c){box.querySelectorAll(".del").forEach(b=>{b.onclick=()=>{
+  if(b.dataset.confirm){delDoc(c,b.dataset.id)}else{b.dataset.confirm=1;b.textContent="再按一次";setTimeout(()=>{if(b.isConnected){delete b.dataset.confirm;b.textContent="刪除"}},3000)}}})}
+
+// 自訂任務和同一天的原本任務每週輪流
+function weekNo(d){return Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5+3)/7)}
+function taskFor(d){
+  const i=dow(d),extra=store.custom.filter(c=>c.kind==="task"&&Number(c.day)===i).sort(byAt);
+  const list=[TASKS[i],...extra.map(c=>({day:TASKS[i].day,name:c.name,text:c.text,xp:CUSTOM_XP,custom:true}))];
+  return list[weekNo(d)%list.length];
+}
+
+// 當天打勾才算連續，或用補簽卡補上的日子
+function onTimeDays(){return Object.entries(done).filter(([k,v])=>v.at&&dayOf(v.at)===k).map(([k])=>k)}
+function activeDays(){return new Set([...onTimeDays(),...store.fixes.map(f=>f.day)])}
+function streakBonus(){
+  let bonus=0,run=0,prev=null;
+  for(const d of [...activeDays()].map(fromKey).sort((a,b)=>a-b)){
+    run=prev&&key(addDays(prev,1))===key(d)?run+1:1;
+    if(run%STREAK_STEP===0)bonus+=STREAK_BONUS;
+    prev=d;
+  }
+  return bonus;
+}
+function renderStreak(){
+  const a=activeDays(),t=today();
+  let c=a.has(key(t))?t:addDays(t,-1),n=0;
+  while(a.has(key(c))){n++;c=addDays(c,-1)}
+  const cards=Math.floor(onTimeDays().length/STREAK_STEP)-store.fixes.length;
+  const repair=cards>0&&a.has(key(addDays(c,-1)));
+  $("streak").innerHTML=`<span>🔥 連續<span class="num">${n}</span>天</span><span class="muted">再 ${STREAK_STEP-n%STREAK_STEP} 天 +${STREAK_BONUS} XP</span><span>🎫 補簽卡 ${Math.max(0,cards)} 張</span>${repair?`<button class="btn" type="button" id="fixBtn">補上 ${c.getMonth()+1}/${c.getDate()}</button>`:""}`;
+  if(repair)$("fixBtn").onclick=async()=>{try{await addDoc("fixes",{day:key(c),at:nowIso(),by:myName()});toast("補簽成功 🎫")}catch(e){toast(NOSAVE)}};
+}
+
+// 日記和願望的 XP 每天上限一次，所以算不重複的天數
+function totalXP(){
+  const diaryDays=new Set(entries.map(e=>dayOf(e.at)));
+  const wishDays=new Set(store.wishes.filter(w=>w.done).map(w=>w.doneDate));
+  return Object.values(done).reduce((s,v)=>s+(Number(v.xp)||0),0)+diaryDays.size*DIARY_XP+wishDays.size*WISH_XP+streakBonus();
+}
+
+function nextAnniv(){const t=today(),m=LOVE_START.getMonth(),d=LOVE_START.getDate();let n=new Date(t.getFullYear(),m,d);if(n<=t)n=new Date(t.getFullYear()+1,m,d);return n}
+function renderAnniv(){
+  const t=today(),left=Math.round((nextAnniv()-t)/864e5),n=Math.round((t-LOVE_START)/864e5)+1;
+  const isDay=t>LOVE_START&&t.getMonth()===LOVE_START.getMonth()&&t.getDate()===LOVE_START.getDate();
+  $("anniv").innerHTML=(isDay?`🎉 今天是我們的 ${t.getFullYear()-LOVE_START.getFullYear()} 週年！`:`💝 在一起第<span class="num">${n}</span>天`)+`<span class="left">距離 ${LOVE_START.getMonth()+1}/${LOVE_START.getDate()} 週年還有 ${left} 天</span>`;
+}
 
 function renderHUD(){
+  renderAnniv();
   const xp=totalXP(); $("xp").textContent=xp;
   let cur=null,next=TITLES[0],prev=0;
   for(const t of TITLES){if(xp>=t[0]){cur=t;prev=t[0]}else{next=t;break}}
@@ -354,14 +544,14 @@ function renderHUD(){
 }
 
 function renderQuests(){
-  const t=today(), tk=key(t), ti=dow(t), task=TASKS[ti], isDone=!!done[tk];
-  $("todayCard").innerHTML=`<div class="tag">今天 · 星期${task.day}</div><h3>${task.name} <span class="xpchip num" style="font-size:16px">+${task.xp} XP</span></h3><p>${task.text}</p>
+  const t=today(), tk=key(t), ti=dow(t), task=taskFor(t), isDone=!!done[tk];
+  $("todayCard").innerHTML=`<div class="tag">今天 · 星期${task.day}</div><h3>${esc(task.name)} <span class="xpchip num" style="font-size:16px">+${task.xp} XP</span></h3><p>${esc(task.text)}</p>
   <div class="row"><button class="btn" id="todayBtn" type="button" ${isDone?"disabled":""}>${isDone?"✓ 今天的任務完成了":"我們完成了！"}</button>${isDone?'<button class="btn ghost" type="button" id="todayUndo">取消</button>':""}</div>`;
   $("todayBtn").onclick=()=>toggle(tk,ti,true);
   if(isDone)$("todayUndo").onclick=()=>toggle(tk,ti,false);
-  $("week").innerHTML=weekDates().map((d,i)=>{const k=key(d),T=TASKS[i],dn=!!done[k],future=d>t;
-    return `<div class="q ${dn?"done":""} ${k===tk?"is-today":""}"><div class="d">${T.day}</div><div class="t"><b>${T.name}</b>${dn&&done[k].by?` <span class="who">· ${esc(done[k].by)} 打勾</span>`:""}<div>${T.text}</div>${weekThumbs(k,i,future)}</div><div class="s"><span class="xpchip num">+${T.xp}</span><button class="check" type="button" data-k="${k}" data-i="${i}" aria-pressed="${dn}" aria-label="星期${T.day}${dn?"已完成，點一下取消":"標記完成"}" ${future?"disabled":""}>✓</button></div></div>`}).join("");
-  document.querySelectorAll(".check").forEach(b=>b.onclick=()=>toggle(b.dataset.k,+b.dataset.i,!done[b.dataset.k]));
+  $("week").innerHTML=weekDates().map((d,i)=>{const k=key(d),T=taskFor(d),dn=!!done[k],future=d>t;
+    return `<div class="q ${dn?"done":""} ${k===tk?"is-today":""}"><div class="d">${T.day}</div><div class="t"><b>${esc(T.name)}</b>${dn&&done[k].by?` <span class="who">· ${esc(done[k].by)} 打勾</span>`:""}<div>${esc(T.text)}</div>${weekThumbs(k,i,future)}</div><div class="s"><span class="xpchip num">+${T.xp}</span><button class="check" type="button" data-k="${k}" data-i="${i}" aria-pressed="${dn}" aria-label="星期${T.day}${dn?"已完成，點一下取消":"標記完成"}" ${future?"disabled":""}>✓</button></div></div>`}).join("");
+  $("week").querySelectorAll(".check").forEach(b=>b.onclick=()=>toggle(b.dataset.k,+b.dataset.i,!done[b.dataset.k]));
   renderTodayPhotos();
 }
 
@@ -374,14 +564,14 @@ function photosOn(d){return photos.filter(p=>p.date===d)}
 function myPhoto(d){return photos.find(p=>p.date===d&&p.by===myName())}
 function photoBtn(p,cls){return `<button type="button" class="${cls}" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片"><img src="${p.th}" alt="" loading="lazy"><span class="nm">${esc(p.by)}${p.by===myName()?"（我）":""}</span></button>`}
 function weekThumbs(k,i,future){
-  if(!isPhotoDay(i)||future)return "";
+  if(!isPhotoDay(i)||future||taskFor(fromKey(k)).custom)return "";
   const ps=photosOn(k), canUp=!!db&&!photoErr&&!myPhoto(k)&&k!==key(today());
   if(!ps.length&&!canUp)return "";
   return `<div class="thumbs">${ps.map(p=>`<button type="button" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片"><img src="${p.th}" alt="" loading="lazy"></button>`).join("")}${canUp?`<button type="button" class="cam" data-up="${k}" aria-label="補傳這天的照片">${uploading===k?"…":"📷"}</button>`:""}</div>`;
 }
 function renderTodayPhotos(){
   const t=today(), k=key(t), box=$("todayPhotos");
-  const show=isPhotoDay(dow(t));
+  const show=isPhotoDay(dow(t))&&!taskFor(t).custom;
   box.hidden=!show;$("photoCap").hidden=!show||!db||!!photoErr||!!myPhoto(k);
   if(!show)return;
   if(!db){box.innerHTML='<div class="ph-note">📸 要連上伺服器才能上傳照片。</div>';return}
@@ -479,10 +669,10 @@ function myName(){try{return localStorage.getItem(NAME_KEY)||""}catch(e){return 
 let who="all";
 function byChip(n){if(!n)return '<span class="by">未署名</span>';const me=n===myName();return `<span class="by ${me?"me":"them"}">✍️ ${esc(n)}${me?"（我）":""}</span>`}
 async function toggle(k,i,on){
-  const prev=done[k];
-  if(on)done[k]={dow:i,xp:TASKS[i].xp,at:Date.now(),by:myName()};else delete done[k];
+  const prev=done[k],T=taskFor(fromKey(k));
+  if(on)done[k]={dow:i,xp:T.xp,at:Date.now(),by:myName()};else delete done[k];
   renderAll();
-  if(on)toast(`+${TASKS[i].xp} XP！`);
+  if(on)toast(`+${T.xp} XP！`);
   try{
     if(db){on?await db.collection("done").doc(k).set(done[k]):await db.collection("done").doc(k).delete()}
     else saveLocal();
@@ -558,47 +748,164 @@ $("diaryForm").addEventListener("submit",async ev=>{
     }catch(err){$("dMsg").textContent="沒存到，請再試一次"}
     $("dSave").disabled=false;return;
   }
+  const counted=entries.some(x=>dayOf(x.at)===key(today()));
   try{
     if(db){const ref=db.collection("diary").doc();await ref.set(e);if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e})}
     else{e.id="l"+Date.now();entries.push(e);saveLocal()}
-    ["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast("寫好了！+5 XP 💌");
+    ["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(counted?"寫好了 💌 今天的日記 XP 已經領過了":`寫好了！+${DIARY_XP} XP 💌`);
   }catch(err){$("dMsg").textContent="沒存到，請確認你有這個頁面的編輯權限"}
   $("dSave").disabled=false;
 });
 
-// draw
-// 抽題狀態兩人共用：存在伺服器的 done/draw-state，誰抽了對方畫面也會跟著變
-let drawState={qi:null,by:"",at:0,used:[]};
-function renderDraw(animate){
-  const c=$("qCard"), q=drawState.qi!=null?QUESTIONS[drawState.qi]:null;
-  const show=()=>c.textContent=q||"按下面的按鈕抽一題";
-  if(animate){c.classList.remove("flip");void c.offsetWidth;c.classList.add("flip");setTimeout(show,200)}else show();
-  if(q&&drawState.at){const d=new Date(drawState.at);$("drawWho").hidden=false;
-    $("drawWho").textContent=`🎲 ${drawState.by||"有人"}${drawState.by===myName()?"（我）":""} 在 ${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 抽的`}
-  else $("drawWho").hidden=true;
-  const left=QUESTIONS.length-(drawState.used||[]).filter(i=>i<QUESTIONS.length).length;
-  $("drawHint").textContent=q?`這輪還剩 ${left} 題 · 兩個人都要回答才算過關！`:`題庫共 ${QUESTIONS.length} 題，這輪不會重複`;
+// 抽題：兩人共用同一題，每人一份答案，都答完才揭曉
+let lastRound=null;
+const need=()=>db?2:1;
+function allQuestions(){return [...QUESTIONS,...store.custom.filter(c=>c.kind==="q").map(c=>c.text)]}
+function curRound(){return store.rounds.reduce((a,b)=>!a||String(b.at)>String(a.at)?b:a,null)}
+function pairOf(id){const seen=new Map();store.answers.filter(a=>a.round===id).sort(byAt).forEach(a=>{if(!seen.has(a.by))seen.set(a.by,a)});return [...seen.values()].sort((a,b)=>(b.by===myName())-(a.by===myName()))}
+function renderDraw(){
+  const r=curRound(),all=allQuestions(),extra=all.length-QUESTIONS.length;
+  $("drawHint").textContent=`題庫共 ${all.length} 題${extra?`（自訂 ${extra} 題）`:""}，全部抽過才會重複`;
+  renderLog();
+  if(!r){$("ansForm").hidden=true;$("reveal").hidden=true;$("ansHint").textContent="";$("drawWho").hidden=true;return}
+  const c=$("qCard");
+  c.textContent=r.q;
+  if(lastRound&&r.id!==lastRound){c.classList.remove("flip");void c.offsetWidth;c.classList.add("flip")}
+  lastRound=r.id;
+  const d=new Date(r.at);$("drawWho").hidden=false;
+  $("drawWho").textContent=`🎲 ${r.by?nameOf(r.by):"有人"} 在 ${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 抽的`;
+  const ans=pairOf(r.id),mine=ans.find(a=>a.by===myName()),over=ans.length>=need();
+  $("ansForm").hidden=!!mine||over;
+  $("reveal").hidden=!over;
+  if(over)$("reveal").innerHTML=ans.map(a=>`<div><b>${esc(nameOf(a.by))}</b>${esc(a.text)}</div>`).join("");
+  $("ansHint").textContent=over?"過關！答案收進過關紀錄了":mine?"你答好了，等對方回答就會揭曉":ans.length?"對方答好了，換你":"";
+  if(!$("drawBtn").dataset.confirm)$("drawBtn").textContent=over?"🎲 抽下一題":"🔁 換一題";
+}
+function renderLog(){
+  const list=store.rounds.filter(r=>pairOf(r.id).length>=need()).sort(byAt).reverse();
+  $("logN").textContent=list.length;
+  $("logList").innerHTML=list.length?list.map(r=>`<article class="entry"><header><b>${esc(r.q)}</b><span>${esc(dayOf(r.at))}</span></header><dl>${pairOf(r.id).map(a=>`<dt>${esc(nameOf(a.by))}</dt><dd>${esc(a.text)}</dd>`).join("")}</dl></article>`).join(""):'<div class="empty">還沒有過關的題目。</div>';
 }
 async function drawQ(){
-  let used=(drawState.used||[]).filter(i=>i<QUESTIONS.length);
-  if(used.length>=QUESTIONS.length)used=[];
-  const rem=QUESTIONS.map((_,i)=>i).filter(i=>!used.includes(i));
-  const qi=rem[Math.floor(Math.random()*rem.length)];
-  const prev=drawState;
-  drawState={qi,by:myName(),at:Date.now(),used:[...used,qi]};
-  renderDraw(true);
-  try{if(db)await db.collection("done").doc("draw-state").set(drawState);else saveLocal()}
-  catch(e){drawState=prev;renderDraw(false);toast("沒抽成功，請再試一次")}
+  const r=curRound(),b=$("drawBtn");
+  if(r&&pairOf(r.id).length&&pairOf(r.id).length<need()&&!b.dataset.confirm){
+    b.dataset.confirm=1;b.textContent="這題還沒揭曉，再按一次換題";
+    setTimeout(()=>{if(b.dataset.confirm){delete b.dataset.confirm;renderDraw()}},3000);return}
+  delete b.dataset.confirm;
+  const all=allQuestions(),cnt=q=>store.rounds.filter(x=>x.q===q).length,min=Math.min(...all.map(cnt));
+  let pool=all.filter(q=>cnt(q)===min&&q!==r?.q);
+  if(!pool.length)pool=all.filter(q=>q!==r?.q);
+  b.disabled=true;
+  try{await addDoc("rounds",{q:pool[Math.floor(Math.random()*pool.length)],at:nowIso(),by:myName()})}catch(e){toast("沒抽成功，請再試一次")}
+  b.disabled=false;
 }
 $("drawBtn").onclick=drawQ;
-renderDraw(false);
 
-function renderAll(){renderHUD();renderQuests();renderEntries();renderWall()}
-function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,draw:drawState}))}catch(e){}}
-function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];if(s.draw)drawState=s.draw;delete done["draw-state"]}}catch(e){}}
+function bindForm(form,btn,build,after){
+  $(form).addEventListener("submit",async ev=>{
+    ev.preventDefault();
+    const data=build();if(!data)return;
+    $(btn).disabled=true;
+    try{await addDoc(data.c,data.doc);after()}catch(e){toast(NOSAVE)}
+    $(btn).disabled=false;
+  });
+}
+// 中文選字按 Enter 時不要送出
+["wishForm","cqForm","ctForm"].forEach(f=>$(f).addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.isComposing||ev.keyCode===229))ev.preventDefault()}));
+bindForm("ansForm","ansSave",()=>{const r=curRound(),text=$("ansText").value.trim();return r&&text&&{c:"answers",doc:{round:r.id,text,by:myName(),at:nowIso()}}},()=>{$("ansText").value=""});
+
+// 願望清單
+function renderWishes(){
+  const box=$("wishList"),wishes=store.wishes;
+  if(!wishes.length){box.innerHTML='<div class="empty">還沒有願望。寫下第一件想一起完成的事。</div>';return}
+  const open=wishes.filter(w=>!w.done).sort((a,b)=>byAt(b,a));
+  const closed=wishes.filter(w=>w.done).sort((a,b)=>String(b.doneDate).localeCompare(String(a.doneDate)));
+  box.innerHTML=[...open,...closed].map(w=>`<div class="wish ${w.done?"done":""}"><button class="check" type="button" data-id="${esc(w.id)}" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}：${w.done?"已完成，點一下取消":"標記完成"}">✓</button><div class="t"><b>${esc(w.text)}</b>${w.done?`<div>${esc(w.doneDate)} 完成</div>`:""}</div><button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`).join("");
+  box.querySelectorAll(".check").forEach(b=>b.onclick=()=>toggleWish(b.dataset.id));
+  armDelete(box,"wishes");
+}
+function toggleWish(id){
+  const w=store.wishes.find(x=>x.id===id);if(!w)return;
+  const on=!w.done,td=key(today()),fresh=on&&!store.wishes.some(x=>x.done&&x.doneDate===td);
+  updDoc("wishes",id,{done:on,doneDate:on?td:null});
+  if(on)toast(fresh?`願望達成 🌠 +${WISH_XP} XP！`:"願望達成 🌠 今天的願望 XP 已經領過了");
+}
+bindForm("wishForm","wSave",()=>{const text=$("wText").value.trim();return text&&{c:"wishes",doc:{text,done:false,doneDate:null,by:myName(),at:nowIso()}}},()=>{$("wText").value="";toast("許願成功 🌠")});
+
+// 自訂題庫和任務
+function renderCustom(){
+  const box=$("customList"),items=[...store.custom].sort(byAt).reverse();
+  box.innerHTML=items.map(c=>`<div class="citem"><span>${c.kind==="q"?"💬 "+esc(c.text):`📌 星期${TASKS[Number(c.day)]?.day??""} ${esc(c.name)}：${esc(c.text)}`}</span><button class="btn ghost del" type="button" data-id="${esc(c.id)}">刪除</button></div>`).join("");
+  armDelete(box,"custom");
+}
+bindForm("cqForm","cqSave",()=>{const text=$("cqText").value.trim();return text&&{c:"custom",doc:{kind:"q",text,by:myName(),at:nowIso()}}},()=>{$("cqText").value="";toast("加進題庫了")});
+bindForm("ctForm","ctSave",()=>{const name=$("ctName").value.trim(),text=$("ctText").value.trim();return name&&text&&{c:"custom",doc:{kind:"task",day:+$("ctDay").value,name,text,by:myName(),at:nowIso()}}},()=>{$("ctName").value="";$("ctText").value="";toast("任務加好了")});
+
+// 時光膠囊
+function renderCapsules(){
+  const box=$("capList"),tk=key(today());
+  if(!store.capsules.length){box.innerHTML='<div class="empty">還沒有膠囊。封存第一封寫給未來的信。</div>';return}
+  const acts=c=>`<div class="acts"><button class="btn ghost del" type="button" data-id="${esc(c.id)}">刪除</button></div>`;
+  const opened=store.capsules.filter(c=>c.openDate<=tk).sort((a,b)=>b.openDate.localeCompare(a.openDate));
+  const sealed=store.capsules.filter(c=>c.openDate>tk).sort((a,b)=>a.openDate.localeCompare(b.openDate));
+  box.innerHTML=[...opened.map(c=>`<article class="entry"><header><b>💌 ${esc(c.openDate)} 打開的膠囊</b><span>${esc(nameOf(c.by))}寫於 ${esc(dayOf(c.at))}</span></header><p class="letter">${esc(c.text)}</p>${acts(c)}</article>`),
+    ...sealed.map(c=>`<article class="entry sealed"><header><b>🔒 封存中</b><span>${esc(nameOf(c.by))}寫於 ${esc(dayOf(c.at))}</span></header><p class="letter">${esc(c.openDate)} 打開，還有 ${Math.round((fromKey(c.openDate)-today())/864e5)} 天</p>${acts(c)}</article>`)].join("");
+  armDelete(box,"capsules");
+}
+bindForm("capForm","capSave",()=>{
+  const text=$("capText").value.trim(),openDate=$("capDate").value;
+  if(!text||!openDate)return null;
+  if(openDate<=key(today())){$("capMsg").textContent="打開的日期要選明天以後";return null}
+  $("capMsg").textContent="";
+  return {c:"capsules",doc:{text,openDate,by:myName(),at:nowIso()}}
+},()=>{$("capText").value="";toast("封存好了 ⏳")});
+
+// 回憶
+function renderOnThisDay(){
+  const t=today(),y=new Date(t.getFullYear()-1,t.getMonth(),t.getDate()),m=new Date(t.getFullYear(),t.getMonth()-1,t.getDate());
+  const slots=[["一年前的今天",y.getDate()===t.getDate()&&y],["一個月前的今天",m.getDate()===t.getDate()&&m],["一週前的今天",addDays(t,-7)]];
+  const hits=slots.filter(x=>x[1]).map(([label,d])=>[label,entries.find(e=>e.date===key(d))]).filter(x=>x[1]);
+  $("onThisDay").innerHTML=hits.length?hits.map(([label,e])=>`<article class="entry"><header><b>📅 ${label}</b><span>${esc(e.date)}${e.happy?" · ⭐ "+esc(e.happy)+"/10":""}</span></header><div>${byChip(e.by)}</div><dl>${[["⛅ 心情",e.mood],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl></article>`).join(""):'<div class="empty">一週前、一個月前、一年前的今天寫過日記，就會出現在這裡。</div>';
+}
+function renderChart(){
+  const box=$("hChart"),t=today(),days=[...Array(30)].map((_,i)=>addDays(t,i-29)),fmt=d=>(d.getMonth()+1)+"/"+d.getDate();
+  const pts=days.map((d,i)=>{const v=entries.filter(e=>e.date===key(d)&&e.happy).map(e=>+e.happy);return v.length?{i,d,v:v.reduce((a,b)=>a+b,0)/v.length}:null}).filter(Boolean);
+  if(pts.length<2){box.innerHTML='<div class="empty">至少兩天的日記有打幸福指數，就會畫出曲線。</div>';return}
+  const W=Math.max(280,box.clientWidth||640),H=180,L=24,R=10,T=20,B=22;
+  const x=i=>L+i/29*(W-L-R),y=v=>T+(10-v)/9*(H-T-B);
+  box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="最近 30 天幸福指數曲線">${[1,5,10].map(v=>`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`).join("")}<text class="axis" x="${L}" y="${H-4}">${fmt(days[0])}</text><text class="axis" x="${W-R}" y="${H-4}" text-anchor="end">今天</text><polyline class="line" points="${pts.map(p=>x(p.i)+","+y(p.v)).join(" ")}"/>${pts.map(p=>`<circle class="dot" cx="${x(p.i)}" cy="${y(p.v)}" r="5"/>`).join("")}</svg><div class="tip" hidden></div>`;
+  const svg=box.querySelector("svg"),tip=box.querySelector(".tip");
+  svg.onpointermove=ev=>{
+    const r=svg.getBoundingClientRect(),px=(ev.clientX-r.left)/r.width*W;
+    const p=pts.reduce((a,b)=>Math.abs(x(b.i)-px)<Math.abs(x(a.i)-px)?b:a);
+    tip.textContent=`${fmt(p.d)} · ⭐ ${Math.round(p.v*10)/10}`;tip.hidden=false;
+    tip.style.left=Math.min(r.width-40,Math.max(40,x(p.i)/W*r.width))+"px";
+  };
+  svg.onpointerleave=()=>tip.hidden=true;
+}
+function renderMonth(){
+  const pick=$("mPick"),keep=pick.value,cur=key(today()).slice(0,7);
+  const months=[...new Set([cur,...entries.map(e=>String(e.date).slice(0,7)),...Object.keys(done).map(k=>k.slice(0,7))])].sort().reverse();
+  pick.innerHTML=months.map(m=>`<option value="${m}">${m.replace("-"," 年 ")} 月</option>`).join("");
+  pick.value=months.includes(keep)?keep:cur;
+  const m=pick.value,es=entries.filter(e=>String(e.date).startsWith(m)),rated=es.filter(e=>e.happy);
+  const avg=rated.length?(rated.reduce((a,e)=>a+ +e.happy,0)/rated.length).toFixed(1):"—";
+  const tiles=[["日記",es.length+" 篇"],["完成任務",Object.keys(done).filter(k=>k.startsWith(m)).length+" 天"],["達成願望",store.wishes.filter(w=>w.done&&String(w.doneDate).startsWith(m)).length+" 個"],["平均幸福",avg]];
+  $("mStats").innerHTML=tiles.map(([a,b])=>`<div class="stat"><span>${a}</span><b>${b}</b></div>`).join("");
+  const best=[...rated].sort((a,b)=>b.happy-a.happy||String(b.date).localeCompare(String(a.date)))[0],funny=es.filter(e=>e.funny).slice(-3);
+  $("mBest").innerHTML=(best?`<p>⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(best.say||best.mood||"")}</p>`:"")+funny.map(e=>`<p>🤪 ${esc(e.date)}：${esc(e.funny)}</p>`).join("")||'<p class="sub">這個月還沒有日記。</p>';
+}
+$("mPick").onchange=renderMonth;
+window.addEventListener("resize",renderChart);
+function renderMemories(){renderOnThisDay();renderChart();renderMonth()}
+
+function renderAll(){renderHUD();renderStreak();renderQuests();renderEntries();renderWall();renderWishes();renderDraw();renderCustom();renderCapsules();renderMemories()}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,...store}))}catch(e){}}
+function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];Object.keys(store).forEach(c=>store[c]=s[c]||[]);delete done["draw-state"]}}catch(e){}}
 
 $("filter").querySelectorAll("button").forEach(b=>b.onclick=()=>{who=b.dataset.w;$("filter").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));renderEntries()});
 $("dDate").value=key(today());
+$("capDate").min=key(addDays(today(),1));$("capDate").value=key(nextAnniv());
 renderHearts();renderAll();
 
 /* ===== 伺服器連線（Firebase） ===== */
@@ -626,7 +933,7 @@ $("logout").onclick=()=>{try{localStorage.removeItem(ROOM_KEY)}catch(e){}locatio
 
 (async()=>{
   const configured=FIREBASE_CONFIG.apiKey&&!FIREBASE_CONFIG.apiKey.startsWith("請貼上");
-  if(!configured||!window.firebase){local=true;loadLocal();renderAll();renderDraw(false);$("status").textContent=configured?"連不上伺服器 · 先存在這台裝置":"尚未設定伺服器 · 只存在這台裝置";return}
+  if(!configured||!window.firebase){local=true;loadLocal();renderAll();$("status").textContent=configured?"連不上伺服器 · 先存在這台裝置":"尚未設定伺服器 · 只存在這台裝置";return}
   const room=getRoom();
   if(!room||!myName()){$("status").textContent=room?"請填你的暱稱":"請輸入你們的暗號";showGate();return}
   $("meLabel").hidden=false;$("meLabel").textContent="你是 "+myName()+" ·";$("rename").hidden=false;
@@ -636,7 +943,7 @@ $("logout").onclick=()=>{try{localStorage.removeItem(ROOM_KEY)}catch(e){}locatio
   let got={done:false,diary:false};
   const timer=setTimeout(()=>{$("status").textContent="暫時連不上，資料可能不是最新"},10000);
   const ready=()=>{if(got.done&&got.diary){clearTimeout(timer);$("status").textContent="● 兩人同步中"}};
-  db.collection("done").onSnapshot(s=>{done={};s.docs.forEach(d=>{if(d.id==="draw-state"){const nd=d.data()||{};const changed=nd.at!==drawState.at;drawState={qi:nd.qi??null,by:nd.by||"",at:nd.at||0,used:nd.used||[]};renderDraw(changed)}else done[d.id]=d.data()});if(!s.metadata?.fromCache)got.done=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
+  db.collection("done").onSnapshot(s=>{done={};Object.keys(store).forEach(c=>store[c]=[]);s.docs.forEach(d=>{if(d.id==="draw-state")return;if(d.id.startsWith("x~")){const [,c,id]=d.id.split("~");if(store[c])store[c].push({id,...d.data()});return}done[d.id]=d.data()});if(!s.metadata?.fromCache)got.done=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
   subPhotos();
   db.collection("diary").onSnapshot(s=>{entries=s.docs.map(d=>({id:d.id,...d.data()}));if(!s.metadata?.fromCache)got.diary=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
 })();
