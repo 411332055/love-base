@@ -338,6 +338,11 @@ section.fold.open .fold-btn::after{content:"▾"}
 #todayUndo{font-size:12px;padding:2px 10px}
 @media (max-width:859px){.wrap{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}
 
+.hug.mini{background:none;padding:0;flex-direction:row;align-items:center;justify-content:space-between}
+#hugOpen{align-self:flex-start;font-size:13px;padding:6px 14px}
+#hugClose{padding:0 14px}
+.today .row .btn.ghost.small{font-size:12px;padding:4px 10px}
+
 details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 details.rules summary{font-weight:700;cursor:pointer}
 details.rules ol{margin:10px 0 4px;padding-left:1.4em}
@@ -426,9 +431,11 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     </div>
     <div class="hug" id="hugCard" hidden>
       <div id="hugState" style="display:flex;flex-direction:column;gap:8px"></div>
-      <form class="wishform" id="hugForm" autocomplete="off">
+      <button class="btn ghost" type="button" id="hugOpen">🤗 討抱抱</button>
+      <form class="wishform" id="hugForm" autocomplete="off" hidden>
         <input id="hugText" maxlength="40" placeholder="今天怎麼了（可不填）" aria-label="想對對方說的話">
-        <button class="btn" type="submit" id="hugSave">🤗 討抱抱</button>
+        <button class="btn" type="submit" id="hugSave">送出</button>
+        <button class="btn ghost" type="button" id="hugClose" aria-label="收起">✕</button>
       </form>
       <div class="hug-foot" id="hugN"></div>
     </div>
@@ -441,7 +448,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div class="today">
       <div id="todayCard" style="display:flex;flex-direction:column;gap:10px"></div>
       <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
-      <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填，上傳前先寫）" aria-label="照片說明">
+      <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填）" aria-label="照片說明">
     </div>
   <div class="diary-block" id="diary">
       <div><h3 style="font-size:16px;font-weight:900">💌 今天的日記</h3><p class="sub">寫下今天的日記，今天的任務就算完成。每天第一篇 +5 XP。</p></div>
@@ -841,7 +848,7 @@ function weekThumbs(k,i,future){
 function renderTodayPhotos(){
   const t=today(), k=key(t), box=$("todayPhotos");
   const show=isPhotoDay(dow(t))&&!taskFor(t).custom;
-  box.hidden=!show;$("photoCap").hidden=!show||!db||!!photoErr||!!myPhoto(k);
+  box.hidden=!show;$("photoCap").hidden=!show||!db||!!photoErr||!myPhoto(k)||!capEditing;
   if(!show)return;
   if(!db){box.innerHTML='<div class="ph-note">📸 要連上伺服器才能上傳照片。</div>';return}
   if(photoErr==="rules"){box.innerHTML='<div class="ph-note">📸 照片功能還沒開通：要先到 Firebase 更新一次「規則」。</div>';return}
@@ -850,8 +857,9 @@ function renderTodayPhotos(){
   h+=mine?photoBtn(mine,"ph-slot has"):`<button type="button" class="ph-slot" data-up="${k}" ${up?"disabled":""}>${up?"上傳中…":"📸<br>上傳我的照片"}</button>`;
   h+=others.length?others.map(p=>photoBtn(p,"ph-slot has")).join(""):'<div class="ph-slot wait">等對方上傳…</div>';
   h+='</div>';
-  if(mine)h+=`<div class="row"><button class="btn ghost" type="button" data-up="${k}" ${up?"disabled":""}>${up?"上傳中…":"換一張"}</button>${mine.cap?`<span class="ph-note">「${esc(mine.cap)}」</span>`:""}</div>`;
+  if(mine)h+=`<div class="row"><button class="btn ghost" type="button" data-up="${k}" ${up?"disabled":""}>${up?"上傳中…":"換一張"}</button><button class="btn ghost small" type="button" id="capEdit">✏️ ${mine.cap?"改這句話":"寫一句話"}</button>${mine.cap?`<span class="ph-note">「${esc(mine.cap)}」</span>`:""}</div>`;
   box.innerHTML=h;
+  if(mine)$("capEdit").onclick=()=>{capEditing=true;const c=$("photoCap");c.value=mine.cap||"";c.hidden=false;c.focus()};
 }
 function renderWall(){
   const w=$("wall");
@@ -892,12 +900,11 @@ $("photoFile").addEventListener("change",async()=>{
   try{
     const {im,url}=await loadImg(f);
     const img=shrinkFull(im), th=shrinkThumb(im);URL.revokeObjectURL(url);
-    const id=date+"_"+myName(), isToday=date===key(today());
-    const meta={date,by:myName(),th,cap:isToday?$("photoCap").value.trim():"",at:new Date().toISOString()};
+    const id=date+"_"+myName();
+    const meta={date,by:myName(),th,cap:"",at:new Date().toISOString()};
     await db.collection("pics").doc(id).set({img,date,by:myName()});
     await db.collection("photos").doc(id).set(meta);
     photos=photos.filter(p=>p.id!==id).concat([{id,...meta}]);
-    if(isToday)$("photoCap").value="";
     const [y,m,d]=date.split("-").map(Number), i=dow(new Date(y,m-1,d));
     uploading=null;
     if(isPhotoDay(i)&&!done[date])toggle(date,i,true);else toast("照片上傳好了 📸");
@@ -1488,7 +1495,11 @@ function renderHug(){
     ...back.map(h=>`<div class="hug-msg"><div><b>💞 ${esc(h.backBy)} 抱你了！</b><small>${t(h.backAt)}</small></div><button class="btn ghost" type="button" data-hugack="${esc(h.id)}">收到</button></div>`),
     ...(mine?[`<div class="hug-msg"><div><b>🫂 你討抱抱了，等對方回應…</b>${mine.text?`<p>${esc(mine.text)}</p>`:""}</div><button class="btn ghost" type="button" data-hugcancel="${esc(mine.id)}">收回</button></div>`]:[])
   ].join("");
-  $("hugForm").hidden=!!mine;
+  const busy=incoming.length||back.length||!!mine,showForm=hugOpen&&!mine;
+  $("hugState").hidden=!busy;
+  $("hugForm").hidden=!showForm;
+  $("hugOpen").hidden=showForm||!!mine;
+  $("hugCard").classList.toggle("mini",!busy&&!showForm);
   const n=store.hugs.filter(h=>h.backAt).length;
   $("hugN").textContent=n?`已經抱了 ${n} 次`:"";
   $("hugState").querySelectorAll("[data-hugback]").forEach(b=>b.onclick=()=>{updDoc("hugs",b.dataset.hugback,{backBy:me,backAt:nowIso()});toast("抱回去了 💞")});
@@ -1498,7 +1509,7 @@ function renderHug(){
     try{await xRef("hugs",id).delete()}catch(e){store.hugs=old;renderAll();toast(NOSAVE)}
   });
 }
-bindForm("hugForm","hugSave",()=>({c:"hugs",doc:{text:$("hugText").value.trim(),by:myName(),at:nowIso()}}),()=>{$("hugText").value="";toast("討抱抱送出去了 🤗")});
+bindForm("hugForm","hugSave",()=>({c:"hugs",doc:{text:$("hugText").value.trim(),by:myName(),at:nowIso()}}),()=>{$("hugText").value="";hugOpen=false;renderHug();toast("討抱抱送出去了 🤗")});
 $("hugForm").addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.isComposing||ev.keyCode===229))ev.preventDefault()});
 
 // 今天還差什麼
@@ -1754,6 +1765,20 @@ function showOffline(){if(db&&!navigator.onLine)$("status").textContent=OFFLINE_
 window.addEventListener("offline",showOffline);
 window.addEventListener("online",()=>{if(db)$("status").textContent=dataReady?"● 兩人同步中":"連線中…"});
 if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+
+let hugOpen=false,capEditing=false;
+$("hugOpen").onclick=()=>{hugOpen=true;renderHug();$("hugText").focus()};
+$("hugClose").onclick=()=>{hugOpen=false;renderHug()};
+$("photoCap").addEventListener("keydown",ev=>{if(ev.key==="Enter"&&!ev.isComposing&&ev.keyCode!==229){ev.preventDefault();ev.target.blur()}});
+$("photoCap").addEventListener("blur",async()=>{
+  capEditing=false;
+  const m=myPhoto(key(today())),v=$("photoCap").value.trim();
+  if(m&&v!==(m.cap||"")){
+    const old=m.cap;m.cap=v;
+    try{await commit(db.collection("photos").doc(m.id).update({cap:v}))}catch(e){m.cap=old;toast(NOSAVE)}
+  }
+  renderTodayPhotos();
+});
 
 // 收合中的區塊不重畫，展開時才更新
 function renderOpen(){
