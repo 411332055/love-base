@@ -153,6 +153,9 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 .names span{background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:4px 12px;font-size:14px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:99px;font-weight:700;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
 .gate{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);z-index:30;display:grid;place-items:center;padding:16px}
+.pick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pick button{border:2px solid var(--line);background:var(--bg);color:var(--fg);border-radius:12px;padding:12px 8px;font-size:16px;font-weight:700}
+.pick button[aria-pressed="true"]{border-color:var(--pink);background:var(--pink-soft);color:var(--pink)}
 .gate-box{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:12px}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -250,7 +253,10 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
-    <label>你的暱稱（用來顯示是誰寫的）<input id="gateName" maxlength="12" placeholder="例：小熊、兔兔"></label>
+    <div class="field">你是誰？
+      <div class="pick" id="namePick"><button type="button" data-n="寒冰">🧊 我是寒冰</button><button type="button" data-n="夏夏">☀️ 我是夏夏</button></div>
+      <input id="gateName" maxlength="12" placeholder="或自己輸入暱稱" aria-label="暱稱">
+    </div>
     <button class="btn" type="submit">進入基地</button>
     <p class="sub" id="gateMsg" style="color:var(--pink)"></p>
   </form>
@@ -452,15 +458,18 @@ const ROOM_KEY="love-base-room";
 function getRoom(){try{return localStorage.getItem(ROOM_KEY)||""}catch(e){return ""}}
 function showGate(msg){
   $("gate").hidden=false;$("gateMsg").textContent=msg||"";
-  $("gateCode").value=getRoom();$("gateName").value=myName();
+  $("gateCode").value=getRoom();$("gateName").value=myName();syncPick();
   setTimeout(()=>($("gateCode").value?$("gateName"):$("gateCode")).focus(),50);
 }
+function syncPick(){const v=$("gateName").value.trim();$("namePick").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.n===v))}
+$("namePick").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("gateName").value=b.dataset.n;syncPick()});
+$("gateName").addEventListener("input",syncPick);
 $("gateForm").addEventListener("submit",ev=>{
   ev.preventDefault();
   const code=$("gateCode").value.trim();
   if(!/^[A-Za-z0-9_-]{8,64}$/.test(code)){$("gateMsg").textContent="暗號要 8～64 個字，只能用英文、數字、- 或 _";return}
   const name=$("gateName").value.trim();
-  if(!name){$("gateMsg").textContent="請填你的暱稱，對方才知道是誰寫的";return}
+  if(!name){$("gateMsg").textContent="請選「寒冰」或「夏夏」，對方才知道是誰寫的";return}
   try{localStorage.setItem(ROOM_KEY,code);localStorage.setItem(NAME_KEY,name)}catch(e){}
   location.reload();
 });
