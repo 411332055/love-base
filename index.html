@@ -1847,9 +1847,9 @@ $("logout").onclick=()=>{
   let got={done:false,diary:false};
   const timer=setTimeout(()=>{$("status").textContent=navigator.onLine?"暫時連不上，資料可能不是最新":OFFLINE_TEXT},10000);
   const ready=()=>{if(got.done&&got.diary){clearTimeout(timer);$("status").textContent="● 兩人同步中";dataReady=true;renderToday();purgeExpired()}};
-  db.collection("done").onSnapshot(s=>{done={};Object.keys(store).forEach(c=>store[c]=[]);["wishes","capsules","custom"].forEach(c=>trash[c]=[]);s.docs.forEach(d=>{if(d.id==="draw-state")return;if(d.id.startsWith("x~")){const [,c,id]=d.id.split("~");const v=d.data();if(store[c])(v.trashed?trash[c]:store[c]).push({id,...v});return}done[d.id]=d.data()});if(!s.metadata?.fromCache)got.done=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
+  db.collection("done").onSnapshot({includeMetadataChanges:true},s=>{done={};Object.keys(store).forEach(c=>store[c]=[]);["wishes","capsules","custom"].forEach(c=>trash[c]=[]);s.docs.forEach(d=>{if(d.id==="draw-state")return;if(d.id.startsWith("x~")){const [,c,id]=d.id.split("~");const v=d.data();if(store[c])(v.trashed?trash[c]:store[c]).push({id,...v});return}done[d.id]=d.data()});if(!s.metadata?.fromCache)got.done=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
   subPhotos();subPhotoTrash();
-  db.collection("diary").onSnapshot(s=>{const all=s.docs.map(d=>({id:d.id,...d.data()}));entries=all.filter(e=>!e.trashed);trash.diary=all.filter(e=>e.trashed);if(!s.metadata?.fromCache)got.diary=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
+  db.collection("diary").onSnapshot({includeMetadataChanges:true},s=>{const all=s.docs.map(d=>({id:d.id,...d.data()}));entries=all.filter(e=>!e.trashed);trash.diary=all.filter(e=>e.trashed);if(!s.metadata?.fromCache)got.diary=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
 })();
 </script>
 </body>
