@@ -39,7 +39,7 @@
 [hidden]{display:none!important}
 body{margin:0}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.65}
-.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 64px;display:flex;flex-direction:column;gap:36px}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 64px;display:flex;flex-direction:column;gap:14px}
 h1,h2,h3{margin:0;text-wrap:balance}
 h2{font-size:20px;font-weight:900;display:flex;align-items:center;gap:8px}
 .sub{color:var(--muted);margin:2px 0 0;font-size:14px}
@@ -289,6 +289,15 @@ details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:
 .layout-acts .btn{font-size:12px;padding:4px 10px;min-width:32px}
 .citem.off span{opacity:.5}
 
+/* 首頁只留今天的內容，其他區塊收成一行，一次只展開一個 */
+section.fold:not(.open)>:not(:first-child){display:none}
+section.fold:not(.open)>:first-child .sub{display:none}
+section.fold h2{display:block;font-size:16px}
+section.fold.open{margin-block:10px}
+.fold-btn{width:100%;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--fg);font:inherit;font-weight:900;text-align:left}
+.fold-btn::after{content:"▸";margin-left:auto;color:var(--muted)}
+section.fold.open .fold-btn::after{content:"▾"}
+
 details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 details.rules summary{font-weight:700;cursor:pointer}
 details.rules ol{margin:10px 0 4px;padding-left:1.4em}
@@ -383,31 +392,37 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </section>
 
   <section id="quests">
-    <div><h2>🎮 每日任務</h2><p class="sub">每天一個小挑戰，兩個人都做到就打勾領 XP。這週漏掉的也可以補，補打勾有 XP，但不算連續天數。</p></div>
+    <div><h2>🎮 今天的任務</h2></div>
     <div class="streak" id="streak"></div>
     <div class="today">
       <div id="todayCard" style="display:flex;flex-direction:column;gap:10px"></div>
       <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
       <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填，上傳前先寫）" aria-label="照片說明">
     </div>
-    <div class="week" id="week"></div>
+    <details class="month">
+      <summary>這週任務</summary>
+      <div class="month-body">
+        <p class="sub" style="margin:0">兩個人都做到就打勾領 XP。這週漏掉的也可以補，補打勾有 XP，但不算連續天數。</p>
+        <div class="week" id="week"></div>
+      </div>
+    </details>
     <input type="file" id="photoFile" accept="image/*" hidden>
   </section>
 
-  <section id="photos">
+  <section id="photos" class="fold">
     <div><h2>📷 生活照片牆</h2><p class="sub">兩個人分享的每一張照片都在這裡，點開看大圖。</p></div>
     <div class="wall" id="wall"><div class="empty">還沒有照片。在上面的每日任務上傳第一張吧！</div></div>
     <button class="btn ghost" type="button" id="wallMore" hidden>看更早的照片</button>
   </section>
 
-  <section id="ladder">
+  <section id="ladder" class="fold">
     <div><h2>🏆 戀愛成就解鎖</h2><p class="sub">累積積分解鎖稱號。</p></div>
     <div class="ladder" id="ladderList"></div>
     <details class="month"><summary>其他稱號<span id="ladderN"></span></summary><div class="month-body"><div class="ladder" id="ladderRest"></div></div></details>
     <div class="note">🎁 解鎖獎勵可以是：一次指定抱抱、一次約會、一次指定美食，或讓對方答應一個可愛的小願望。</div>
   </section>
 
-  <section id="diary">
+  <section id="diary" class="fold">
     <div><h2>💌 戀愛日記</h2><p class="sub">每天留一則，以後一起回顧。每天第一篇 +5 XP。</p></div>
     <form class="diary" id="diaryForm" autocomplete="off">
       <div class="full editbar" id="editBar" hidden><span id="editText">✏️ 正在編輯</span><button class="btn ghost" type="button" id="editCancel">取消編輯</button></div>
@@ -431,7 +446,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div class="entries" id="entries"><div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div></div>
   </section>
 
-  <section id="calendar">
+  <section id="calendar" class="fold">
     <div><h2>📅 回憶月曆</h2><p class="sub">有紀錄的日子會亮起來，點一下看當天。</p></div>
     <div class="panel">
       <div class="row between"><button class="btn ghost" type="button" id="calPrev" aria-label="上個月">‹</button><h3 id="calTitle"></h3><button class="btn ghost" type="button" id="calNext" aria-label="下個月">›</button></div>
@@ -442,7 +457,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div class="entries" id="calDetail"></div>
   </section>
 
-  <section id="wishes">
+  <section id="wishes" class="fold">
     <div><h2>🌠 願望清單</h2><p class="sub">想去的地方、想吃的店、想一起做的事。每天第一個完成的願望 +10 XP。</p></div>
     <form class="wishform" id="wishForm" autocomplete="off">
       <input id="wText" maxlength="80" required placeholder="例：一起去看一次日出" aria-label="新增願望">
@@ -451,7 +466,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div class="wishes" id="wishList"></div>
   </section>
 
-  <section id="draw">
+  <section id="draw" class="fold">
     <div><h2>🎲 今日隨機抽題</h2><p class="sub">兩個人看同一題，都答完才會揭曉，答案會留在過關紀錄。</p></div>
     <div class="draw">
       <div class="card" id="qCard">按下面的按鈕抽一題</div>
@@ -488,7 +503,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     </details>
   </section>
 
-  <section id="capsule">
+  <section id="capsule" class="fold">
     <div><h2>⏳ 時光膠囊</h2><p class="sub">寫給未來的你們，到了指定日期才打得開。</p></div>
     <form class="diary" id="capForm" autocomplete="off">
       <label class="full">💌 想對未來說的話<textarea id="capText" maxlength="1000" rows="3" required></textarea></label>
@@ -498,7 +513,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div class="entries" id="capList"></div>
   </section>
 
-  <section id="memories">
+  <section id="memories" class="fold">
     <div><h2>🕰️ 回憶</h2><p class="sub">從日記裡翻出來的你們。</p></div>
     <div class="entries" id="onThisDay"></div>
     <div class="panel">
@@ -512,7 +527,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     </div>
   </section>
 
-  <section id="tools">
+  <section id="tools" class="fold">
     <div><h2>⚙️ 設定與備份</h2></div>
     <details class="rules" id="prefs">
       <summary>🎨 外觀與版面</summary>
@@ -551,7 +566,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </section>
 
   <section id="rules">
-    <details class="rules" open>
+    <details class="rules">
       <summary>🧸 群組遊戲規則</summary>
       <ol>
         <li>不准害羞，有廢話就說！</li>
@@ -1423,6 +1438,21 @@ bindSeg("segTheme","love-base-theme",()=>R.dataset.theme||"system",v=>{if(v==="s
 bindSeg("segFont","love-base-font",()=>R.dataset.font||"m",v=>{R.dataset.font=v});
 applyLayout();
 renderLayoutList();
+
+// 收合區塊：點標題或任何連到區塊的連結都會展開，一次只開一個
+const folds=[...document.querySelectorAll("section.fold")];
+function setFold(sec){
+  folds.forEach(x=>{const on=x===sec;x.classList.toggle("open",on);x.querySelector(".fold-btn").setAttribute("aria-expanded",on)});
+  if(sec)renderChart();
+}
+folds.forEach(sec=>{
+  const h=sec.querySelector("h2"),b=document.createElement("button");
+  b.type="button";b.className="fold-btn";b.setAttribute("aria-expanded","false");b.append(...h.childNodes);h.append(b);
+  b.onclick=()=>{const open=sec.classList.contains("open");setFold(open?null:sec);if(!open)sec.scrollIntoView({block:"start"})};
+});
+function openFor(id){const el=$(id);if(el)setFold(el.closest("section.fold"))}
+document.addEventListener("click",ev=>{const a=ev.target.closest('a[href^="#"]');if(a)openFor(a.getAttribute("href").slice(1))});
+if(location.hash)openFor(location.hash.slice(1));
 
 function renderAll(){renderHUD();renderStreak();renderQuests();renderEntries();renderWall();renderWishes();renderDraw();renderCustom();renderCapsules();renderMemories();renderCalendar();renderTrash();renderToday()}
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,...store,trash}))}catch(e){}}
