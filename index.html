@@ -1504,6 +1504,7 @@ function renderTodo(){
   if(dow(t)===6)items.push([store.reviews.some(r=>r.date===tk&&r.by===me),"📝 寫這週回顧","todayBox"]);
   if(db)items.push([!!myPhoto(tk),"📷 上傳我的照片","diary"]);
   items.push([entries.some(e=>e.by===me&&dayOf(e.at)===tk),"💌 寫今天的日記","diary"]);
+  items.push([store.wishes.some(w=>w.by===me&&dayOf(w.at)===tk),"🌠 許個願","wishes"]);
   const r=curRound(),ans=r?pairOf(r.id):[],answered=ans.some(a=>a.by===me),over=!!r&&ans.length>=need();
   if(r&&!over)items.push(answered?[true,"🎲 已回答抽題，等對方揭曉","draw"]:[false,"🎲 回答抽題","draw"]);
   else if(over&&dayOf(r.at)===tk)items.push([true,"🎲 今天的抽題過關了","draw"]);
