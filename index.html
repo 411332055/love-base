@@ -143,10 +143,10 @@ textarea{resize:none;min-height:44px;overflow:hidden;line-height:1.6}
 .summary{display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--fg)}
 .summary .lbl{font-size:13px;color:var(--muted);font-weight:500}
 .field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500;min-width:0}
-.hearts{display:flex;gap:0;flex-wrap:wrap;align-items:center}
-.hearts button{border:0;background:none;font-size:22px;width:34px;height:38px;padding:0;line-height:1;filter:grayscale(1);opacity:.35;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.hearts{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));align-items:center;max-width:340px}
+.hearts button{border:0;background:none;font-size:min(20px,5vw);min-width:0;height:38px;padding:0;line-height:1;filter:grayscale(1);opacity:.35;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .hearts button.on{filter:none;opacity:1}
-.hearts .score{margin-left:8px;font-weight:700;color:var(--fg);font-size:15px}
+.hearts .score{grid-column:1/-1;font-weight:700;color:var(--fg);font-size:15px}
 @media (max-width:520px){form.diary{grid-template-columns:1fr}}
 .entries{display:flex;flex-direction:column;gap:12px}
 .entry{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:6px}
