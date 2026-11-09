@@ -303,7 +303,6 @@ details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:
 .reply-del{border:0;background:none;color:var(--muted);font-size:12px;padding:0 2px}
 .reply-bar{display:flex;gap:8px}
 .reply-bar .btn{font-size:13px;padding:4px 12px}
-.reply-bar .btn[aria-pressed="true"]{border-color:var(--pink);color:var(--pink)}
 .entry .wall-grid{margin-top:2px}
 .book{display:flex;flex-direction:column;gap:12px}
 .book-cover{background:var(--ink);color:var(--bg);border-radius:var(--r);padding:28px 20px;text-align:center;display:flex;flex-direction:column;gap:4px}
@@ -1261,9 +1260,9 @@ function backupHtml(b){
   const months=[...new Set(diary.map(e=>String(e.date).slice(0,7)))];
   const mName=m=>{const [y,mo]=m.split("-").map(Number);return `${y} 年 ${mo} 月`};
   const article=e=>{
-    const dt=fromKey(e.date),rs=replies.filter(r=>r.entry===e.id),hearts=rs.filter(r=>r.kind==="heart").length,texts=rs.filter(r=>r.kind==="text"),first=diary.find(x=>x.date===e.date&&x.by===e.by).id===e.id;
+    const dt=fromKey(e.date),rs=replies.filter(r=>r.entry===e.id),texts=rs.filter(r=>r.kind==="text"),first=diary.find(x=>x.date===e.date&&x.by===e.by).id===e.id;
     const phs=[photos.find(p=>p.entry===e.id),first?photos.find(p=>!p.entry&&p.date===e.date&&p.by===e.by):null].filter(Boolean);
-    return `<article><h3>${esc(e.date)}（${wk[dt.getDay()]}）<span>${esc(e.by||"未署名")}${e.happy?` · ⭐ ${esc(e.happy)}/10`:""}${hearts?` · ❤️ ${hearts}`:""}</span></h3><dl>${[["心情",e.mood],["吃了",e.food],["最好笑",e.funny],["想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}${phs.map(p=>`<img src="${esc(p.th)}" alt="當天的照片">`).join("")}${texts.map(r=>`<p class="re"><b>${esc(r.by)}</b> ${esc(r.text)}</p>`).join("")}</article>`;
+    return `<article><h3>${esc(e.date)}（${wk[dt.getDay()]}）<span>${esc(e.by||"未署名")}${e.happy?` · ⭐ ${esc(e.happy)}/10`:""}</span></h3><dl>${[["心情",e.mood],["吃了",e.food],["最好笑",e.funny],["想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}${phs.map(p=>`<img src="${esc(p.th)}" alt="當天的照片">`).join("")}${texts.map(r=>`<p class="re"><b>${esc(r.by)}</b> ${esc(r.text)}</p>`).join("")}</article>`;
   };
   const wishes=xs("wishes"),caps=xs("capsules"),rounds=xs("rounds"),answers=xs("answers"),wall=photos.filter(p=>!p.entry),reviews=xs("reviews");
   const passed=rounds.filter(r=>new Set(answers.filter(a=>a.round===r.id).map(a=>a.by)).size>=2);
@@ -1449,7 +1448,7 @@ function renderAway(){
   const card=$("awayCard");
   if(!db||!seenMs){card.hidden=true;return}
   const me=myName(),fresh=x=>x.by&&x.by!==me&&x.at&&new Date(x.at).getTime()>seenMs;
-  const groups=[[entries.filter(fresh),n=>`💌 寫了 ${n} 篇日記`,"diary"],[photos.filter(fresh),n=>`📷 傳了 ${n} 張照片`,"photos"],[store.answers.filter(fresh),n=>`🎲 回答了 ${n} 題抽題`,"draw"],[store.wishes.filter(fresh),n=>`🌠 許了 ${n} 個願望`,"wishes"],[store.capsules.filter(fresh),n=>`⏳ 封存了 ${n} 顆膠囊`,"capsule"],[store.replies.filter(fresh).filter(r=>entries.find(e=>e.id===r.entry)?.by===me),n=>`💬 回應了你的日記（${n}）`,"diary"],[store.reviews.filter(fresh),()=>"📝 寫了這週回顧","memories"],[store.hugs.filter(fresh),()=>"🤗 來討抱抱","hugCard"],[store.hugs.filter(h=>h.by===me&&h.backBy&&new Date(h.backAt).getTime()>seenMs),()=>"💞 抱了你","hugCard"]].filter(g=>g[0].length&&!layout.hidden.includes(g[2]==="diary"?"quests":g[2]));
+  const groups=[[entries.filter(fresh),n=>`💌 寫了 ${n} 篇日記`,"diary"],[photos.filter(fresh),n=>`📷 傳了 ${n} 張照片`,"photos"],[store.answers.filter(fresh),n=>`🎲 回答了 ${n} 題抽題`,"draw"],[store.wishes.filter(fresh),n=>`🌠 許了 ${n} 個願望`,"wishes"],[store.capsules.filter(fresh),n=>`⏳ 封存了 ${n} 顆膠囊`,"capsule"],[store.replies.filter(fresh).filter(r=>r.kind==="text"&&entries.find(e=>e.id===r.entry)?.by===me),n=>`💬 回應了你的日記（${n}）`,"diary"],[store.reviews.filter(fresh),()=>"📝 寫了這週回顧","memories"],[store.hugs.filter(fresh),()=>"🤗 來討抱抱","hugCard"],[store.hugs.filter(h=>h.by===me&&h.backBy&&new Date(h.backAt).getTime()>seenMs),()=>"💞 抱了你","hugCard"]].filter(g=>g[0].length&&!layout.hidden.includes(g[2]==="diary"?"quests":g[2]));
   if(!groups.length){card.hidden=true;return}
   const name=groups[0][0][0].by===me?groups[0][0][0].backBy:groups[0][0][0].by;
   card.innerHTML=`<h3>你不在時，${esc(name)}…</h3><div class="away-list">${groups.map(g=>`<a href="#${g[2]}">${g[1](g[0].length)}</a>`).join("")}</div><button class="btn ghost" type="button" id="awayOk">知道了</button>`;
@@ -1617,14 +1616,14 @@ $("dNew").onclick=()=>{diaryFormOpen=!diaryFormOpen;if(!diaryFormOpen)$("dDate")
 const PHOTO_MAX=420000;
 const shrinkFull=im=>shrink(im,1280,PHOTO_MAX,.76), shrinkThumb=im=>shrink(im,420,60000,.72);
 
-// 回應日記：愛心和留言存成獨立資料，不佔日記本身的欄位
+// 回應日記：留言存成獨立資料，不佔日記本身的欄位
 const BF_KEY="love-base-backfill-skip";
 let replyTo=null;
 const replyFormEl=$("replyForm"),replyTextEl=$("replyText");
 function entryExtras(e,where){
-  const me=myName(),rs=store.replies.filter(r=>r.entry===e.id).sort(byAt),hearts=rs.filter(r=>r.kind==="heart"),texts=rs.filter(r=>r.kind==="text"),liked=hearts.some(r=>r.by===me),all=calAllPhotos(),first=entries.filter(x=>x.date===e.date&&x.by===e.by).sort(byAt)[0]?.id===e.id;
+  const me=myName(),rs=store.replies.filter(r=>r.entry===e.id).sort(byAt),texts=rs.filter(r=>r.kind==="text"),all=calAllPhotos(),first=entries.filter(x=>x.date===e.date&&x.by===e.by).sort(byAt)[0]?.id===e.id;
   const phs=[all.find(p=>p.entry===e.id),where==="list"&&first?all.find(p=>!p.entry&&p.date===e.date&&p.by===e.by):null].filter(Boolean);
-  return `${phs.length?`<div class="wall-grid">${phs.map(p=>photoBtn(p,"")).join("")}</div>`:""}${texts.length?`<div class="replies">${texts.map(r=>`<div class="reply ${r.by===me?"me":""}"><b>${esc(r.by)}</b> ${esc(r.text)}${r.by===me?` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>`:""}</div>`).join("")}</div>`:""}<div class="reply-bar"><button type="button" class="btn ghost" data-heart="${esc(e.id)}" aria-pressed="${liked}" aria-label="愛心">${liked?"❤️":"🤍"}${hearts.length?" "+hearts.length:""}</button><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}">💬 回應</button></div><div data-replyslot="${where}:${esc(e.id)}"></div>`;
+  return `${phs.length?`<div class="wall-grid">${phs.map(p=>photoBtn(p,"")).join("")}</div>`:""}${texts.length?`<div class="replies">${texts.map(r=>`<div class="reply ${r.by===me?"me":""}"><b>${esc(r.by)}</b> ${esc(r.text)}${r.by===me?` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>`:""}</div>`).join("")}</div>`:""}<div class="reply-bar"><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}">💬 回應</button></div><div data-replyslot="${where}:${esc(e.id)}"></div>`;
 }
 function closeReply(){replyTo=null;replyFormEl.hidden=true;document.body.append(replyFormEl)}
 function attachReply(where){
@@ -1638,12 +1637,6 @@ async function dropReply(id){
   try{db?await xRef("replies",id).delete():saveLocal()}catch(e){store.replies=old;renderAll();toast("刪除失敗")}
 }
 document.addEventListener("click",ev=>{
-  const h=ev.target.closest("[data-heart]");
-  if(h){
-    const me=myName(),mine=store.replies.find(r=>r.entry===h.dataset.heart&&r.kind==="heart"&&r.by===me);
-    if(mine)dropReply(mine.id);else addDoc("replies",{entry:h.dataset.heart,kind:"heart",text:"",by:me,at:nowIso()}).catch(()=>toast(NOSAVE));
-    return;
-  }
   const r=ev.target.closest("[data-reply]");
   if(r){
     if(replyTo&&replyTo.entry===r.dataset.reply&&replyTo.where===r.dataset.where){closeReply();return}
