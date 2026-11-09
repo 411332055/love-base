@@ -305,7 +305,6 @@ section.fold.open .fold-btn::after{content:"▾"}
 .reply-bar .btn{font-size:13px;padding:4px 12px}
 .reply-bar .btn[aria-pressed="true"]{border-color:var(--pink);color:var(--pink)}
 .entry .wall-grid{margin-top:2px}
-#dPhotoPrev{width:56px;height:56px;object-fit:cover;border-radius:8px}
 .book{display:flex;flex-direction:column;gap:12px}
 .book-cover{background:var(--ink);color:var(--bg);border-radius:var(--r);padding:28px 20px;text-align:center;display:flex;flex-direction:column;gap:4px}
 :root[data-theme="dark"] .book-cover{background:var(--sunk);color:var(--fg)}
@@ -466,7 +465,6 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
           <label>今天雖然……<textarea id="dS1" maxlength="200" rows="2"></textarea></label>
           <label>但因為有你……<textarea id="dS2" maxlength="200" rows="2"></textarea></label>
         </div>
-        <div class="full row"><button class="btn ghost" type="button" id="dPhotoBtn">📷 附上照片</button><img id="dPhotoPrev" alt="要附上的照片" hidden><button class="btn ghost" type="button" id="dPhotoDel" hidden style="font-size:12px;padding:4px 10px">移除</button><input type="file" id="dPhotoFile" accept="image/*" hidden></div>
         <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span><button class="btn ghost" type="button" id="dDraftClear" hidden style="font-size:12px;padding:4px 10px">清除草稿</button></div>
       </form>
       <details class="month" id="diaryMore">
@@ -682,20 +680,20 @@ const TASKS=[ // index 0 = Monday
   {day:"四",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:10},
   {day:"五",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:10},
   {day:"六",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:10},
-  {day:"日",name:"回憶收集",text:"分享這週最開心、最難忘的一個瞬間。",xp:20},
+  {day:"日",name:"回憶收集",text:"分享這週最開心、最難忘的一個瞬間。傳照片再 +10 XP。",xp:20},
 ];
 const TITLES=[[50,"🐣 戀愛新手村"],[100,"🧸 黏踢踢小情侶"],[200,"🤡 專業互鬧選手"],[300,"💗 甜蜜製造機"],[500,"🍀 穩定升溫中"],[800,"🍜 吃貨雙人組"],[1200,"🧠 心電感應學徒"],[1800,"🎢 雙人副本老手"],[2500,"🌈 放閃職人"],[3500,"🔥 傳說級黏人精"],[5000,"🛡️ 永久組隊隊長"],[6500,"🌌 宇宙級閃光彈"],[8000,"👑 戀愛滿等玩家"]];
 const QUESTIONS=["你覺得我最欠揍但又最可愛的地方是什麼？","如果我變成一隻蟑螂，你還會愛我嗎？","如果我們一起被困在荒島，你覺得誰會先崩潰？","最近哪一個瞬間讓你突然很想我？","第一次見到我的時候，你心裡在想什麼？","我做過最讓你傻眼的一件事是什麼？","用三個詞形容我們這段關係。","如果明天放假一整天，你想跟我做什麼？","你覺得我們誰比較會吃醋？","我最常對你說的一句話是什麼？","如果要幫我們拍一部電影，片名叫什麼？","你偷偷覺得我哪一個習慣很好笑？","我們吵架之後，你最希望我怎麼哄你？","你最想跟我一起完成的一件事是什麼？","如果可以交換身份一天，你最想用我的身份做什麼？","你覺得我們十年後會在幹嘛？","我哪一個表情你最受不了（但其實很喜歡）？","你最想吃我煮的哪一道菜？","我們之間最好笑的一個暗號或梗是什麼？","哪一首歌會讓你想到我？","如果我們養一隻寵物，要叫什麼名字？","我最近做了什麼讓你覺得被照顧到？","你覺得我們的戀愛像哪一種遊戲？","你今天最想對我撒嬌的一句話是？","如果只能用一個 emoji 代表我，你會選哪個？","我們第一次約會，你最記得哪個畫面？","你覺得我身上最像小孩的地方是什麼？","如果我們一起去旅行，誰負責迷路？"];
 
 const LOVE_START=new Date(2026,10,4);
-const DIARY_XP=5, WISH_XP=10, STREAK_BONUS=10, STREAK_STEP=7;
+const DIARY_XP=5, WISH_XP=10, PHOTO_BONUS=10, STREAK_BONUS=10, STREAK_STEP=7;
 const NOSAVE="沒存到，請再試一次";
 
 const $=id=>document.getElementById(id);
 let done={};      // dateKey -> {dow,xp}
 let entries=[];   // diary docs
 // 新功能的資料存在 done/x~集合~id，沿用現有的 Firebase 規則，不用另外開權限
-const store={wishes:[],rounds:[],answers:[],capsules:[],custom:[],fixes:[],hugs:[],replies:[],backups:[]};
+const store={wishes:[],rounds:[],answers:[],capsules:[],custom:[],fixes:[],hugs:[],replies:[],backups:[],bonus:[]};
 // 刪除時在原本的資料上標記 trashed，30 天後才真的清掉
 const trash={diary:[],photos:[],wishes:[],capsules:[],custom:[]};
 let db=null, local=false;
@@ -770,7 +768,7 @@ function renderStreak(){
 function totalXP(){
   const diaryDays=new Set(entries.map(e=>dayOf(e.at)));
   const wishDays=new Set(store.wishes.filter(w=>w.done).map(w=>w.doneDate));
-  return Object.values(done).reduce((s,v)=>s+(Number(v.xp)||0),0)+diaryDays.size*DIARY_XP+wishDays.size*WISH_XP+streakBonus();
+  return Object.values(done).reduce((s,v)=>s+(Number(v.xp)||0),0)+diaryDays.size*DIARY_XP+wishDays.size*WISH_XP+streakBonus()+store.bonus.reduce((n,b)=>n+(Number(b.xp)||0),0);
 }
 
 function nextAnniv(){const t=today(),m=LOVE_START.getMonth(),d=LOVE_START.getDate();let n=new Date(t.getFullYear(),m,d);if(n<=t)n=new Date(t.getFullYear()+1,m,d);return n}
@@ -810,15 +808,12 @@ function renderQuests(){
    photos/{日期_名字}：縮圖 th + 說明（列表用，檔案小）
    pics/{日期_名字}：原圖 img（點開才載入） */
 let photos=[], photoLimit=30, photoUnsub=null, photoErr="", uploading=null, pendingDate=null;
-const isPhotoDay=i=>i<6;
 function photosOn(d){return photos.filter(p=>p.date===d&&!p.entry)}
 function myPhoto(d){return photos.find(p=>p.date===d&&p.by===myName()&&!p.entry)}
 function photoBtn(p,cls){return `<button type="button" class="${cls}" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片"><img src="${p.th}" alt="" loading="lazy"><span class="nm">${esc(p.by)}${p.by===myName()?"（我）":""}</span></button>`}
 function renderTodayPhotos(){
   const t=today(), k=key(t), box=$("todayPhotos");
-  const show=isPhotoDay(dow(t));
-  box.hidden=!show;$("photoCap").hidden=!show||!db||!!photoErr||!myPhoto(k)||!capEditing;
-  if(!show)return;
+  $("photoCap").hidden=!db||!!photoErr||!myPhoto(k)||!capEditing;
   if(!db){box.innerHTML='<div class="ph-note">📸 要連上伺服器才能上傳照片。</div>';return}
   if(photoErr==="rules"){box.innerHTML='<div class="ph-note">📸 照片功能還沒開通：要先到 Firebase 更新一次「規則」。</div>';return}
   const mine=myPhoto(k), others=photosOn(k).filter(p=>p.by!==myName()), up=uploading===k;
@@ -876,7 +871,13 @@ $("photoFile").addEventListener("change",async()=>{
     photos=photos.filter(p=>p.id!==id).concat([{id,...meta}]);
     const [y,m,d]=date.split("-").map(Number), i=dow(new Date(y,m-1,d));
     uploading=null;
-    if(isPhotoDay(i)&&!done[date])toggle(date,i,true);else toast("照片上傳好了 📸");
+    const had=!!done[date],bonus=i===6&&!store.bonus.some(b=>b.id===date);
+    if(bonus){
+      const doc={date,xp:PHOTO_BONUS,by:myName(),at:new Date().toISOString()};
+      try{await commit(xRef("bonus",date).set(doc));if(!store.bonus.some(b=>b.id===date))store.bonus.push({id:date,...doc})}catch(err){}
+    }
+    if(!had)toggle(date,i,true);
+    if(bonus)toast(`照片上傳好了 📸 再 +${PHOTO_BONUS} XP！`);else if(had)toast("照片上傳好了 📸");
   }catch(e){
     toast(e&&e.code==="permission-denied"?"照片功能還沒開通，要先更新 Firebase 規則":e&&e.message==="decode"?"這張照片讀不到，換一張試試":"上傳失敗，請再試一次");
   }
@@ -975,7 +976,7 @@ function startEdit(id){
 }
 function endEdit(){
   editId=null;$("editBar").hidden=true;$("diaryForm").classList.remove("editing");$("dSave").textContent="寫進日記";
-  for(const el of Object.keys(FIELDS))$(el).value="";$("dDate").value=key(today());happy=0;renderHearts();growAll();restoreDraft();clearDiaryPhoto();renderDiaryToday();
+  for(const el of Object.keys(FIELDS))$(el).value="";$("dDate").value=key(today());happy=0;renderHearts();growAll();restoreDraft();renderDiaryToday();
 }
 $("editCancel").onclick=endEdit;
 let heartDragged=false,heartStart=null;
@@ -1014,7 +1015,7 @@ $("diaryForm").addEventListener("submit",async ev=>{
     if(!old){$("dMsg").textContent="這篇日記已經被刪除了";endEdit();$("dSave").disabled=false;return}
     const upd={...e,at:old.at,by:old.by||myName(),edited:new Date().toISOString()};
     try{
-      if(db){await commit(db.collection("diary").doc(editId).set(upd));await attachDiaryPhoto(editId,upd)}
+      if(db)await commit(db.collection("diary").doc(editId).set(upd));
       else{Object.assign(old,upd);saveLocal()}
       Object.assign(old,upd);endEdit();renderAll();toast("修改好了 ✏️");
     }catch(err){$("dMsg").textContent="沒存到，請再試一次"}
@@ -1022,7 +1023,7 @@ $("diaryForm").addEventListener("submit",async ev=>{
   }
   const counted=entries.some(x=>dayOf(x.at)===key(today()));
   try{
-    if(db){const ref=db.collection("diary").doc();await commit(ref.set(e));if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e});await attachDiaryPhoto(ref.id,e)}
+    if(db){const ref=db.collection("diary").doc();await commit(ref.set(e));if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e})}
     else{e.id="l"+Date.now();entries.push(e);saveLocal()}
     const autoDone=e.date===key(today())&&!done[key(today())];if(autoDone)toggle(key(today()),dow(today()),true);diaryFormOpen=false;$("dDate").value=key(today());clearDraft();$("dMsg").textContent="";["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(autoDone?"寫好了 💌 今天的紀錄完成了":counted?"寫好了 💌 今天的日記 XP 已經領過了":`寫好了！+${DIARY_XP} XP 💌`);
   }catch(err){$("dMsg").textContent="沒存到，請確認你有這個頁面的編輯權限"}
@@ -1485,7 +1486,7 @@ $("hugForm").addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.isComposin
 function renderTodo(){
   const t=today(),tk=key(t),me=myName(),items=[];
   if(store.hugs.some(h=>h.by&&h.by!==me&&!h.backAt))items.push([false,"🤗 抱抱對方","hugCard"]);
-  if(db&&isPhotoDay(dow(t)))items.push([!!myPhoto(tk),"📷 上傳我的照片","diary"]);
+  if(db)items.push([!!myPhoto(tk),dow(t)===6?`📷 上傳我的照片（+${PHOTO_BONUS} XP）`:"📷 上傳我的照片","diary"]);
   items.push([entries.some(e=>e.by===me&&dayOf(e.at)===tk),"💌 寫今天的日記","diary"]);
   const r=curRound(),ans=r?pairOf(r.id):[],answered=ans.some(a=>a.by===me),over=!!r&&ans.length>=need();
   if(r&&!over)items.push(answered?[true,"🎲 已回答抽題，等對方揭曉","draw"]:[false,"🎲 回答抽題","draw"]);
@@ -1587,33 +1588,6 @@ $("dNew").onclick=()=>{diaryFormOpen=!diaryFormOpen;if(!diaryFormOpen)$("dDate")
 // 照片壓縮尺寸：原圖最多約 300KB，放得下原本兩倍以上的張數
 const PHOTO_MAX=420000;
 const shrinkFull=im=>shrink(im,1280,PHOTO_MAX,.76), shrinkThumb=im=>shrink(im,420,60000,.72);
-
-// 日記附照片：存在 photos／pics（d_日記id），照片牆看得到，但不算每日任務的照片
-let dPhoto=null;
-function clearDiaryPhoto(){dPhoto=null;$("dPhotoPrev").hidden=true;$("dPhotoPrev").removeAttribute("src");$("dPhotoDel").hidden=true;$("dPhotoBtn").textContent="📷 附上照片"}
-$("dPhotoBtn").onclick=()=>{
-  if(!db||!navigator.onLine){toast("要連上網路才能附照片");return}
-  $("dPhotoFile").value="";$("dPhotoFile").click();
-};
-$("dPhotoDel").onclick=clearDiaryPhoto;
-$("dPhotoFile").addEventListener("change",async()=>{
-  const f=$("dPhotoFile").files[0];if(!f)return;
-  try{
-    const {im,url}=await loadImg(f);
-    dPhoto={img:shrinkFull(im),th:shrinkThumb(im)};URL.revokeObjectURL(url);
-    $("dPhotoPrev").src=dPhoto.th;$("dPhotoPrev").hidden=false;$("dPhotoDel").hidden=false;$("dPhotoBtn").textContent="📷 換一張";
-  }catch(e){toast("這張照片讀不到，換一張試試")}
-});
-async function attachDiaryPhoto(entryId,e){
-  if(!dPhoto)return;
-  const p=dPhoto,id="d_"+entryId,meta={date:e.date,by:myName(),th:p.th,cap:"",at:nowIso(),entry:entryId};
-  clearDiaryPhoto();
-  try{
-    await db.collection("pics").doc(id).set({img:p.img,date:e.date,by:myName()});
-    await db.collection("photos").doc(id).set(meta);
-    calPhotos=calPhotos.filter(x=>x.id!==id).concat([{id,...meta}]);
-  }catch(err){toast("日記存好了，但照片沒傳成功，可以按編輯再加一次")}
-}
 
 // 回應日記：愛心和留言存成獨立資料，不佔日記本身的欄位
 const BF_KEY="love-base-backfill-skip";
