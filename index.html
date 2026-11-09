@@ -194,7 +194,6 @@ form.wishform{display:flex;gap:8px}
 .wish .t b{font-size:14px}
 .wish .t div{font-size:13px;color:var(--muted)}
 .wish.done{background:var(--ok-soft);border-color:transparent}
-.wish:not(.done) .check[aria-pressed="true"]{border-color:var(--ok);color:var(--ok)}
 .wish.done .check{background:var(--ok);border-color:var(--ok);color:#fff}
 .wish .del{font-size:12px;padding:4px 10px}
 .streak{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px}
@@ -511,7 +510,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </section>
 
   <section id="wishes" class="fold">
-    <div><h2>🌠 願望清單</h2><p class="sub">想去的地方、想吃的店、想一起做的事。兩個人都打勾才算達成，每天第一個達成的願望 +10 XP。</p></div>
+    <div><h2>🌠 願望清單</h2><p class="sub">想去的地方、想吃的店、想一起做的事，每天都可以許願，約會時照著清單一起完成。</p></div>
     <form class="wishform" id="wishForm" autocomplete="off">
       <input id="wText" maxlength="80" required placeholder="例：一起去看一次日出" aria-label="新增願望">
       <button class="btn" type="submit" id="wSave">許願</button>
@@ -693,7 +692,7 @@ const TITLES=[[50,"🐣 戀愛新手村"],[100,"🧸 黏踢踢小情侶"],[200,"
 const QUESTIONS=["你覺得我最欠揍但又最可愛的地方是什麼？","如果我變成一隻蟑螂，你還會愛我嗎？","如果我們一起被困在荒島，你覺得誰會先崩潰？","最近哪一個瞬間讓你突然很想我？","第一次見到我的時候，你心裡在想什麼？","我做過最讓你傻眼的一件事是什麼？","用三個詞形容我們這段關係。","如果明天放假一整天，你想跟我做什麼？","你覺得我們誰比較會吃醋？","我最常對你說的一句話是什麼？","如果要幫我們拍一部電影，片名叫什麼？","你偷偷覺得我哪一個習慣很好笑？","我們吵架之後，你最希望我怎麼哄你？","你最想跟我一起完成的一件事是什麼？","如果可以交換身份一天，你最想用我的身份做什麼？","你覺得我們十年後會在幹嘛？","我哪一個表情你最受不了（但其實很喜歡）？","你最想吃我煮的哪一道菜？","我們之間最好笑的一個暗號或梗是什麼？","哪一首歌會讓你想到我？","如果我們養一隻寵物，要叫什麼名字？","我最近做了什麼讓你覺得被照顧到？","你覺得我們的戀愛像哪一種遊戲？","你今天最想對我撒嬌的一句話是？","如果只能用一個 emoji 代表我，你會選哪個？","我們第一次約會，你最記得哪個畫面？","你覺得我身上最像小孩的地方是什麼？","如果我們一起去旅行，誰負責迷路？"];
 
 const LOVE_START=new Date(2026,10,4);
-const DIARY_XP=10, WISH_XP=10, PHOTO_BONUS=10, STREAK_BONUS=10, STREAK_STEP=7;
+const DIARY_XP=10, PHOTO_BONUS=10, STREAK_BONUS=10, STREAK_STEP=7;
 const NOSAVE="沒存到，請再試一次";
 
 const $=id=>document.getElementById(id);
@@ -789,8 +788,7 @@ function totalXP(){
   const reviews=new Map();
   store.reviews.forEach(r=>{if(!r.by)return;if(!reviews.has(r.date))reviews.set(r.date,new Set);reviews.get(r.date).add(r.by)});
   for(const who of reviews.values())if(who.size>=need())xp+=TASKS[6].xp;
-  const wishDays=new Set(store.wishes.filter(w=>w.done).map(w=>w.doneDate));
-  return xp+wishDays.size*WISH_XP+streakBonus();
+  return xp+streakBonus();
 }
 
 function nextAnniv(){const t=today(),m=LOVE_START.getMonth(),d=LOVE_START.getDate();let n=new Date(t.getFullYear(),m,d);if(n<=t)n=new Date(t.getFullYear()+1,m,d);return n}
@@ -1104,18 +1102,15 @@ function renderWishes(){
   if(!wishes.length){box.innerHTML='<div class="empty">還沒有願望。寫下第一件想一起完成的事。</div>';return}
   const open=wishes.filter(w=>!w.done).sort((a,b)=>byAt(b,a));
   const closed=wishes.filter(w=>w.done).sort((a,b)=>String(b.doneDate).localeCompare(String(a.doneDate)));
-  box.innerHTML=[...open,...closed].map(w=>`<div class="wish ${w.done?"done":""}"><button class="check" type="button" data-id="${esc(w.id)}" aria-pressed="${!!w.done||(w.checks||[]).includes(myName())}" aria-label="${esc(w.text)}：${w.done?"已完成，點一下取消":"標記完成"}">✓</button><div class="t"><b>${esc(w.text)}</b>${w.done?`<div>${esc(w.doneDate)} 完成</div>`:(w.checks||[]).length?`<div>${esc(w.checks.join("、"))} 打勾了，等對方</div>`:""}</div><button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`).join("");
+  box.innerHTML=[...open,...closed].map(w=>`<div class="wish ${w.done?"done":""}"><button class="check" type="button" data-id="${esc(w.id)}" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}：${w.done?"已完成，點一下取消":"標記完成"}">✓</button><div class="t"><b>${esc(w.text)}</b><div>${esc(w.by||"")} 許的${w.done?` · ${esc(w.doneDate)} 完成`:""}</div></div><button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`).join("");
   box.querySelectorAll(".check").forEach(b=>b.onclick=()=>toggleWish(b.dataset.id));
   armDelete(box,"wishes");
 }
 function toggleWish(id){
   const w=store.wishes.find(x=>x.id===id);if(!w)return;
-  const me=myName(),td=key(today()),old=w.checks||[];
-  if(w.done&&!old.length){updDoc("wishes",id,{done:false,doneDate:null,checks:[]});return}
-  const mine=old.includes(me),checks=mine?old.filter(x=>x!==me):[...old,me],both=checks.length>=need();
-  const fresh=both&&!w.done&&!store.wishes.some(x=>x.done&&x.doneDate===td);
-  updDoc("wishes",id,{checks,done:both,doneDate:both?(w.done?w.doneDate:td):null});
-  if(both&&!w.done)toast(fresh?`願望達成 🌠 +${WISH_XP} XP！`:"願望達成 🌠");else if(!mine)toast("打勾了，等對方也打勾");
+  const on=!w.done;
+  updDoc("wishes",id,{done:on,doneDate:on?key(today()):null});
+  if(on)toast("願望達成 🌠");
 }
 bindForm("wishForm","wSave",()=>{const text=$("wText").value.trim();return text&&{c:"wishes",doc:{text,done:false,doneDate:null,by:myName(),at:nowIso()}}},()=>{$("wText").value="";toast("許願成功 🌠")});
 
