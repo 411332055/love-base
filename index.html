@@ -228,6 +228,11 @@ details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:
 .cal-legend span{display:inline-flex;align-items:center;gap:4px}
 #dSearchN:empty{display:none}
 
+.citem small{display:block;font-size:12px;color:var(--muted)}
+.citem img{display:block;width:44px;height:44px;object-fit:cover;border-radius:6px;margin-bottom:4px}
+.trash-acts{display:flex;flex-direction:column;gap:6px}
+.trash-acts .btn{font-size:12px;padding:4px 10px;white-space:nowrap}
+
 details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 details.rules summary{font-weight:700;cursor:pointer}
 details.rules ol{margin:10px 0 4px;padding-left:1.4em}
@@ -284,7 +289,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </header>
 
   <nav class="chips" aria-label="區塊">
-    <a href="#quests">🎮 每日任務</a><a href="#photos">📷 照片</a><a href="#ladder">🏆 成就</a><a href="#diary">💌 日記</a><a href="#calendar">📅 月曆</a><a href="#wishes">🌠 願望</a><a href="#draw">🎲 抽題</a><a href="#capsule">⏳ 膠囊</a><a href="#memories">🕰️ 回憶</a><a href="#tools">💾 備份</a><a href="#rules">🧸 規則</a>
+    <a href="#quests">🎮 每日任務</a><a href="#photos">📷 照片</a><a href="#ladder">🏆 成就</a><a href="#diary">💌 日記</a><a href="#calendar">📅 月曆</a><a href="#wishes">🌠 願望</a><a href="#draw">🎲 抽題</a><a href="#capsule">⏳ 膠囊</a><a href="#memories">🕰️ 回憶</a><a href="#trash">🗑️ 垃圾桶</a><a href="#tools">💾 備份</a><a href="#rules">🧸 規則</a>
   </nav>
 
   <section id="quests">
@@ -418,7 +423,14 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </section>
 
   <section id="tools">
-    <div><h2>💾 備份與安裝</h2></div>
+    <div><h2>💾 備份與垃圾桶</h2></div>
+    <details class="rules" id="trash">
+      <summary>🗑️ 垃圾桶（<span id="trashN">0</span>）</summary>
+      <div class="custom">
+        <p class="sub">刪掉的東西會在這裡留 30 天，時間到自動清除。兩個人都可以復原。</p>
+        <div class="log" id="trashList"></div>
+      </div>
+    </details>
     <details class="rules">
       <summary>📱 加到手機主畫面</summary>
       <div class="custom">
@@ -509,6 +521,8 @@ let done={};      // dateKey -> {dow,xp}
 let entries=[];   // diary docs
 // 新功能的資料存在 done/x~集合~id，沿用現有的 Firebase 規則，不用另外開權限
 const store={wishes:[],rounds:[],answers:[],capsules:[],custom:[],fixes:[]};
+// 刪除時在原本的資料上標記 trashed，30 天後才真的清掉
+const trash={diary:[],photos:[],wishes:[],capsules:[],custom:[]};
 let db=null, local=false;
 const LS="love-base-v1";
 
@@ -540,9 +554,14 @@ async function updDoc(c,id,data){
   const old={...w};Object.assign(w,data);renderAll();
   try{db?await xRef(c,id).update(data):saveLocal()}catch(e){Object.assign(w,old);renderAll();toast(NOSAVE)}
 }
+const TRASH_DAYS=30, TRASHED="移到垃圾桶了，30 天內可以復原";
+const trashMark=()=>({at:nowIso(),by:myName()});
 async function delDoc(c,id){
-  const old=store[c];store[c]=old.filter(x=>x.id!==id);renderAll();
-  try{db?await xRef(c,id).delete():saveLocal()}catch(e){store[c]=old;renderAll();toast("刪除失敗")}
+  const item=store[c].find(x=>x.id===id);if(!item)return;
+  const mark=trashMark();
+  store[c]=store[c].filter(x=>x.id!==id);trash[c].push({...item,trashed:mark});renderAll();
+  try{db?await xRef(c,id).update({trashed:mark}):saveLocal();toast(TRASHED)}
+  catch(e){store[c].push(item);trash[c]=trash[c].filter(x=>x.id!==id);renderAll();toast("刪除失敗")}
 }
 function armDelete(box,c){box.querySelectorAll(".del").forEach(b=>{b.onclick=()=>{
   if(b.dataset.confirm){delDoc(c,b.dataset.id)}else{b.dataset.confirm=1;b.textContent="再按一次";setTimeout(()=>{if(b.isConnected){delete b.dataset.confirm;b.textContent="刪除"}},3000)}}})}
@@ -717,14 +736,14 @@ document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!$("lightbox").hi
 $("lbDel").onclick=async()=>{
   const b=$("lbDel"),id=lbId;if(!id)return;
   if(!b.dataset.confirm){b.dataset.confirm=1;b.textContent="確定刪除？再按一次";return}
-  try{await db.collection("photos").doc(id).delete();await db.collection("pics").doc(id).delete();photos=photos.filter(p=>p.id!==id);calPhotos=calPhotos.filter(p=>p.id!==id);closePhoto();renderPhotosAll();toast("照片刪掉了")}
+  try{await db.collection("photos").doc(id).update({trashed:trashMark()});photos=photos.filter(p=>p.id!==id);calPhotos=calPhotos.filter(p=>p.id!==id);closePhoto();renderPhotosAll();toast(TRASHED)}
   catch(e){toast("刪除失敗，請再試一次")}
 };
 function subPhotos(){
   if(!db)return;
   if(photoUnsub)photoUnsub();
   photoUnsub=db.collection("photos").orderBy("date","desc").limit(photoLimit).onSnapshot(
-    s=>{photos=s.docs.map(d=>({id:d.id,...d.data()}));photoErr="";renderPhotosAll()},
+    s=>{photos=s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>!p.trashed);photoErr="";renderPhotosAll()},
     e=>{photoErr=e&&e.code==="permission-denied"?"rules":"net";renderPhotosAll()});
 }
 
@@ -771,8 +790,11 @@ function renderEntries(){
     if(b.dataset.confirm){delEntry(b.dataset.id)}else{b.dataset.confirm=1;b.textContent="確定刪除？再按一次";setTimeout(()=>{if(b.isConnected){delete b.dataset.confirm;b.textContent="刪除"}},3000)}}});
 }
 async function delEntry(id){
-  const old=entries;entries=entries.filter(e=>e.id!==id);renderAll();
-  try{db?await db.collection("diary").doc(id).delete():saveLocal()}catch(e){entries=old;renderAll();toast("刪除失敗")}
+  const item=entries.find(e=>e.id===id);if(!item)return;
+  const old=entries,mark=trashMark();
+  entries=entries.filter(e=>e.id!==id);trash.diary.push({...item,trashed:mark});renderAll();
+  try{db?await db.collection("diary").doc(id).update({trashed:mark}):saveLocal();toast(TRASHED)}
+  catch(e){entries=old;trash.diary=trash.diary.filter(x=>x.id!==id);renderAll();toast("刪除失敗")}
 }
 
 let happy=0, editId=null;
@@ -982,7 +1004,7 @@ function loadCalPhotos(m){
   calLoaded.add(m);
   db.collection("photos").where("date",">=",m+"-01").where("date","<=",m+"-31").get().then(s=>{
     const ids=new Set(s.docs.map(d=>d.id));
-    calPhotos=calPhotos.filter(p=>!ids.has(p.id)).concat(s.docs.map(d=>({id:d.id,...d.data()})));
+    calPhotos=calPhotos.filter(p=>!ids.has(p.id)).concat(s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>!p.trashed));
     renderCalendar();
   }).catch(()=>{});
 }
@@ -1085,9 +1107,67 @@ $("bkPick").onclick=()=>{$("bkFile").value="";$("bkFile").click()};
 $("bkFile").addEventListener("change",async()=>{const f=$("bkFile").files[0];if(f)prepRestore(await f.text())});
 $("bkConfirm").onclick=applyRestore;
 
-function renderAll(){renderHUD();renderStreak();renderQuests();renderEntries();renderWall();renderWishes();renderDraw();renderCustom();renderCapsules();renderMemories();renderCalendar()}
-function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,...store}))}catch(e){}}
-function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];Object.keys(store).forEach(c=>store[c]=s[c]||[]);delete done["draw-state"]}}catch(e){}}
+// 垃圾桶
+const trashExpired=x=>Date.now()-new Date(x.trashed.at).getTime()>=TRASH_DAYS*864e5;
+const trashDaysLeft=x=>Math.max(1,Math.ceil((new Date(x.trashed.at).getTime()+TRASH_DAYS*864e5-Date.now())/864e5));
+function trashLabel(c,x){
+  if(c==="diary")return `💌 ${esc(x.date)} 的日記：${esc(String(x.mood||x.say||x.funny||x.food||x.s1||x.s2||"").slice(0,40))}`;
+  if(c==="photos")return `<img src="${esc(x.th)}" alt="" loading="lazy">📷 ${esc(x.date)} ${esc(x.by)} 的照片`;
+  if(c==="wishes")return `🌠 ${esc(x.text)}`;
+  if(c==="capsules")return x.openDate>key(today())?`🔒 封存中的膠囊（${esc(x.openDate)} 打開）`:`⏳ ${esc(x.text)}`;
+  return x.kind==="q"?`💬 ${esc(x.text)}`:`📌 ${esc(x.name)}：${esc(x.text)}`;
+}
+function renderTrash(){
+  const box=$("trashList"),items=Object.entries(trash).flatMap(([c,l])=>l.map(x=>[c,x])).sort((a,b)=>String(b[1].trashed.at).localeCompare(String(a[1].trashed.at)));
+  $("trashN").textContent=items.length;
+  box.innerHTML=items.length?items.map(([c,x])=>`<div class="citem"><span>${trashLabel(c,x)}<small>${esc(x.trashed.by||"有人")} 刪的 · 還剩 ${trashDaysLeft(x)} 天</small></span><div class="trash-acts"><button class="btn ghost" type="button" data-restore="${c}" data-id="${esc(x.id)}">復原</button><button class="btn ghost" type="button" data-purge="${c}" data-id="${esc(x.id)}">永久刪除</button></div></div>`).join(""):'<div class="empty">垃圾桶是空的。</div>';
+  box.querySelectorAll("[data-restore]").forEach(b=>b.onclick=()=>restoreItem(b.dataset.restore,b.dataset.id));
+  box.querySelectorAll("[data-purge]").forEach(b=>{b.onclick=()=>{
+    if(b.dataset.confirm){purgeItem(b.dataset.purge,b.dataset.id)}else{b.dataset.confirm=1;b.textContent="無法復原，再按一次";setTimeout(()=>{if(b.isConnected){delete b.dataset.confirm;b.textContent="永久刪除"}},3000)}}});
+}
+function trashRef(c,id){return c==="diary"||c==="photos"?db.collection(c).doc(id):xRef(c,id)}
+async function restoreItem(c,id){
+  const item=trash[c].find(x=>x.id===id);if(!item)return;
+  const {id:_id,trashed,...data}=item;
+  const list=c==="diary"?entries:c==="photos"?photos:store[c];
+  trash[c]=trash[c].filter(x=>x.id!==id);list.push({id,...data});renderAll();
+  try{
+    db?await trashRef(c,id).set(data):saveLocal();
+    if(c==="photos")calLoaded.delete(String(data.date).slice(0,7));
+    renderAll();toast("復原了 ♻️");
+  }catch(e){
+    const i=list.findIndex(x=>x.id===id);if(i>=0)list.splice(i,1);
+    trash[c].push(item);renderAll();toast("復原失敗，請再試一次");
+  }
+}
+async function hardDelete(c,id){
+  if(!db)return;
+  await trashRef(c,id).delete();
+  if(c==="photos")await db.collection("pics").doc(id).delete();
+}
+async function purgeItem(c,id){
+  const old=trash[c];trash[c]=old.filter(x=>x.id!==id);renderTrash();
+  try{await hardDelete(c,id);if(!db)saveLocal();toast("永久刪除了")}catch(e){trash[c]=old;renderTrash();toast("刪除失敗")}
+}
+const purging=new Set();
+function purgeExpired(){
+  for(const c of Object.keys(trash))for(const x of trash[c]){
+    if(!trashExpired(x)||purging.has(c+x.id))continue;
+    purging.add(c+x.id);
+    hardDelete(c,x.id).catch(()=>purging.delete(c+x.id));
+    if(!db){trash[c]=trash[c].filter(y=>y.id!==x.id);saveLocal()}
+  }
+}
+function subPhotoTrash(){
+  db.collection("photos").where("trashed.at",">","").onSnapshot(s=>{
+    trash.photos=s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>p.trashed);
+    renderTrash();purgeExpired();
+  },()=>{});
+}
+
+function renderAll(){renderHUD();renderStreak();renderQuests();renderEntries();renderWall();renderWishes();renderDraw();renderCustom();renderCapsules();renderMemories();renderCalendar();renderTrash()}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,...store,trash}))}catch(e){}}
+function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];Object.keys(store).forEach(c=>store[c]=s[c]||[]);if(s.trash)Object.assign(trash,s.trash);delete done["draw-state"]}}catch(e){}}
 
 $("dSearch").addEventListener("input",renderEntries);
 $("filter").querySelectorAll("button").forEach(b=>b.onclick=()=>{who=b.dataset.w;$("filter").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));renderEntries()});
@@ -1129,10 +1209,10 @@ $("logout").onclick=()=>{try{localStorage.removeItem(ROOM_KEY)}catch(e){}locatio
   $("logout").hidden=false;
   let got={done:false,diary:false};
   const timer=setTimeout(()=>{$("status").textContent="暫時連不上，資料可能不是最新"},10000);
-  const ready=()=>{if(got.done&&got.diary){clearTimeout(timer);$("status").textContent="● 兩人同步中"}};
-  db.collection("done").onSnapshot(s=>{done={};Object.keys(store).forEach(c=>store[c]=[]);s.docs.forEach(d=>{if(d.id==="draw-state")return;if(d.id.startsWith("x~")){const [,c,id]=d.id.split("~");if(store[c])store[c].push({id,...d.data()});return}done[d.id]=d.data()});if(!s.metadata?.fromCache)got.done=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
-  subPhotos();
-  db.collection("diary").onSnapshot(s=>{entries=s.docs.map(d=>({id:d.id,...d.data()}));if(!s.metadata?.fromCache)got.diary=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
+  const ready=()=>{if(got.done&&got.diary){clearTimeout(timer);$("status").textContent="● 兩人同步中";purgeExpired()}};
+  db.collection("done").onSnapshot(s=>{done={};Object.keys(store).forEach(c=>store[c]=[]);["wishes","capsules","custom"].forEach(c=>trash[c]=[]);s.docs.forEach(d=>{if(d.id==="draw-state")return;if(d.id.startsWith("x~")){const [,c,id]=d.id.split("~");const v=d.data();if(store[c])(v.trashed?trash[c]:store[c]).push({id,...v});return}done[d.id]=d.data()});if(!s.metadata?.fromCache)got.done=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
+  subPhotos();subPhotoTrash();
+  db.collection("diary").onSnapshot(s=>{const all=s.docs.map(d=>({id:d.id,...d.data()}));entries=all.filter(e=>!e.trashed);trash.diary=all.filter(e=>e.trashed);if(!s.metadata?.fromCache)got.diary=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
 })();
 </script>
 </body>
