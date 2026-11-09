@@ -129,7 +129,11 @@ textarea{resize:vertical;min-height:44px}
 .entry dt{color:var(--muted)}
 .entry dd{margin:0;min-width:0;overflow-wrap:anywhere}
 .entry blockquote{margin:4px 0 0;padding:8px 12px;background:var(--pink-soft);border-radius:10px;font-weight:500}
-.entry .del{align-self:flex-end;font-size:12px}
+.entry .acts{display:flex;gap:8px;justify-content:flex-end}
+.entry .acts .btn{font-size:12px}
+.edited{font-size:12px;color:var(--muted)}
+form.diary.editing{border:2px solid var(--pink)}
+.editbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:var(--pink-soft);color:var(--pink);font-weight:700;border-radius:10px;padding:8px 12px;font-size:14px}
 .empty{color:var(--muted);text-align:center;padding:20px;border:1px dashed var(--line);border-radius:var(--r)}
 
 /* draw */
@@ -190,6 +194,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   <section id="diary">
     <div><h2>💌 戀愛日記</h2><p class="sub">每天留一則，以後一起回顧。</p></div>
     <form class="diary" id="diaryForm" autocomplete="off">
+      <div class="full editbar" id="editBar" hidden><span id="editText">✏️ 正在編輯</span><button class="btn ghost" type="button" id="editCancel">取消編輯</button></div>
       <label>📅 日期<input type="date" id="dDate" required></label>
       <label>⛅ 今天的心情<input id="dMood" maxlength="60" placeholder="例：有點累但很開心"></label>
       <label>🍜 今天吃了什麼<input id="dFood" maxlength="80"></label>
@@ -333,10 +338,11 @@ function renderEntries(){
   const shown=sorted.slice().reverse().filter(e=>who==="all"||(who==="me"?e.by===me:e.by!==me));
   if(!shown.length){box.innerHTML=`<div class="empty">${who==="me"?"你還沒寫過日記。":"對方還沒寫過日記。"}</div>`;return}
   box.innerHTML=shown.map(e=>`<article class="entry ${e.by?(e.by===me?"me":"them"):""}"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b><span>${esc(e.date)}${e.happy?" · ⭐ "+esc(e.happy)+"/10":""}</span></header>
-  <div>${byChip(e.by)}</div>
+  <div>${byChip(e.by)}${e.edited?' <span class="edited">· 已編輯</span>':""}</div>
   <dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>
   ${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}
-  <button class="btn ghost del" type="button" data-id="${esc(e.id)}">刪除</button></article>`).join("");
+  <div class="acts">${(!e.by||e.by===me)?`<button class="btn ghost edit" type="button" data-id="${esc(e.id)}">✏️ 編輯</button>`:""}<button class="btn ghost del" type="button" data-id="${esc(e.id)}">刪除</button></div></article>`).join("");
+  box.querySelectorAll(".edit").forEach(b=>b.onclick=()=>startEdit(b.dataset.id));
   box.querySelectorAll(".del").forEach(b=>{b.onclick=()=>{
     if(b.dataset.confirm){delEntry(b.dataset.id)}else{b.dataset.confirm=1;b.textContent="確定刪除？再按一次";setTimeout(()=>{if(b.isConnected){delete b.dataset.confirm;b.textContent="刪除"}},3000)}}});
 }
@@ -345,7 +351,22 @@ async function delEntry(id){
   try{db?await db.collection("diary").doc(id).delete():saveLocal()}catch(e){entries=old;renderAll();toast("刪除失敗")}
 }
 
-let happy=0;
+let happy=0, editId=null;
+const FIELDS={dMood:"mood",dFood:"food",dFunny:"funny",dSay:"say",dS1:"s1",dS2:"s2"};
+function startEdit(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  editId=id;$("dDate").value=e.date||key(today());
+  for(const [el,f] of Object.entries(FIELDS))$(el).value=e[f]||"";
+  happy=Number(e.happy)||0;renderHearts();
+  $("editBar").hidden=false;$("editText").textContent=`✏️ 正在編輯 ${e.date||""} 的日記`;
+  $("diaryForm").classList.add("editing");$("dSave").textContent="儲存修改";$("dMsg").textContent="";
+  $("diaryForm").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function endEdit(){
+  editId=null;$("editBar").hidden=true;$("diaryForm").classList.remove("editing");$("dSave").textContent="寫進日記";
+  for(const el of Object.keys(FIELDS))$(el).value="";$("dDate").value=key(today());happy=0;renderHearts();
+}
+$("editCancel").onclick=endEdit;
 function renderHearts(){$("hearts").innerHTML=[...Array(10)].map((_,i)=>`<button type="button" role="radio" aria-checked="${happy===i+1}" aria-label="${i+1} 分" class="${i<happy?"on":""}" data-v="${i+1}">⭐</button>`).join("");
   $("hearts").querySelectorAll("button").forEach(b=>b.onclick=()=>{happy=+b.dataset.v;renderHearts()})}
 
@@ -354,6 +375,17 @@ $("diaryForm").addEventListener("submit",async ev=>{
   const e={date:$("dDate").value,mood:$("dMood").value.trim(),food:$("dFood").value.trim(),funny:$("dFunny").value.trim(),say:$("dSay").value.trim(),happy:happy||null,s1:$("dS1").value.trim(),s2:$("dS2").value.trim(),at:new Date().toISOString(),by:myName()};
   if(!e.mood&&!e.food&&!e.funny&&!e.say&&!e.s1&&!e.s2){$("dMsg").textContent="至少寫一格再存喔";return}
   $("dSave").disabled=true;$("dMsg").textContent="";
+  if(editId){
+    const old=entries.find(x=>x.id===editId);
+    if(!old){$("dMsg").textContent="這篇日記已經被刪除了";endEdit();$("dSave").disabled=false;return}
+    const upd={...e,at:old.at,by:old.by||myName(),edited:new Date().toISOString()};
+    try{
+      if(db)await db.collection("diary").doc(editId).set(upd);
+      else{Object.assign(old,upd);saveLocal()}
+      Object.assign(old,upd);endEdit();renderAll();toast("修改好了 ✏️");
+    }catch(err){$("dMsg").textContent="沒存到，請再試一次"}
+    $("dSave").disabled=false;return;
+  }
   try{
     if(db){const ref=db.collection("diary").doc();await ref.set(e);if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e})}
     else{e.id="l"+Date.now();entries.push(e);saveLocal()}
