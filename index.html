@@ -78,22 +78,18 @@ section{scroll-margin-top:12px}
 .side a .ic{flex:none;width:24px;text-align:center;font-size:17px}
 .side a:hover{background:var(--sunk)}
 .side a[aria-current="true"]{background:var(--pink-soft);color:var(--pink);font-weight:700}
-.side a:focus-visible,.side-toggle:focus-visible,.side-fab:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+.side a:focus-visible,.side-toggle:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
 @media (min-width:860px){
   body{padding-left:var(--side-w);transition:padding-left .2s ease}
   :root[data-side="mini"] body{padding-left:var(--rail-w)}
   :root[data-side="mini"] .side{width:var(--rail-w)}
   :root[data-side="mini"] .side .lb,:root[data-side="mini"] .side-head b{display:none}
   :root[data-side="mini"] .side-head{justify-content:center}
-  .side-fab,.side-scrim{display:none}
 }
 @media (max-width:859px){
-  .side{width:min(240px,80vw)}
-  :root[data-side="mini"] .side{transform:translateX(-100%);visibility:hidden}
-  .side-scrim{position:fixed;inset:0;z-index:15;background:rgba(12,6,10,.5);border:0;padding:0}
-  :root[data-side="mini"] .side-scrim{display:none}
-  .side-fab{position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:14;width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--fg);color:var(--bg);font-size:20px;line-height:1;padding:0}
-  :root[data-side="open"] .side-fab{display:none}
+  .side{display:none}
+  .tabbar{display:flex}
+  .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 }
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 
@@ -289,13 +285,17 @@ details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:
 .citem.off span{opacity:.5}
 
 /* 首頁只留今天的內容，其他區塊收成一行，一次只展開一個 */
-section.fold:not(.open)>:not(:first-child){display:none}
-section.fold:not(.open)>:first-child .sub{display:none}
-section.fold h2{display:block;font-size:16px}
-section.fold.open{margin-block:10px}
-.fold-btn{width:100%;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--fg);font:inherit;font-weight:900;text-align:left}
-.fold-btn::after{content:"▸";margin-left:auto;color:var(--muted)}
-section.fold.open .fold-btn::after{content:"▾"}
+.wrap>section:not(.current){display:none}
+:root[data-view]:not([data-view="today"]) .hud{display:none}
+.subnav{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
+.subnav a{flex:none;text-decoration:none;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:6px 16px;font-size:14px;font-weight:500}
+.subnav a[aria-current="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg);font-weight:700}
+@media (min-width:860px){.tabbar{display:none!important}}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:14;display:flex;background:var(--surface);border-top:1px solid var(--line);padding:4px max(4px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(4px,env(safe-area-inset-left,0px))}
+.tabbar a{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 0;border-radius:10px;color:var(--muted);text-decoration:none;font-size:12px}
+.tabbar a .ic{font-size:20px;line-height:1.2}
+.tabbar a[aria-current="true"]{color:var(--pink);font-weight:700;background:var(--pink-soft)}
+.tabbar a:focus-visible{outline:2px solid var(--pink);outline-offset:-2px}
 
 /* diary replies, year book */
 .replies{display:flex;flex-direction:column;gap:6px}
@@ -316,11 +316,10 @@ section.fold.open .fold-btn::after{content:"▾"}
 @media print{
   :root,:root[data-theme="dark"],:root:not([data-theme="light"]){--bg:#fff;--surface:#fff;--sunk:#f4ebef;--line:#ead9e1;--fg:#2a1b25;--muted:#7c6672;--pink:#e2457a;--pink-soft:#fde3ec;--gold:#c08a12;--gold-soft:#fbefcf;--ink:#fff;color-scheme:light}
   body{padding-left:0!important}
-  .side,.side-fab,.side-scrim,.toast,#bookTools{display:none!important}
+  .side,.tabbar,.subnav,.toast,#bookTools{display:none!important}
   .wrap{zoom:1!important;max-width:none}
   .wrap>*:not(#book){display:none!important}
-  #book .fold-btn{border:0;font-size:20px}
-  #book .fold-btn::after,#book .sub{display:none}
+  #book .sub{display:none}
   .book-cover{border:1px solid var(--line);color:var(--fg)!important}
 }
 
@@ -333,7 +332,7 @@ section.fold.open .fold-btn::after{content:"▾"}
 .ph-pair{max-width:260px}
 .ph-slot{font-size:13px}
 .done-line{color:var(--ok);font-weight:700}
-@media (max-width:859px){.wrap{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}
+@media (max-width:859px){.wrap{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 
 .hug.mini{background:none;padding:0;flex-direction:row;align-items:center;justify-content:space-between}
 #hugOpen{align-self:flex-start;font-size:13px;padding:6px 14px}
@@ -382,24 +381,21 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 </script>
 <aside class="side" id="side">
   <div class="side-head"><b>戀愛基地</b><button class="side-toggle" type="button" id="sideToggle" aria-controls="sideNav"></button></div>
-  <nav id="sideNav" aria-label="區塊" style="display:flex;flex-direction:column;gap:2px">
-    <a href="#today" data-s="today" title="今天"><span class="ic" aria-hidden="true">🏠</span><span class="lb">今天</span></a>
-    <a href="#quests" data-s="quests" title="日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">日記</span></a>
-    <a href="#wishes" data-s="wishes" title="願望"><span class="ic" aria-hidden="true">🌠</span><span class="lb">願望</span></a>
-    <a href="#draw" data-s="draw" title="抽題"><span class="ic" aria-hidden="true">🎲</span><span class="lb">抽題</span></a>
-    <a href="#photos" data-s="photos" title="照片"><span class="ic" aria-hidden="true">📷</span><span class="lb">照片</span></a>
-    <a href="#ladder" data-s="ladder" title="成就"><span class="ic" aria-hidden="true">🏆</span><span class="lb">成就</span></a>
-    <a href="#calendar" data-s="calendar" title="月曆"><span class="ic" aria-hidden="true">📅</span><span class="lb">月曆</span></a>
-    <a href="#capsule" data-s="capsule" title="膠囊"><span class="ic" aria-hidden="true">⏳</span><span class="lb">膠囊</span></a>
-    <a href="#memories" data-s="memories" title="回憶"><span class="ic" aria-hidden="true">🕰️</span><span class="lb">回憶</span></a>
-    <a href="#book" data-s="book" title="回憶書"><span class="ic" aria-hidden="true">📖</span><span class="lb">回憶書</span></a>
-    <a href="#trash" data-s="trash" title="垃圾桶"><span class="ic" aria-hidden="true">🗑️</span><span class="lb">垃圾桶</span></a>
-    <a href="#tools" data-s="tools" title="設定"><span class="ic" aria-hidden="true">⚙️</span><span class="lb">設定</span></a>
-    <a href="#rules" data-s="rules" title="規則"><span class="ic" aria-hidden="true">🧸</span><span class="lb">規則</span></a>
+  <nav id="sideNav" aria-label="主選單" style="display:flex;flex-direction:column;gap:2px">
+    <a href="#today" data-c="today" title="今天"><span class="ic" aria-hidden="true">🏠</span><span class="lb">今天</span></a>
+    <a href="#quests" data-c="diary" title="日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">日記</span></a>
+    <a href="#wishes" data-c="play" title="互動"><span class="ic" aria-hidden="true">🎲</span><span class="lb">互動</span></a>
+    <a href="#photos" data-c="memory" title="回憶"><span class="ic" aria-hidden="true">🕰️</span><span class="lb">回憶</span></a>
+    <a href="#ladder" data-c="more" title="更多"><span class="ic" aria-hidden="true">⚙️</span><span class="lb">更多</span></a>
   </nav>
 </aside>
-<button class="side-scrim" type="button" id="sideScrim" aria-label="關閉選單" tabindex="-1"></button>
-<button class="side-fab" type="button" id="sideFab" aria-label="打開選單" aria-controls="sideNav">☰</button>
+<nav class="tabbar" id="tabBar" aria-label="主選單">
+    <a href="#today" data-c="today" title="今天"><span class="ic" aria-hidden="true">🏠</span><span class="lb">今天</span></a>
+    <a href="#quests" data-c="diary" title="日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">日記</span></a>
+    <a href="#wishes" data-c="play" title="互動"><span class="ic" aria-hidden="true">🎲</span><span class="lb">互動</span></a>
+    <a href="#photos" data-c="memory" title="回憶"><span class="ic" aria-hidden="true">🕰️</span><span class="lb">回憶</span></a>
+    <a href="#ladder" data-c="more" title="更多"><span class="ic" aria-hidden="true">⚙️</span><span class="lb">更多</span></a>
+</nav>
 
 <div class="wrap">
   <header class="hud" id="top">
@@ -420,7 +416,9 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     </div>
   </header>
 
-  <section id="today">
+  <nav class="subnav" id="subNav" aria-label="這個分類的區塊" hidden></nav>
+
+  <section id="today" class="current">
     <div class="notices" id="notices" hidden>
       <div class="away" id="bkNudge" hidden></div>
       <div class="away" id="awayCard" hidden></div>
@@ -437,11 +435,11 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <div class="hug-foot" id="hugN"></div>
     </div>
     <div class="todo" id="todoCard"></div>
+    <div class="streak" id="streak"></div>
   </section>
 
   <section id="quests">
     <div><h2>💌 今天的日記</h2></div>
-    <div class="streak" id="streak"></div>
     <div class="today" id="todayBox" hidden>
       <div id="todayCard" style="display:flex;flex-direction:column;gap:10px"></div>
       <div class="reveal" id="reviewList"></div>
@@ -586,7 +584,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <div class="custom">
         <div class="field">顏色<div class="filter" id="segTheme" role="group" aria-label="顏色"><button type="button" data-v="system">跟著系統</button><button type="button" data-v="light">淺色</button><button type="button" data-v="dark">深色</button></div></div>
         <div class="field">字體大小<div class="filter" id="segFont" role="group" aria-label="字體大小"><button type="button" data-v="s">小</button><button type="button" data-v="m">標準</button><button type="button" data-v="l">大</button><button type="button" data-v="xl">特大</button></div></div>
-        <div class="field">區塊順序與顯示</div>
+        <div class="field">區塊順序與顯示（在同一個分類裡排序）</div>
         <div class="log" id="layoutList" style="margin-top:0"></div>
         <div class="row between"><span class="sub">這些設定只影響你這台裝置，對方的畫面不會變。</span><button class="btn ghost" type="button" id="layoutReset">恢復預設版面</button></div>
       </div>
@@ -626,7 +624,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </section>
 
   <section id="rules">
-    <details class="rules">
+    <details class="rules" open>
       <summary>🧸 群組遊戲規則</summary>
       <ol>
         <li>不准害羞，有廢話就說！</li>
@@ -1396,29 +1394,17 @@ function subPhotoTrash(){
   },()=>{});
 }
 
-// 側邊選單
-const SIDE_KEY="love-base-side",sidePhone=matchMedia("(max-width:859px)");
-function savedSide(){try{return localStorage.getItem(SIDE_KEY)||"open"}catch(e){return "open"}}
+// 側邊選單（電腦版），手機用底部分頁
+const SIDE_KEY="love-base-side";
 function setSide(v,save){
   document.documentElement.dataset.side=v;
   const open=v==="open",b=$("sideToggle");
-  b.textContent=sidePhone.matches?"✕":open?"«":"»";
+  b.textContent=open?"«":"»";
   b.setAttribute("aria-expanded",open);b.setAttribute("aria-label",open?"縮小選單":"展開選單");
-  $("sideFab").setAttribute("aria-expanded",open);
-  if(save&&!sidePhone.matches)try{localStorage.setItem(SIDE_KEY,v)}catch(e){}
+  if(save)try{localStorage.setItem(SIDE_KEY,v)}catch(e){}
 }
-setSide(document.documentElement.dataset.side);
-$("sideToggle").onclick=()=>{setSide(document.documentElement.dataset.side==="open"?"mini":"open",true);if(sidePhone.matches)$("sideFab").focus()};
-$("sideFab").onclick=()=>{setSide("open");$("sideToggle").focus()};
-$("sideScrim").onclick=()=>setSide("mini");
-sidePhone.addEventListener("change",()=>setSide(sidePhone.matches?"mini":savedSide()));
-document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&sidePhone.matches&&document.documentElement.dataset.side==="open"){setSide("mini");$("sideFab").focus()}});
-$("sideNav").querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>{if(a.dataset.s==="trash")$("trash").open=true;if(sidePhone.matches)setSide("mini")}));
-if("IntersectionObserver" in window){
-  const links=[...$("sideNav").querySelectorAll("a")];
-  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)links.forEach(a=>a.setAttribute("aria-current",a.dataset.s===e.target.id))}),{rootMargin:"-20% 0px -70% 0px"});
-  document.querySelectorAll("section[id]").forEach(x=>io.observe(x));
-}
+setSide(document.documentElement.dataset.side==="mini"?"mini":"open");
+$("sideToggle").onclick=()=>setSide(document.documentElement.dataset.side==="open"?"mini":"open",true);
 
 // 日記草稿：只存在這台裝置，寫進日記後清掉；編輯舊日記時不動草稿
 const DRAFT_KEY="love-base-draft";
@@ -1518,24 +1504,32 @@ function renderToday(){renderBackupNudge();renderAway();renderHug();renderTodo()
 
 // 外觀與版面：都存在這台裝置，兩個人可以各自設定
 const LAYOUT_KEY="love-base-layout";
-const secLinks=[...$("sideNav").querySelectorAll("a")].filter(a=>!["trash","tools"].includes(a.dataset.s));
-const SEC_DEFAULT=secLinks.map(a=>a.dataset.s);
+const CATS=[{id:"today",secs:["today"]},{id:"diary",secs:["quests"]},{id:"play",secs:["wishes","draw"]},{id:"memory",secs:["photos","calendar","memories","capsule","book"]},{id:"more",secs:["ladder","rules","tools"]}];
+const SEC_META={wishes:["願望","🌠"],draw:["抽題","🎲"],photos:["照片","📷"],calendar:["月曆","📅"],memories:["回憶","🕰️"],capsule:["膠囊","⏳"],book:["回憶書","📖"],ladder:["成就","🏆"],rules:["規則","🧸"],tools:["設定","⚙️"]};
+const SEC_DEFAULT=Object.keys(SEC_META).filter(id=>id!=="tools");
+let view="today";
+const lastSub={};
 function loadLayout(){
   let v=null;try{v=JSON.parse(localStorage.getItem(LAYOUT_KEY)||"null")}catch(e){}
   const order=(v?.order||[]).filter(id=>SEC_DEFAULT.includes(id));
   return {order:[...order,...SEC_DEFAULT.filter(id=>!order.includes(id))],hidden:(v?.hidden||[]).filter(id=>SEC_DEFAULT.includes(id))};
 }
 let layout=loadLayout();
+function catSecs(c){const rank=id=>{const i=layout.order.indexOf(id);return i<0?99:i};return c.secs.filter(id=>!layout.hidden.includes(id)).sort((a,b)=>rank(a)-rank(b))}
+function renderNav(){
+  const cur=CATS.find(c=>c.secs.includes(view)),secs=catSecs(cur),sub=$("subNav");
+  sub.hidden=secs.length<2;
+  sub.innerHTML=secs.length<2?"":secs.map(id=>`<a href="#${id}" aria-current="${id===view}">${SEC_META[id][1]} ${SEC_META[id][0]}</a>`).join("");
+  document.querySelectorAll("[data-c]").forEach(a=>{const c=CATS.find(x=>x.id===a.dataset.c);a.hidden=!catSecs(c).length;a.setAttribute("aria-current",c===cur)});
+}
 function applyLayout(){
-  const wrap=document.querySelector(".wrap"),nav=$("sideNav");
-  layout.order.forEach(id=>{const off=layout.hidden.includes(id),sec=$(id),a=nav.querySelector(`[data-s="${id}"]`);sec.hidden=off;a.hidden=off;wrap.append(sec);nav.append(a)});
-  wrap.append($("tools"));
-  ["trash","tools"].forEach(id=>nav.append(nav.querySelector(`[data-s="${id}"]`)));
+  layout.order.forEach(id=>{$(id).hidden=layout.hidden.includes(id)});
+  if($(view).hidden)setView("today");else renderNav();
 }
 function renderLayoutList(){
   const box=$("layoutList"),last=layout.order.length-1;
   box.innerHTML=layout.order.map((id,i)=>{
-    const a=$("sideNav").querySelector(`[data-s="${id}"]`),label=a.title,ic=a.querySelector(".ic").textContent,off=layout.hidden.includes(id);
+    const [label,ic]=SEC_META[id],off=layout.hidden.includes(id);
     return `<div class="citem ${off?"off":""}"><span>${ic} ${label}</span><div class="layout-acts"><button class="btn ghost" type="button" data-move="-1" data-id="${id}" aria-label="${label} 往前" ${i?"":"disabled"}>↑</button><button class="btn ghost" type="button" data-move="1" data-id="${id}" aria-label="${label} 往後" ${i<last?"":"disabled"}>↓</button><button class="btn ghost" type="button" data-toggle="${id}" aria-pressed="${off}" aria-label="${off?"顯示":"隱藏"} ${label}">${off?"顯示":"隱藏"}</button></div></div>`}).join("");
   box.querySelectorAll("[data-move]").forEach(b=>b.onclick=()=>{
     const id=b.dataset.id,d=+b.dataset.move,i=layout.order.indexOf(id);
@@ -1561,20 +1555,34 @@ bindSeg("segFont","love-base-font",()=>R.dataset.font||"m",v=>{R.dataset.font=v}
 applyLayout();
 renderLayoutList();
 
-// 收合區塊：點標題或任何連到區塊的連結都會展開，一次只開一個
-const folds=[...document.querySelectorAll("section.fold")];
-function setFold(sec){
-  folds.forEach(x=>{const on=x===sec;x.classList.toggle("open",on);x.querySelector(".fold-btn").setAttribute("aria-expanded",on)});
-  if(sec)renderOpen();
+// 一次只顯示一個區塊：底部分頁或側邊欄選分類，分類裡用上方的小標籤切換
+function setView(id){
+  const sec=$(id);
+  if(!sec||sec.hidden||!CATS.some(c=>c.secs.includes(id)))id="today";
+  view=id;
+  const c=CATS.find(x=>x.secs.includes(id));
+  lastSub[c.id]=id;
+  document.documentElement.dataset.view=c.id;
+  document.querySelectorAll(".wrap>section").forEach(x=>{const on=x.id===id;x.classList.toggle("current",on);x.classList.toggle("open",on)});
+  renderNav();
+  renderOpen();
 }
-folds.forEach(sec=>{
-  const h=sec.querySelector("h2"),b=document.createElement("button");
-  b.type="button";b.className="fold-btn";b.setAttribute("aria-expanded","false");b.append(...h.childNodes);h.append(b);
-  b.onclick=()=>{const open=sec.classList.contains("open");setFold(open?null:sec);if(!open)sec.scrollIntoView({block:"start"})};
+function openFor(id){
+  const el=$(id),sec=el&&el.closest("section");
+  if(!sec){setView("today");scrollTo(0,0);return}
+  setView(sec.id);
+  if(el.tagName==="DETAILS")el.open=true;
+  if(el===sec)scrollTo(0,0);else el.scrollIntoView({block:"start"});
+}
+document.addEventListener("click",ev=>{
+  const a=ev.target.closest('a[href^="#"]');if(!a)return;
+  ev.preventDefault();
+  const c=a.dataset.c&&CATS.find(x=>x.id===a.dataset.c),secs=c&&catSecs(c),id=c?(secs.includes(lastSub[c.id])?lastSub[c.id]:secs[0]):a.getAttribute("href").slice(1);
+  openFor(id);
+  history.pushState(null,"","#"+id);
 });
-function openFor(id){const el=$(id);if(!el)return;setFold(el.closest("section.fold"));if(el.tagName==="DETAILS")el.open=true}
-document.addEventListener("click",ev=>{const a=ev.target.closest('a[href^="#"]');if(a)openFor(a.getAttribute("href").slice(1))});
-if(location.hash)openFor(location.hash.slice(1));
+window.addEventListener("popstate",()=>openFor(location.hash.slice(1)||"today"));
+openFor(location.hash.slice(1)||"today");
 
 // 今天的日記放在最前面；自己今天寫過就先收起表單，有草稿或正在編輯時一定打開
 let diaryFormOpen=false;
