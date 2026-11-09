@@ -1213,12 +1213,12 @@ function renderCalendar(){
     h+=`<button type="button" data-d="${k}" class="${marks.length?"has":""} ${k===tk?"today":""}" aria-pressed="${k===calDay}" aria-label="${m} 月 ${d} 日${marks.length?"，有"+marks.map(x=>x[2]).join("、"):""}" ${k>tk?"disabled":""}>${d}<span class="dots">${marks.map(x=>`<i class="d-${x[1]}"></i>`).join("")}</span></button>`;
   }
   $("calGrid").innerHTML=h;
-  $("calGrid").querySelectorAll("button").forEach(b=>b.onclick=()=>{calDay=b.dataset.d;renderCalendar()});
+  $("calGrid").querySelectorAll("button").forEach(b=>b.onclick=()=>{const same=calDay===b.dataset.d;calDay=same?null:b.dataset.d;renderCalendar();if(same)$("diaryMore").open=true});
   renderCalDetail();
 }
 function renderCalDetail(){
   const box=$("calDetail"),k=calDay;
-  if(!k){box.innerHTML='<div class="empty">點一個日期，看那天的紀錄。</div>';return}
+  if(!k){if(replyTo&&replyTo.where==="cal")closeReply();box.innerHTML="";return}
   const dt=fromKey(k),label=`${dt.getMonth()+1}/${dt.getDate()}（${"日一二三四五六"[dt.getDay()]}）`;
   const es=entries.filter(e=>e.date===k).sort(byAt),ps=calAllPhotos().filter(p=>p.date===k&&!p.entry),ws=store.wishes.filter(w=>w.done&&w.doneDate===k);
   if(!es.length&&!ps.length&&!ws.length){box.innerHTML=`<div class="empty">${label} 還沒有紀錄。</div>`;return}
@@ -1585,7 +1585,6 @@ document.addEventListener("click",ev=>{
   history.pushState(null,"","#"+id);
 });
 window.addEventListener("popstate",()=>openFor(location.hash.slice(1)||"today"));
-openFor(location.hash.slice(1)||"today");
 
 // 今天的日記放在最前面；自己今天寫過就先收起表單，有草稿或正在編輯時一定打開
 let diaryFormOpen=false;
@@ -1796,6 +1795,7 @@ $("filter").querySelectorAll("button").forEach(b=>b.onclick=()=>{who=b.dataset.w
 $("dDate").value=key(today());
 $("capDate").min=key(addDays(today(),1));$("capDate").value=key(nextAnniv());
 renderHearts();renderAll();renderInstall();showLastBackup();restoreDraft();
+openFor(location.hash.slice(1)||"today");
 
 /* ===== 伺服器連線（Firebase） ===== */
 const ROOM_KEY="love-base-room";
