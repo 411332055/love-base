@@ -343,9 +343,9 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   <nav id="sideNav" aria-label="區塊" style="display:flex;flex-direction:column;gap:2px">
     <a href="#today" data-s="today" title="今天"><span class="ic" aria-hidden="true">🏠</span><span class="lb">今天</span></a>
     <a href="#quests" data-s="quests" title="每日任務"><span class="ic" aria-hidden="true">🎮</span><span class="lb">每日任務</span></a>
+    <a href="#diary" data-s="diary" title="日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">日記</span></a>
     <a href="#photos" data-s="photos" title="照片"><span class="ic" aria-hidden="true">📷</span><span class="lb">照片</span></a>
     <a href="#ladder" data-s="ladder" title="成就"><span class="ic" aria-hidden="true">🏆</span><span class="lb">成就</span></a>
-    <a href="#diary" data-s="diary" title="日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">日記</span></a>
     <a href="#calendar" data-s="calendar" title="月曆"><span class="ic" aria-hidden="true">📅</span><span class="lb">月曆</span></a>
     <a href="#wishes" data-s="wishes" title="願望"><span class="ic" aria-hidden="true">🌠</span><span class="lb">願望</span></a>
     <a href="#draw" data-s="draw" title="抽題"><span class="ic" aria-hidden="true">🎲</span><span class="lb">抽題</span></a>
@@ -422,8 +422,10 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div class="note">🎁 解鎖獎勵可以是：一次指定抱抱、一次約會、一次指定美食，或讓對方答應一個可愛的小願望。</div>
   </section>
 
-  <section id="diary" class="fold">
+  <section id="diary">
     <div><h2>💌 戀愛日記</h2><p class="sub">每天留一則，以後一起回顧。每天第一篇 +5 XP。</p></div>
+    <div class="entries" id="diaryToday"></div>
+    <button class="btn ghost" type="button" id="dNew" hidden style="align-self:flex-start"></button>
     <form class="diary" id="diaryForm" autocomplete="off">
       <div class="full editbar" id="editBar" hidden><span id="editText">✏️ 正在編輯</span><button class="btn ghost" type="button" id="editCancel">取消編輯</button></div>
       <label>📅 日期<input type="date" id="dDate" required></label>
@@ -440,10 +442,15 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       </div>
       <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span><button class="btn ghost" type="button" id="dDraftClear" hidden style="font-size:12px;padding:4px 10px">清除草稿</button></div>
     </form>
+    <details class="month" id="diaryMore">
+      <summary>全部日記<span id="diaryN"></span></summary>
+      <div class="month-body">
     <input type="search" id="dSearch" placeholder="🔍 搜尋日記，例：拉麵" aria-label="搜尋日記" autocomplete="off">
     <div class="sub" id="dSearchN"></div>
     <div class="filter" id="filter" role="group" aria-label="篩選日記"><button type="button" data-w="all" aria-pressed="true">全部</button><button type="button" data-w="me" aria-pressed="false">✍️ 我寫的</button><button type="button" data-w="them" aria-pressed="false">💌 對方寫的</button></div>
     <div class="entries" id="entries"><div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div></div>
+      </div>
+    </details>
   </section>
 
   <section id="calendar" class="fold">
@@ -916,7 +923,7 @@ let happy=0, editId=null;
 const FIELDS={dMood:"mood",dFood:"food",dFunny:"funny",dSay:"say",dS1:"s1",dS2:"s2"};
 function startEdit(id){
   const e=entries.find(x=>x.id===id);if(!e)return;
-  editId=id;$("dDate").value=e.date||key(today());
+  editId=id;renderDiaryToday();$("dDate").value=e.date||key(today());
   for(const [el,f] of Object.entries(FIELDS))$(el).value=e[f]||"";
   happy=Number(e.happy)||0;renderHearts();growAll();
   $("editBar").hidden=false;$("editText").textContent=`✏️ 正在編輯 ${e.date||""} 的日記`;
@@ -925,7 +932,7 @@ function startEdit(id){
 }
 function endEdit(){
   editId=null;$("editBar").hidden=true;$("diaryForm").classList.remove("editing");$("dSave").textContent="寫進日記";
-  for(const el of Object.keys(FIELDS))$(el).value="";$("dDate").value=key(today());happy=0;renderHearts();growAll();restoreDraft();
+  for(const el of Object.keys(FIELDS))$(el).value="";$("dDate").value=key(today());happy=0;renderHearts();growAll();restoreDraft();renderDiaryToday();
 }
 $("editCancel").onclick=endEdit;
 (function buildHearts(){
@@ -963,7 +970,7 @@ $("diaryForm").addEventListener("submit",async ev=>{
   try{
     if(db){const ref=db.collection("diary").doc();await ref.set(e);if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e})}
     else{e.id="l"+Date.now();entries.push(e);saveLocal()}
-    clearDraft();$("dMsg").textContent="";["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(counted?"寫好了 💌 今天的日記 XP 已經領過了":`寫好了！+${DIARY_XP} XP 💌`);
+    diaryFormOpen=false;clearDraft();$("dMsg").textContent="";["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(counted?"寫好了 💌 今天的日記 XP 已經領過了":`寫好了！+${DIARY_XP} XP 💌`);
   }catch(err){$("dMsg").textContent="沒存到，請確認你有這個頁面的編輯權限"}
   $("dSave").disabled=false;
 });
@@ -1454,7 +1461,22 @@ function openFor(id){const el=$(id);if(el)setFold(el.closest("section.fold"))}
 document.addEventListener("click",ev=>{const a=ev.target.closest('a[href^="#"]');if(a)openFor(a.getAttribute("href").slice(1))});
 if(location.hash)openFor(location.hash.slice(1));
 
-function renderAll(){renderHUD();renderStreak();renderQuests();renderEntries();renderWall();renderWishes();renderDraw();renderCustom();renderCapsules();renderMemories();renderCalendar();renderTrash();renderToday()}
+// 今天的日記放在最前面；自己今天寫過就先收起表單，有草稿或正在編輯時一定打開
+let diaryFormOpen=false;
+function renderDiaryToday(){
+  const tk=key(today()),me=myName(),list=entries.filter(e=>e.date===tk).sort(byAt),mine=list.some(e=>e.by===me),theirs=list.some(e=>e.by&&e.by!==me);
+  let draft=false;try{draft=!!localStorage.getItem(DRAFT_KEY)}catch(e){}
+  $("diaryForm").hidden=!(!mine||diaryFormOpen||editId||draft);
+  $("dNew").hidden=!mine||!!editId||draft;
+  $("dNew").textContent=diaryFormOpen?"收起":"✏️ 再寫一篇";
+  $("diaryN").textContent=`${entries.length} 篇`;
+  const box=$("diaryToday");
+  box.innerHTML=list.map(e=>`<article class="entry ${e.by?(e.by===me?"me":"them"):""}"><header><div>${byChip(e.by)}</div><span>${e.happy?"⭐ "+esc(e.happy)+"/10":""}</span></header><dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}${(!e.by||e.by===me)?`<div class="acts"><button class="btn ghost" type="button" data-editday="${esc(e.id)}">✏️ 編輯</button></div>`:""}</article>`).join("")+(db&&!theirs?'<p class="sub" style="margin:0">對方今天還沒寫。</p>':"");
+  box.querySelectorAll("[data-editday]").forEach(b=>b.onclick=()=>startEdit(b.dataset.editday));
+}
+$("dNew").onclick=()=>{diaryFormOpen=!diaryFormOpen;renderDiaryToday()};
+
+function renderAll(){renderHUD();renderStreak();renderQuests();renderEntries();renderWall();renderWishes();renderDraw();renderCustom();renderCapsules();renderMemories();renderCalendar();renderTrash();renderToday();renderDiaryToday()}
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,...store,trash}))}catch(e){}}
 function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];Object.keys(store).forEach(c=>store[c]=s[c]||[]);if(s.trash)Object.assign(trash,s.trash);delete done["draw-state"]}}catch(e){}}
 
