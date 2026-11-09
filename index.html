@@ -871,10 +871,10 @@ $("photoFile").addEventListener("change",async()=>{
     photos=photos.filter(p=>p.id!==id).concat([{id,...meta}]);
     const [y,m,d]=date.split("-").map(Number), i=dow(new Date(y,m-1,d));
     uploading=null;
-    const had=!!done[date],bonus=i===6&&!store.bonus.some(b=>b.id===date);
+    const had=!!done[date],bonusId=date+"_"+myName(),bonus=i===6&&!store.bonus.some(b=>b.id===bonusId);
     if(bonus){
       const doc={date,xp:PHOTO_BONUS,by:myName(),at:new Date().toISOString()};
-      try{await commit(xRef("bonus",date).set(doc));if(!store.bonus.some(b=>b.id===date))store.bonus.push({id:date,...doc})}catch(err){}
+      try{await commit(xRef("bonus",bonusId).set(doc));if(!store.bonus.some(b=>b.id===bonusId))store.bonus.push({id:bonusId,...doc})}catch(err){}
     }
     if(!had)toggle(date,i,true);
     if(bonus)toast(`照片上傳好了 📸 再 +${PHOTO_BONUS} XP！`);else if(had)toast("照片上傳好了 📸");
