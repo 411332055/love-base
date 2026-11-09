@@ -341,7 +341,7 @@ section.fold.open .fold-btn::after{content:"▾"}
 .hug.mini{background:none;padding:0;flex-direction:row;align-items:center;justify-content:space-between}
 #hugOpen{align-self:flex-start;font-size:13px;padding:6px 14px}
 #hugClose{padding:0 14px}
-.today .row .btn.ghost.small{font-size:12px;padding:4px 10px}
+.btn.ghost.small{font-size:12px;padding:4px 10px}
 
 details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 details.rules summary{font-weight:700;cursor:pointer}
@@ -447,11 +447,11 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div class="streak" id="streak"></div>
     <div class="today">
       <div id="todayCard" style="display:flex;flex-direction:column;gap:10px"></div>
-      <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
-      <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填）" aria-label="照片說明">
     </div>
   <div class="diary-block" id="diary">
       <div><h3 style="font-size:16px;font-weight:900">💌 今天的日記</h3><p class="sub">寫下今天的日記，今天的任務就算完成。每天第一篇 +5 XP。</p></div>
+      <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
+      <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填）" aria-label="照片說明">
       <div class="entries" id="diaryToday"></div>
       <button class="btn ghost" type="button" id="dNew" hidden style="align-self:flex-start"></button>
       <form class="diary" id="diaryForm" autocomplete="off">
@@ -1277,8 +1277,9 @@ function backupHtml(b){
   const months=[...new Set(diary.map(e=>String(e.date).slice(0,7)))];
   const mName=m=>{const [y,mo]=m.split("-").map(Number);return `${y} 年 ${mo} 月`};
   const article=e=>{
-    const dt=fromKey(e.date),rs=replies.filter(r=>r.entry===e.id),hearts=rs.filter(r=>r.kind==="heart").length,texts=rs.filter(r=>r.kind==="text"),ph=photos.find(p=>p.entry===e.id);
-    return `<article><h3>${esc(e.date)}（${wk[dt.getDay()]}）<span>${esc(e.by||"未署名")}${e.happy?` · ⭐ ${esc(e.happy)}/10`:""}${hearts?` · ❤️ ${hearts}`:""}</span></h3><dl>${[["心情",e.mood],["吃了",e.food],["最好笑",e.funny],["想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}${ph?`<img src="${esc(ph.th)}" alt="當天的照片">`:""}${texts.map(r=>`<p class="re"><b>${esc(r.by)}</b> ${esc(r.text)}</p>`).join("")}</article>`;
+    const dt=fromKey(e.date),rs=replies.filter(r=>r.entry===e.id),hearts=rs.filter(r=>r.kind==="heart").length,texts=rs.filter(r=>r.kind==="text"),first=diary.find(x=>x.date===e.date&&x.by===e.by).id===e.id;
+    const phs=[photos.find(p=>p.entry===e.id),first?photos.find(p=>!p.entry&&p.date===e.date&&p.by===e.by):null].filter(Boolean);
+    return `<article><h3>${esc(e.date)}（${wk[dt.getDay()]}）<span>${esc(e.by||"未署名")}${e.happy?` · ⭐ ${esc(e.happy)}/10`:""}${hearts?` · ❤️ ${hearts}`:""}</span></h3><dl>${[["心情",e.mood],["吃了",e.food],["最好笑",e.funny],["想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}${phs.map(p=>`<img src="${esc(p.th)}" alt="當天的照片">`).join("")}${texts.map(r=>`<p class="re"><b>${esc(r.by)}</b> ${esc(r.text)}</p>`).join("")}</article>`;
   };
   const wishes=xs("wishes"),caps=xs("capsules"),rounds=xs("rounds"),answers=xs("answers"),wall=photos.filter(p=>!p.entry);
   const passed=rounds.filter(r=>new Set(answers.filter(a=>a.round===r.id).map(a=>a.by)).size>=2);
@@ -1290,7 +1291,7 @@ main{max-width:680px;margin:0 auto;padding:32px 16px 64px}h1{font-size:28px;marg
 nav{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 0}nav a{background:#fff;border:1px solid #ead9e1;border-radius:99px;padding:2px 12px;color:#2a1b25;text-decoration:none;font-size:14px}
 h2{font-size:20px;margin:36px 0 12px;padding-bottom:6px;border-bottom:2px solid #e2457a}h3{font-size:16px;margin:0 0 6px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 12px}h3 span{font-weight:400;font-size:14px;color:#7c6672}
 article{background:#fff;border:1px solid #ead9e1;border-radius:12px;padding:14px 16px;margin:0 0 12px;break-inside:avoid;overflow-wrap:anywhere}dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:0}dt{color:#7c6672}dd{margin:0;white-space:pre-wrap}
-blockquote{margin:8px 0 0;padding:8px 12px;background:#fde3ec;border-radius:8px}article img{display:block;width:140px;height:140px;object-fit:cover;border-radius:8px;margin-top:8px}.re{margin:6px 0 0;padding:4px 10px;background:#f4ebef;border-radius:8px;font-size:14px}
+blockquote{margin:8px 0 0;padding:8px 12px;background:#fde3ec;border-radius:8px}article img{display:inline-block;margin-right:8px;width:140px;height:140px;object-fit:cover;border-radius:8px;margin-top:8px}.re{margin:6px 0 0;padding:4px 10px;background:#f4ebef;border-radius:8px;font-size:14px}
 ul{margin:0;padding-left:1.3em}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}figure{margin:0;font-size:13px;color:#7c6672}figure img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block}
 </style></head><body><main><header><h1>我們的戀愛遊戲基地</h1><p>備份於 ${esc(dayOf(b.exportedAt))} · ${diary.length} 篇日記 · ${photos.length} 張照片${b.full?" · 含原圖":""}</p><p>要救回資料時，到網站的「資料備份」選「從備份檔補回資料」，選這個檔案就可以。</p><nav>${months.map(m=>`<a href="#m${m}">${mName(m)}</a>`).join("")}${wishes.length?'<a href="#wishes">願望</a>':""}${passed.length?'<a href="#draw">抽題</a>':""}${caps.length?'<a href="#caps">膠囊</a>':""}${wall.length?'<a href="#wall">照片</a>':""}</nav></header>
 ${months.map(m=>{const list=diary.filter(e=>String(e.date).startsWith(m));return part("m"+m,`${mName(m)}（${list.length} 篇）`,list.map(article).join(""))}).join("")}
@@ -1516,7 +1517,7 @@ $("hugForm").addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.isComposin
 function renderTodo(){
   const t=today(),tk=key(t),me=myName(),items=[];
   if(store.hugs.some(h=>h.by&&h.by!==me&&!h.backAt))items.push([false,"🤗 抱抱對方","hugCard"]);
-  if(db&&isPhotoDay(dow(t))&&!taskFor(t).custom)items.push([!!myPhoto(tk),"📷 上傳我的照片","quests"]);
+  if(db&&isPhotoDay(dow(t))&&!taskFor(t).custom)items.push([!!myPhoto(tk),"📷 上傳我的照片","diary"]);
   items.push([entries.some(e=>e.by===me&&dayOf(e.at)===tk),"💌 寫今天的日記","diary"]);
   const r=curRound(),ans=r?pairOf(r.id):[],answered=ans.some(a=>a.by===me),over=!!r&&ans.length>=need();
   if(r&&!over)items.push(answered?[true,"🎲 已回答抽題，等對方揭曉","draw"]:[false,"🎲 回答抽題","draw"]);
@@ -1651,8 +1652,9 @@ const BF_KEY="love-base-backfill-skip";
 let replyTo=null;
 const replyFormEl=$("replyForm"),replyTextEl=$("replyText");
 function entryExtras(e,where){
-  const me=myName(),rs=store.replies.filter(r=>r.entry===e.id).sort(byAt),hearts=rs.filter(r=>r.kind==="heart"),texts=rs.filter(r=>r.kind==="text"),liked=hearts.some(r=>r.by===me),ph=calAllPhotos().find(p=>p.entry===e.id);
-  return `${ph?`<div class="wall-grid">${photoBtn(ph,"")}</div>`:""}${texts.length?`<div class="replies">${texts.map(r=>`<div class="reply ${r.by===me?"me":""}"><b>${esc(r.by)}</b> ${esc(r.text)}${r.by===me?` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>`:""}</div>`).join("")}</div>`:""}<div class="reply-bar"><button type="button" class="btn ghost" data-heart="${esc(e.id)}" aria-pressed="${liked}" aria-label="愛心">${liked?"❤️":"🤍"}${hearts.length?" "+hearts.length:""}</button><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}">💬 回應</button></div><div data-replyslot="${where}:${esc(e.id)}"></div>`;
+  const me=myName(),rs=store.replies.filter(r=>r.entry===e.id).sort(byAt),hearts=rs.filter(r=>r.kind==="heart"),texts=rs.filter(r=>r.kind==="text"),liked=hearts.some(r=>r.by===me),all=calAllPhotos(),first=entries.filter(x=>x.date===e.date&&x.by===e.by).sort(byAt)[0]?.id===e.id;
+  const phs=[all.find(p=>p.entry===e.id),where==="list"&&first?all.find(p=>!p.entry&&p.date===e.date&&p.by===e.by):null].filter(Boolean);
+  return `${phs.length?`<div class="wall-grid">${phs.map(p=>photoBtn(p,"")).join("")}</div>`:""}${texts.length?`<div class="replies">${texts.map(r=>`<div class="reply ${r.by===me?"me":""}"><b>${esc(r.by)}</b> ${esc(r.text)}${r.by===me?` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>`:""}</div>`).join("")}</div>`:""}<div class="reply-bar"><button type="button" class="btn ghost" data-heart="${esc(e.id)}" aria-pressed="${liked}" aria-label="愛心">${liked?"❤️":"🤍"}${hearts.length?" "+hearts.length:""}</button><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}">💬 回應</button></div><div data-replyslot="${where}:${esc(e.id)}"></div>`;
 }
 function closeReply(){replyTo=null;replyFormEl.hidden=true;document.body.append(replyFormEl)}
 function attachReply(where){
