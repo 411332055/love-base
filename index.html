@@ -446,7 +446,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <div id="todayCard" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
   <div class="diary-block" id="diary">
-      <p class="sub" style="margin:0">寫日記或傳照片，今天就算有紀錄。每天第一篇日記 +5 XP。</p>
+      <p class="sub" style="margin:0">寫日記或傳照片，今天就算有紀錄。每個人每天第一篇日記、第一張照片各 +10 XP。</p>
       <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
       <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填）" aria-label="照片說明">
       <div class="entries" id="diaryToday"></div>
@@ -674,19 +674,19 @@ const FIREBASE_CONFIG = {
 </script>
 <script>
 const TASKS=[ // index 0 = Monday
-  {day:"一",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:10},
-  {day:"二",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:10},
-  {day:"三",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:10},
-  {day:"四",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:10},
-  {day:"五",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:10},
-  {day:"六",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:10},
-  {day:"日",name:"回憶收集",text:"分享這週最開心、最難忘的一個瞬間。傳照片再 +10 XP。",xp:20},
+  {day:"一",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:0},
+  {day:"二",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:0},
+  {day:"三",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:0},
+  {day:"四",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:0},
+  {day:"五",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:0},
+  {day:"六",name:"生活紀錄",text:"分享今天最值得紀錄的一張照片。",xp:0},
+  {day:"日",name:"回憶收集",text:"分享這週最開心、最難忘的一個瞬間。",xp:20},
 ];
 const TITLES=[[50,"🐣 戀愛新手村"],[100,"🧸 黏踢踢小情侶"],[200,"🤡 專業互鬧選手"],[300,"💗 甜蜜製造機"],[500,"🍀 穩定升溫中"],[800,"🍜 吃貨雙人組"],[1200,"🧠 心電感應學徒"],[1800,"🎢 雙人副本老手"],[2500,"🌈 放閃職人"],[3500,"🔥 傳說級黏人精"],[5000,"🛡️ 永久組隊隊長"],[6500,"🌌 宇宙級閃光彈"],[8000,"👑 戀愛滿等玩家"]];
 const QUESTIONS=["你覺得我最欠揍但又最可愛的地方是什麼？","如果我變成一隻蟑螂，你還會愛我嗎？","如果我們一起被困在荒島，你覺得誰會先崩潰？","最近哪一個瞬間讓你突然很想我？","第一次見到我的時候，你心裡在想什麼？","我做過最讓你傻眼的一件事是什麼？","用三個詞形容我們這段關係。","如果明天放假一整天，你想跟我做什麼？","你覺得我們誰比較會吃醋？","我最常對你說的一句話是什麼？","如果要幫我們拍一部電影，片名叫什麼？","你偷偷覺得我哪一個習慣很好笑？","我們吵架之後，你最希望我怎麼哄你？","你最想跟我一起完成的一件事是什麼？","如果可以交換身份一天，你最想用我的身份做什麼？","你覺得我們十年後會在幹嘛？","我哪一個表情你最受不了（但其實很喜歡）？","你最想吃我煮的哪一道菜？","我們之間最好笑的一個暗號或梗是什麼？","哪一首歌會讓你想到我？","如果我們養一隻寵物，要叫什麼名字？","我最近做了什麼讓你覺得被照顧到？","你覺得我們的戀愛像哪一種遊戲？","你今天最想對我撒嬌的一句話是？","如果只能用一個 emoji 代表我，你會選哪個？","我們第一次約會，你最記得哪個畫面？","你覺得我身上最像小孩的地方是什麼？","如果我們一起去旅行，誰負責迷路？"];
 
 const LOVE_START=new Date(2026,10,4);
-const DIARY_XP=5, WISH_XP=10, PHOTO_BONUS=10, STREAK_BONUS=10, STREAK_STEP=7;
+const DIARY_XP=10, WISH_XP=10, PHOTO_BONUS=10, STREAK_BONUS=10, STREAK_STEP=7;
 const NOSAVE="沒存到，請再試一次";
 
 const $=id=>document.getElementById(id);
@@ -764,11 +764,11 @@ function renderStreak(){
   if(repair)$("fixBtn").onclick=async()=>{try{await addDoc("fixes",{day:key(c),at:nowIso(),by:myName()});toast("補簽成功 🎫")}catch(e){toast(NOSAVE)}};
 }
 
-// 日記和願望的 XP 每天上限一次，所以算不重複的天數
+// 日記每人每天算一次、願望每天算一次，照片加分存在 bonus（每人每天一筆）；週一到週六的紀錄不給分
 function totalXP(){
-  const diaryDays=new Set(entries.map(e=>dayOf(e.at)));
+  const diaryDays=new Set(entries.map(e=>dayOf(e.at)+"|"+(e.by||"")));
   const wishDays=new Set(store.wishes.filter(w=>w.done).map(w=>w.doneDate));
-  return Object.values(done).reduce((s,v)=>s+(Number(v.xp)||0),0)+diaryDays.size*DIARY_XP+wishDays.size*WISH_XP+streakBonus()+store.bonus.reduce((n,b)=>n+(Number(b.xp)||0),0);
+  return Object.entries(done).reduce((s,[k,v])=>s+(dow(fromKey(k))===6?Number(v.xp)||0:0),0)+diaryDays.size*DIARY_XP+wishDays.size*WISH_XP+streakBonus()+store.bonus.reduce((n,b)=>n+(Number(b.xp)||0),0);
 }
 
 function nextAnniv(){const t=today(),m=LOVE_START.getMonth(),d=LOVE_START.getDate();let n=new Date(t.getFullYear(),m,d);if(n<=t)n=new Date(t.getFullYear()+1,m,d);return n}
@@ -864,20 +864,20 @@ $("photoFile").addEventListener("change",async()=>{
   try{
     const {im,url}=await loadImg(f);
     const img=shrinkFull(im), th=shrinkThumb(im);URL.revokeObjectURL(url);
-    const id=date+"_"+myName();
+    const id=date+"_"+myName(), earned=!store.bonus.some(b=>b.id===id);
     const meta={date,by:myName(),th,cap:"",at:new Date().toISOString()};
     await db.collection("pics").doc(id).set({img,date,by:myName()});
     await db.collection("photos").doc(id).set(meta);
     photos=photos.filter(p=>p.id!==id).concat([{id,...meta}]);
     const [y,m,d]=date.split("-").map(Number), i=dow(new Date(y,m-1,d));
     uploading=null;
-    const had=!!done[date],bonusId=date+"_"+myName(),bonus=i===6&&!store.bonus.some(b=>b.id===bonusId);
+    const had=!!done[date],bonus=earned;
     if(bonus){
       const doc={date,xp:PHOTO_BONUS,by:myName(),at:new Date().toISOString()};
-      try{await commit(xRef("bonus",bonusId).set(doc));if(!store.bonus.some(b=>b.id===bonusId))store.bonus.push({id:bonusId,...doc})}catch(err){}
+      try{await commit(xRef("bonus",id).set(doc));if(!store.bonus.some(b=>b.id===id))store.bonus.push({id,...doc})}catch(err){}
     }
     if(!had)toggle(date,i,true);
-    if(bonus)toast(`照片上傳好了 📸 再 +${PHOTO_BONUS} XP！`);else if(had)toast("照片上傳好了 📸");
+    if(bonus)toast(`照片上傳好了 📸 +${PHOTO_BONUS} XP！`);else if(had)toast("照片上傳好了 📸");
   }catch(e){
     toast(e&&e.code==="permission-denied"?"照片功能還沒開通，要先更新 Firebase 規則":e&&e.message==="decode"?"這張照片讀不到，換一張試試":"上傳失敗，請再試一次");
   }
@@ -907,7 +907,7 @@ function subPhotos(){
   if(!db)return;
   if(photoUnsub)photoUnsub();
   photoUnsub=db.collection("photos").orderBy("date","desc").limit(photoLimit).onSnapshot(
-    s=>{photos=s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>!p.trashed);photoErr="";renderPhotosAll()},
+    s=>{photos=s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>!p.trashed);photoErr="";renderPhotosAll();syncPhotoBonus()},
     e=>{photoErr=e&&e.code==="permission-denied"?"rules":"net";renderPhotosAll()});
 }
 
@@ -919,7 +919,7 @@ async function toggle(k,i,on){
   const prev=done[k],T=taskFor(fromKey(k));
   if(on)done[k]={dow:i,xp:T.xp,at:Date.now(),by:myName()};else delete done[k];
   renderAll();
-  if(on)toast(`+${T.xp} XP！`);
+  if(on&&T.xp)toast(`+${T.xp} XP！`);
   try{
     if(db){on?await db.collection("done").doc(k).set(done[k]):await db.collection("done").doc(k).delete()}
     else saveLocal();
@@ -1021,11 +1021,11 @@ $("diaryForm").addEventListener("submit",async ev=>{
     }catch(err){$("dMsg").textContent="沒存到，請再試一次"}
     $("dSave").disabled=false;return;
   }
-  const counted=entries.some(x=>dayOf(x.at)===key(today()));
+  const counted=entries.some(x=>x.by===myName()&&dayOf(x.at)===key(today()));
   try{
     if(db){const ref=db.collection("diary").doc();await commit(ref.set(e));if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e})}
     else{e.id="l"+Date.now();entries.push(e);saveLocal()}
-    const autoDone=e.date===key(today())&&!done[key(today())];if(autoDone)toggle(key(today()),dow(today()),true);diaryFormOpen=false;$("dDate").value=key(today());clearDraft();$("dMsg").textContent="";["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(autoDone?"寫好了 💌 今天的紀錄完成了":counted?"寫好了 💌 今天的日記 XP 已經領過了":`寫好了！+${DIARY_XP} XP 💌`);
+    const autoDone=e.date===key(today())&&!done[key(today())];if(autoDone)toggle(key(today()),dow(today()),true);diaryFormOpen=false;$("dDate").value=key(today());clearDraft();$("dMsg").textContent="";["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(counted?"寫好了 💌 今天的日記 XP 已經領過了":`寫好了！+${DIARY_XP} XP 💌`);
   }catch(err){$("dMsg").textContent="沒存到，請確認你有這個頁面的編輯權限"}
   $("dSave").disabled=false;
 });
@@ -1486,7 +1486,7 @@ $("hugForm").addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.isComposin
 function renderTodo(){
   const t=today(),tk=key(t),me=myName(),items=[];
   if(store.hugs.some(h=>h.by&&h.by!==me&&!h.backAt))items.push([false,"🤗 抱抱對方","hugCard"]);
-  if(db)items.push([!!myPhoto(tk),dow(t)===6?`📷 上傳我的照片（+${PHOTO_BONUS} XP）`:"📷 上傳我的照片","diary"]);
+  if(db)items.push([!!myPhoto(tk),"📷 上傳我的照片","diary"]);
   items.push([entries.some(e=>e.by===me&&dayOf(e.at)===tk),"💌 寫今天的日記","diary"]);
   const r=curRound(),ans=r?pairOf(r.id):[],answered=ans.some(a=>a.by===me),over=!!r&&ans.length>=need();
   if(r&&!over)items.push(answered?[true,"🎲 已回答抽題，等對方揭曉","draw"]:[false,"🎲 回答抽題","draw"]);
@@ -1724,6 +1724,17 @@ $("photoCap").addEventListener("blur",async()=>{
   renderTodayPhotos();
 });
 
+const bonusSyncing=new Set();
+function syncPhotoBonus(){
+  if(!db||!dataReady)return;
+  photos.filter(p=>!p.entry&&p.by).forEach(p=>{
+    const id=p.date+"_"+p.by;
+    if(store.bonus.some(b=>b.id===id)||bonusSyncing.has(id))return;
+    bonusSyncing.add(id);
+    xRef("bonus",id).set({date:p.date,xp:PHOTO_BONUS,by:p.by,at:p.at||nowIso()}).catch(()=>bonusSyncing.delete(id));
+  });
+}
+
 // 收合中的區塊不重畫，展開時才更新
 function renderOpen(){
   const open=id=>$(id).classList.contains("open");
@@ -1788,7 +1799,7 @@ $("logout").onclick=()=>{
   initSeen();
   let got={done:false,diary:false};
   const timer=setTimeout(()=>{$("status").textContent=navigator.onLine?"暫時連不上，資料可能不是最新":OFFLINE_TEXT},10000);
-  const ready=()=>{if(got.done&&got.diary){clearTimeout(timer);$("status").textContent="● 兩人同步中";dataReady=true;renderToday();purgeExpired()}};
+  const ready=()=>{if(got.done&&got.diary){clearTimeout(timer);$("status").textContent="● 兩人同步中";dataReady=true;renderToday();purgeExpired();syncPhotoBonus()}};
   db.collection("done").onSnapshot({includeMetadataChanges:true},s=>{done={};Object.keys(store).forEach(c=>store[c]=[]);["wishes","capsules","custom"].forEach(c=>trash[c]=[]);s.docs.forEach(d=>{if(d.id==="draw-state")return;if(d.id.startsWith("x~")){const [,c,id]=d.id.split("~");const v=d.data();if(store[c])(v.trashed?trash[c]:store[c]).push({id,...v});return}done[d.id]=d.data()});if(!s.metadata?.fromCache)got.done=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
   subPhotos();subPhotoTrash();
   db.collection("diary").onSnapshot({includeMetadataChanges:true},s=>{const all=s.docs.map(d=>({id:d.id,...d.data()}));entries=all.filter(e=>!e.trashed);trash.diary=all.filter(e=>e.trashed);if(!s.metadata?.fromCache)got.diary=true;ready();renderAll()},()=>{clearTimeout(timer);$("status").textContent="同步中斷，重新整理試試"});
