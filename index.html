@@ -105,11 +105,13 @@ form.diary .full{grid-column:1/-1}
 label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500;min-width:0}
 input,textarea,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%}
 textarea{resize:vertical;min-height:44px}
-.summary{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:15px;color:var(--fg)}
-.summary input{width:auto;flex:1 1 120px}
-.hearts{display:flex;gap:2px;flex-wrap:wrap}
-.hearts button{border:0;background:none;font-size:20px;padding:2px;line-height:1;filter:grayscale(1);opacity:.4}
+.summary{display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--fg)}
+.summary .lbl{font-size:13px;color:var(--muted);font-weight:500}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500;min-width:0}
+.hearts{display:flex;gap:0;flex-wrap:wrap;align-items:center}
+.hearts button{border:0;background:none;font-size:22px;width:34px;height:38px;padding:0;line-height:1;filter:grayscale(1);opacity:.35;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .hearts button.on{filter:none;opacity:1}
+.hearts .score{margin-left:8px;font-weight:700;color:var(--fg);font-size:15px}
 @media (max-width:520px){form.diary{grid-template-columns:1fr}}
 .entries{display:flex;flex-direction:column;gap:12px}
 .entry{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:6px}
@@ -127,8 +129,8 @@ textarea{resize:vertical;min-height:44px}
 .q .who{font-size:11px;font-weight:700;color:var(--ok)}
 .entry dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:0;font-size:14px}
 .entry dt{color:var(--muted)}
-.entry dd{margin:0;min-width:0;overflow-wrap:anywhere}
-.entry blockquote{margin:4px 0 0;padding:8px 12px;background:var(--pink-soft);border-radius:10px;font-weight:500}
+.entry dd{margin:0;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap}
+.entry blockquote{white-space:pre-wrap;margin:4px 0 0;padding:8px 12px;background:var(--pink-soft);border-radius:10px;font-weight:500}
 .entry .acts{display:flex;gap:8px;justify-content:flex-end}
 .entry .acts .btn{font-size:12px}
 .edited{font-size:12px;color:var(--muted)}
@@ -198,12 +200,15 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <label>📅 日期<input type="date" id="dDate" required></label>
       <label>⛅ 今天的心情<input id="dMood" maxlength="60" placeholder="例：有點累但很開心"></label>
       <label>🍜 今天吃了什麼<input id="dFood" maxlength="80"></label>
-      <label>🤪 今天最好笑的事情<input id="dFunny" maxlength="200"></label>
+      <label>🤪 今天最好笑的事情<textarea id="dFunny" maxlength="200" rows="1"></textarea></label>
       <label class="full">💞 今天最想對你說的話<textarea id="dSay" maxlength="400" rows="2"></textarea></label>
-      <label class="full">⭐ 今天的幸福指數（1～10）
-        <div class="hearts" id="hearts" role="radiogroup" aria-label="幸福指數"></div>
-      </label>
-      <div class="full summary">今日小結：「今天雖然<input id="dS1" maxlength="60" aria-label="今天雖然">，但因為有你<input id="dS2" maxlength="60" aria-label="但因為有你">。」</div>
+      <div class="full field"><span id="heartsLbl">⭐ 今天的幸福指數（1～10）</span>
+        <div class="hearts" id="hearts" role="radiogroup" aria-labelledby="heartsLbl"></div>
+      </div>
+      <div class="full summary"><span class="lbl">📝 今日小結</span>
+        <label>今天雖然……<textarea id="dS1" maxlength="200" rows="2"></textarea></label>
+        <label>但因為有你……<textarea id="dS2" maxlength="200" rows="2"></textarea></label>
+      </div>
       <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span></div>
     </form>
     <div class="filter" id="filter" role="group" aria-label="篩選日記"><button type="button" data-w="all" aria-pressed="true">全部</button><button type="button" data-w="me" aria-pressed="false">✍️ 我寫的</button><button type="button" data-w="them" aria-pressed="false">💌 對方寫的</button></div>
@@ -367,8 +372,16 @@ function endEdit(){
   for(const el of Object.keys(FIELDS))$(el).value="";$("dDate").value=key(today());happy=0;renderHearts();
 }
 $("editCancel").onclick=endEdit;
-function renderHearts(){$("hearts").innerHTML=[...Array(10)].map((_,i)=>`<button type="button" role="radio" aria-checked="${happy===i+1}" aria-label="${i+1} 分" class="${i<happy?"on":""}" data-v="${i+1}">⭐</button>`).join("");
-  $("hearts").querySelectorAll("button").forEach(b=>b.onclick=()=>{happy=+b.dataset.v;renderHearts()})}
+(function buildHearts(){
+  $("hearts").innerHTML=[...Array(10)].map((_,i)=>`<button type="button" role="radio" aria-label="${i+1} 分" data-v="${i+1}">⭐</button>`).join("")+'<span class="score" id="score"></span>';
+  $("hearts").addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(!b)return;ev.preventDefault();const v=+b.dataset.v;happy=(happy===v?0:v);renderHearts()});
+})();
+function renderHearts(){
+  $("hearts").querySelectorAll("button[data-v]").forEach(b=>{const v=+b.dataset.v;b.classList.toggle("on",v<=happy);b.setAttribute("aria-checked",v===happy)});
+  $("score").textContent=happy?happy+" / 10":"點星星打分數";
+}
+// 單行欄位按 Enter 不要送出（中文選字的 Enter 也不會）
+$("diaryForm").addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.tagName==="INPUT"&&!ev.isComposing&&ev.keyCode!==229)ev.preventDefault()});
 
 $("diaryForm").addEventListener("submit",async ev=>{
   ev.preventDefault();
