@@ -13,7 +13,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbf6f8">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1117">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap">
 <style>
 /* Layout: one column "save file" — HUD (level + XP bar) on top, then quest board, ladder, diary, draw. */
 :root{
@@ -21,8 +21,8 @@
   --fg:#2a1b25; --muted:#7c6672;
   --pink:#e2457a; --pink-soft:#fde3ec; --gold:#c08a12; --gold-soft:#fbefcf; --ink:#3a1830;
   --ok:#2f8a5b; --ok-soft:#dff3e8;
-  --f-display:"Bagel Fat One","Noto Sans TC",system-ui,sans-serif;
-  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-display:"Bagel Fat One","PingFang TC","Noto Sans CJK TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-body:"PingFang TC","Noto Sans CJK TC","Microsoft JhengHei",system-ui,sans-serif;
   --r:14px;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
@@ -144,7 +144,7 @@ textarea{resize:none;min-height:44px;overflow:hidden;line-height:1.6}
 .summary .lbl{font-size:13px;color:var(--muted);font-weight:500}
 .field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500;min-width:0}
 .hearts{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));align-items:center;max-width:340px}
-.hearts button{border:0;background:none;font-size:min(20px,5vw);min-width:0;height:38px;padding:0;line-height:1;filter:grayscale(1);opacity:.35;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.hearts button{border:0;background:none;font-size:min(20px,5vw);min-width:0;height:38px;padding:0;line-height:1;filter:grayscale(1);opacity:.35;-webkit-tap-highlight-color:transparent;touch-action:pan-y}
 .hearts button.on{filter:none;opacity:1}
 .hearts .score{grid-column:1/-1;font-weight:700;color:var(--fg);font-size:15px}
 @media (max-width:520px){form.diary{grid-template-columns:1fr}}
@@ -328,6 +328,16 @@ section.fold.open .fold-btn::after{content:"▾"}
 
 .diary-block{display:flex;flex-direction:column;gap:14px;scroll-margin-top:12px}
 
+/* 提示合併成一張卡；照片格縮小 */
+.notices{background:var(--gold-soft);border-radius:var(--r);padding:2px 16px;display:flex;flex-direction:column}
+.notices>.away{background:none;border-radius:0;padding:10px 0}
+.notices>.away:not([hidden])~.away:not([hidden]){border-top:1px solid var(--line)}
+.ph-pair{max-width:260px}
+.ph-slot{font-size:13px}
+.done-line{color:var(--ok);font-weight:700}
+#todayUndo{font-size:12px;padding:2px 10px}
+@media (max-width:859px){.wrap{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}
+
 details.rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
 details.rules summary{font-weight:700;cursor:pointer}
 details.rules ol{margin:10px 0 4px;padding-left:1.4em}
@@ -404,13 +414,16 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
     <div class="row" style="justify-content:space-between">
       <div class="next" id="nextText">再 50 XP 解鎖「🐣 戀愛新手村」</div>
-      <div class="status"><span id="meLabel" hidden></span> <span id="status">連線中…</span> <button type="button" id="rename" hidden style="background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px">換暱稱</button> <button type="button" id="logout" hidden style="background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px">換暗號</button></div>
+      <div class="status"><span id="meLabel" hidden></span> <span id="status">連線中…</span> <button type="button" id="logout" hidden style="background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px">登出</button></div>
     </div>
   </header>
 
   <section id="today">
-    <div class="away" id="bkNudge" hidden></div>
-    <div class="away" id="awayCard" hidden></div>
+    <div class="notices" id="notices" hidden>
+      <div class="away" id="bkNudge" hidden></div>
+      <div class="away" id="awayCard" hidden></div>
+      <div class="away" id="dBackfill" hidden></div>
+    </div>
     <div class="hug" id="hugCard" hidden>
       <div id="hugState" style="display:flex;flex-direction:column;gap:8px"></div>
       <form class="wishform" id="hugForm" autocomplete="off">
@@ -432,7 +445,6 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     </div>
   <div class="diary-block" id="diary">
       <div><h3 style="font-size:16px;font-weight:900">💌 今天的日記</h3><p class="sub">寫下今天的日記，今天的任務就算完成。每天第一篇 +5 XP。</p></div>
-      <div class="away" id="dBackfill" hidden></div>
       <div class="entries" id="diaryToday"></div>
       <button class="btn ghost" type="button" id="dNew" hidden style="align-self:flex-start"></button>
       <form class="diary" id="diaryForm" autocomplete="off">
@@ -651,7 +663,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
     <div class="field">你是誰？
       <div class="pick" id="namePick"><button type="button" data-n="寒冰">🧊 我是寒冰</button><button type="button" data-n="夏夏">☀️ 我是夏夏</button></div>
-      <input id="gateName" maxlength="12" placeholder="或自己輸入暱稱" aria-label="暱稱">
+      <input type="hidden" id="gateName">
     </div>
     <button class="btn" type="submit">進入基地</button>
     <p class="sub" id="gateMsg" style="color:var(--pink)"></p>
@@ -803,8 +815,8 @@ function renderHUD(){
 function renderQuests(){
   const t=today(), tk=key(t), ti=dow(t), task=taskFor(t), isDone=!!done[tk];
   $("todayCard").innerHTML=`<div class="tag">今天 · 星期${task.day}</div><h3>${esc(task.name)} <span class="xpchip num" style="font-size:16px">+${task.xp} XP</span></h3><p>${esc(task.text)}</p>
-  <div class="row"><button class="btn" id="todayBtn" type="button" ${isDone?"disabled":""}>${isDone?"✓ 今天的任務完成了":"我們完成了！"}</button>${isDone?'<button class="btn ghost" type="button" id="todayUndo">取消</button>':""}</div>`;
-  $("todayBtn").onclick=()=>toggle(tk,ti,true);
+  <div class="row">${isDone?'<span class="done-line">✓ 今天的任務完成了</span><button class="btn ghost" type="button" id="todayUndo">取消</button>':'<button class="btn" id="todayBtn" type="button">我們完成了！</button>'}</div>`;
+  if(!isDone)$("todayBtn").onclick=()=>toggle(tk,ti,true);
   if(isDone)$("todayUndo").onclick=()=>toggle(tk,ti,false);
   $("week").innerHTML=weekDates().map((d,i)=>{const k=key(d),T=taskFor(d),dn=!!done[k],future=d>t;
     return `<div class="q ${dn?"done":""} ${k===tk?"is-today":""}"><div class="d">${T.day}</div><div class="t"><b>${esc(T.name)}</b>${dn&&done[k].by?` <span class="who">· ${esc(done[k].by)} 打勾</span>`:""}<div>${esc(T.text)}</div>${weekThumbs(k,i,future)}</div><div class="s"><span class="xpchip num">+${T.xp}</span><button class="check" type="button" data-k="${k}" data-i="${i}" aria-pressed="${dn}" aria-label="星期${T.day}${dn?"已完成，點一下取消":"標記完成"}" ${future?"disabled":""}>✓</button></div></div>`}).join("");
@@ -852,7 +864,7 @@ function renderWall(){
     return `<div class="wall-day"><h3>${m}/${dd}（${wk[dt.getDay()]}）</h3><div class="wall-grid">${photos.filter(p=>p.date===d).map(p=>photoBtn(p,"")).join("")}</div></div>`}).join("");
   $("wallMore").hidden=photos.length<photoLimit;
 }
-function renderPhotosAll(){renderQuests();renderWall();renderCalendar();renderToday()}
+function renderPhotosAll(){renderQuests();renderToday();renderDiaryToday();renderOpen()}
 
 function loadImg(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const im=new Image();im.onload=()=>res({im,url});im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("decode"))};im.src=url})}
 function shrink(im,side,maxLen,q){
@@ -875,7 +887,7 @@ document.addEventListener("click",ev=>{
 $("photoFile").addEventListener("change",async()=>{
   const f=$("photoFile").files[0], date=pendingDate;if(!f||!date)return;
   if(!navigator.onLine){toast("沒有網路，連上後再上傳照片");return}
-  if(!myName()){toast("請先按「換暱稱」選你是誰");return}
+  if(!myName()){toast("請先登出再選你是誰");return}
   uploading=date;renderPhotosAll();
   try{
     const {im,url}=await loadImg(f);
@@ -922,7 +934,7 @@ function subPhotos(){
     e=>{photoErr=e&&e.code==="permission-denied"?"rules":"net";renderPhotosAll()});
 }
 
-const NAME_KEY="love-base-name";
+const NAME_KEY="love-base-name", NAMES=["寒冰","夏夏"];
 function myName(){try{return localStorage.getItem(NAME_KEY)||""}catch(e){return ""}}
 let who="all";
 function byChip(n){if(!n)return '<span class="by">未署名</span>';const me=n===myName();return `<span class="by ${me?"me":"them"}">✍️ ${esc(n)}${me?"（我）":""}</span>`}
@@ -990,9 +1002,20 @@ function endEdit(){
   for(const el of Object.keys(FIELDS))$(el).value="";$("dDate").value=key(today());happy=0;renderHearts();growAll();restoreDraft();clearDiaryPhoto();renderDiaryToday();
 }
 $("editCancel").onclick=endEdit;
+let heartDragged=false,heartStart=null;
 (function buildHearts(){
   $("hearts").innerHTML=[...Array(10)].map((_,i)=>`<button type="button" role="radio" aria-label="${i+1} 分" data-v="${i+1}">⭐</button>`).join("")+'<span class="score" id="score"></span>';
-  $("hearts").addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(!b)return;ev.preventDefault();const v=+b.dataset.v;happy=(happy===v?0:v);renderHearts();saveDraft()});
+  $("hearts").addEventListener("click",ev=>{if(heartDragged)return;const b=ev.target.closest("button[data-v]");if(!b)return;ev.preventDefault();const v=+b.dataset.v;happy=(happy===v?0:v);renderHearts();saveDraft()});
+  const pick=x=>{const bs=$("hearts").querySelectorAll("button[data-v]"),l=bs[0].getBoundingClientRect().left,r=bs[9].getBoundingClientRect().right;return Math.max(1,Math.min(10,Math.ceil((x-l)/(r-l)*10)))};
+  $("hearts").addEventListener("pointerdown",ev=>{heartStart=ev.clientX;heartDragged=false});
+  $("hearts").addEventListener("pointermove",ev=>{
+    if(heartStart===null)return;
+    if(!heartDragged&&Math.abs(ev.clientX-heartStart)<8)return;
+    heartDragged=true;const v=pick(ev.clientX);if(v!==happy){happy=v;renderHearts()}
+  });
+  const endDrag=()=>{if(heartDragged)saveDraft();heartStart=null;setTimeout(()=>heartDragged=false,60)};
+  $("hearts").addEventListener("pointerup",endDrag);
+  $("hearts").addEventListener("pointercancel",endDrag);
 })();
 function renderHearts(){
   $("hearts").querySelectorAll("button[data-v]").forEach(b=>{const v=+b.dataset.v;b.classList.toggle("on",v<=happy);b.setAttribute("aria-checked",v===happy)});
@@ -1169,7 +1192,7 @@ function renderMonth(){
   $("mBest").innerHTML=(best?`<p>⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(best.say||best.mood||"")}</p>`:"")+funny.map(e=>`<p>🤪 ${esc(e.date)}：${esc(e.funny)}</p>`).join("")||'<p class="sub">這個月還沒有日記。</p>';
 }
 $("mPick").onchange=renderMonth;
-window.addEventListener("resize",renderChart);
+window.addEventListener("resize",()=>{if($("memories").classList.contains("open"))renderChart()});
 function renderMemories(){renderOnThisDay();renderChart();renderMonth()}
 
 // 月曆：照片牆只載入最近幾十張，所以看哪個月就另外抓那個月的照片
@@ -1182,7 +1205,7 @@ function loadCalPhotos(m){
   db.collection("photos").where("date",">=",m+"-01").where("date","<=",m+"-31").get().then(s=>{
     const ids=new Set(s.docs.map(d=>d.id));
     calPhotos=calPhotos.filter(p=>!ids.has(p.id)).concat(s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>!p.trashed));
-    renderCalendar();renderEntries();renderDiaryToday();renderBook();
+    renderDiaryToday();renderOpen();
   }).catch(()=>{});
 }
 function renderCalendar(){
@@ -1377,7 +1400,7 @@ function purgeExpired(){
 function subPhotoTrash(){
   db.collection("photos").where("trashed.at",">","").onSnapshot(s=>{
     trash.photos=s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>p.trashed);
-    renderTrash();purgeExpired();
+    renderOpen();purgeExpired();
   },()=>{});
 }
 
@@ -1492,7 +1515,8 @@ function renderTodo(){
   const n=items.filter(x=>x[0]).length,all=n===items.length;
   $("todoCard").innerHTML=`<div class="row between"><h3>${all?"今天都完成了 🎉":"今天還差什麼"}</h3><span class="num">${n} / ${items.length}</span></div>${items.map(([ok,label,id])=>`<a class="todo-i ${ok?"ok":""}" href="#${id}"><span class="tick" aria-hidden="true">✓</span>${label}${ok?'<span class="sr-only">（已完成）</span>':""}</a>`).join("")}`;
 }
-function renderToday(){renderBackupNudge();renderAway();renderHug();renderTodo()}
+function syncNotices(){$("notices").hidden=["bkNudge","awayCard","dBackfill"].every(id=>$(id).hidden)}
+function renderToday(){renderBackupNudge();renderAway();renderHug();renderTodo();syncNotices()}
 
 // 外觀與版面：都存在這台裝置，兩個人可以各自設定
 const LAYOUT_KEY="love-base-layout";
@@ -1543,7 +1567,7 @@ renderLayoutList();
 const folds=[...document.querySelectorAll("section.fold")];
 function setFold(sec){
   folds.forEach(x=>{const on=x===sec;x.classList.toggle("open",on);x.querySelector(".fold-btn").setAttribute("aria-expanded",on)});
-  if(sec){renderChart();renderBook()}
+  if(sec)renderOpen();
 }
 folds.forEach(sec=>{
   const h=sec.querySelector("h2"),b=document.createElement("button");
@@ -1575,7 +1599,9 @@ function renderDiaryToday(){
     $("bfGo").onclick=()=>{diaryFormOpen=true;$("dDate").value=yk;renderDiaryToday();$("dMood").focus()};
     $("bfNo").onclick=()=>{try{localStorage.setItem(BF_KEY,yk)}catch(e){}renderDiaryToday()};
   }
+  syncNotices();
 }
+$("diaryMore").addEventListener("toggle",()=>{if($("diaryMore").open)renderEntries()});
 $("dNew").onclick=()=>{diaryFormOpen=!diaryFormOpen;if(!diaryFormOpen)$("dDate").value=key(today());renderDiaryToday()};
 
 // 照片壓縮尺寸：原圖最多約 300KB，放得下原本兩倍以上的張數
@@ -1653,7 +1679,8 @@ function renderBackupNudge(){
   const box=$("bkNudge");
   let snooze=0;try{snooze=+localStorage.getItem(BK_SNOOZE)||0}catch(e){}
   const last=store.backups.reduce((a,b)=>String(b.at)>a?String(b.at):a,""),days=last?Math.floor((Date.now()-new Date(last).getTime())/864e5):null;
-  if(!db||!dataReady||!entries.length||(days!==null&&days<30)||Date.now()<snooze){box.hidden=true;return}
+  const started=entries.reduce((a,e)=>Math.min(a,new Date(e.at).getTime()||a),Date.now());
+  if(!db||!dataReady||!entries.length||(days===null&&Date.now()-started<7*864e5)||(days!==null&&days<30)||Date.now()<snooze){box.hidden=true;syncNotices();return}
   box.innerHTML=`<div class="row between"><span>💾 ${days===null?"你們的日記還沒備份過":`已經 ${days} 天沒備份了`}</span><div class="row"><a class="btn" href="#bkBox" style="padding:4px 14px;font-size:13px;text-decoration:none">去備份</a><button class="btn ghost" type="button" id="bkLater" style="padding:4px 14px;font-size:13px">之後再說</button></div></div>`;
   box.hidden=false;
   $("bkLater").onclick=()=>{try{localStorage.setItem(BK_SNOOZE,Date.now()+7*864e5)}catch(e){}renderBackupNudge()};
@@ -1728,7 +1755,20 @@ window.addEventListener("offline",showOffline);
 window.addEventListener("online",()=>{if(db)$("status").textContent=dataReady?"● 兩人同步中":"連線中…"});
 if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
 
-function renderAll(){renderHUD();renderStreak();renderQuests();renderEntries();renderWall();renderWishes();renderDraw();renderCustom();renderCapsules();renderMemories();renderCalendar();renderTrash();renderToday();renderDiaryToday();renderBook()}
+// 收合中的區塊不重畫，展開時才更新
+function renderOpen(){
+  const open=id=>$(id).classList.contains("open");
+  if($("diaryMore").open)renderEntries();
+  if(open("photos"))renderWall();
+  if(open("calendar"))renderCalendar();
+  if(open("wishes"))renderWishes();
+  if(open("draw")){renderDraw();renderCustom()}
+  if(open("capsule"))renderCapsules();
+  if(open("memories"))renderMemories();
+  if(open("tools"))renderTrash();
+  renderBook();
+}
+function renderAll(){renderHUD();renderStreak();renderQuests();renderToday();renderDiaryToday();renderOpen()}
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,...store,trash}))}catch(e){}}
 function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];Object.keys(store).forEach(c=>store[c]=s[c]||[]);if(s.trash)Object.assign(trash,s.trash);delete done["draw-state"]}}catch(e){}}
 
@@ -1743,7 +1783,7 @@ const ROOM_KEY="love-base-room";
 function getRoom(){try{return localStorage.getItem(ROOM_KEY)||""}catch(e){return ""}}
 function showGate(msg){
   $("gate").hidden=false;$("gateMsg").textContent=msg||"";
-  $("gateCode").value=getRoom();$("gateName").value=myName();syncPick();
+  $("gateCode").value=getRoom();$("gateName").value=NAMES.includes(myName())?myName():"";syncPick();
   setTimeout(()=>($("gateCode").value?$("gateName"):$("gateCode")).focus(),50);
 }
 function syncPick(){const v=$("gateName").value.trim();$("namePick").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.n===v))}
@@ -1754,19 +1794,22 @@ $("gateForm").addEventListener("submit",ev=>{
   const code=$("gateCode").value.trim();
   if(!/^[A-Za-z0-9_-]{8,64}$/.test(code)){$("gateMsg").textContent="暗號要 8～64 個字，只能用英文、數字、- 或 _";return}
   const name=$("gateName").value.trim();
-  if(!name){$("gateMsg").textContent="請選「寒冰」或「夏夏」，對方才知道是誰寫的";return}
+  if(!NAMES.includes(name)){$("gateMsg").textContent="請選「寒冰」或「夏夏」，對方才知道是誰寫的";return}
   try{localStorage.setItem(ROOM_KEY,code);localStorage.setItem(NAME_KEY,name)}catch(e){}
   location.reload();
 });
-$("rename").onclick=()=>showGate();
-$("logout").onclick=()=>{try{localStorage.removeItem(ROOM_KEY)}catch(e){}location.reload()};
+$("logout").onclick=()=>{
+  const b=$("logout");
+  if(!b.dataset.confirm){b.dataset.confirm=1;b.textContent="記得暗號嗎？再按一次登出";setTimeout(()=>{delete b.dataset.confirm;b.textContent="登出"},4000);return}
+  try{localStorage.removeItem(ROOM_KEY);localStorage.removeItem(NAME_KEY)}catch(e){}location.reload();
+};
 
 (async()=>{
   const configured=FIREBASE_CONFIG.apiKey&&!FIREBASE_CONFIG.apiKey.startsWith("請貼上");
   if(!configured||!window.firebase){local=true;loadLocal();renderAll();$("status").textContent=configured?"連不上伺服器 · 先存在這台裝置":"尚未設定伺服器 · 只存在這台裝置";return}
   const room=getRoom();
-  if(!room||!myName()){$("status").textContent=room?"請填你的暱稱":"請輸入你們的暗號";showGate();return}
-  $("meLabel").hidden=false;$("meLabel").textContent="你是 "+myName()+" ·";$("rename").hidden=false;
+  if(!room||!NAMES.includes(myName())){$("status").textContent=room?"請選你是誰":"請輸入你們的暗號";showGate();return}
+  $("meLabel").hidden=false;$("meLabel").textContent="你是 "+myName()+" ·";
   firebase.initializeApp(FIREBASE_CONFIG);
   const fs=firebase.firestore();
   fs.enablePersistence({synchronizeTabs:true}).catch(()=>{});
