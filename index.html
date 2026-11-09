@@ -601,10 +601,10 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     <details class="rules" id="bkBox">
       <summary>💾 資料備份</summary>
       <div class="custom">
-        <p class="sub">下載一份存到自己的電腦或雲端，誤刪時可以補回來。備份檔裡有你們的日記，別傳給別人。iPhone 請用 Safari 開網址來備份。</p>
+        <p class="sub">下載一份存到自己的電腦或雲端，用瀏覽器打開就能照月份看日記，誤刪時也可以用同一個檔案補回來。備份檔裡有你們的日記，別傳給別人。iPhone 請用 Safari 開網址來備份。</p>
         <div class="row"><button class="btn" type="button" id="bkText">備份文字和縮圖</button><button class="btn ghost" type="button" id="bkFull">完整備份（含原圖）</button></div>
         <div class="row"><button class="btn ghost" type="button" id="bkPick">從備份檔補回資料</button><button class="btn" type="button" id="bkConfirm" hidden></button></div>
-        <input type="file" id="bkFile" accept=".json,application/json" hidden>
+        <input type="file" id="bkFile" accept=".html,.json,text/html,application/json" hidden>
         <p class="sub" id="bkMsg"></p>
       </div>
     </details>
@@ -1236,7 +1236,41 @@ $("installBtn").onclick=async()=>{const e=installEvt;if(!e)return;installEvt=nul
 const BK_COLLS=["done","diary","pics","photos"], BK_KEY="love-base-last-backup";
 let bkPending=[];
 const bkMsg=t=>$("bkMsg").textContent=t;
-function saveFile(name,text){const a=document.createElement("a"),url=URL.createObjectURL(new Blob([text],{type:"application/json"}));a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000)}
+// 備份檔是一個 HTML：打開是排好版的日記，裡面同時藏著還原用的完整資料
+const BK_TAG='<script type="application/json" id="love-base-backup">';
+function backupPayload(t){const i=t.indexOf(BK_TAG);if(i<0)return t;const a=i+BK_TAG.length;return t.slice(a,t.indexOf("<"+"/script>",a))}
+function backupHtml(b){
+  const live=o=>Object.entries(o||{}).map(([id,v])=>({id,...v})).filter(x=>!x.trashed);
+  const xs=c=>Object.entries(b.data.done||{}).filter(([k])=>k.startsWith(`x~${c}~`)).map(([k,v])=>({id:k.split("~")[2],...v})).filter(x=>!x.trashed).sort(byAt);
+  const diary=live(b.data.diary).sort((x,y)=>(String(x.date)+x.at).localeCompare(String(y.date)+y.at)),photos=live(b.data.photos).sort(byAt),replies=xs("replies");
+  const wk="日一二三四五六",tk=key(today());
+  const months=[...new Set(diary.map(e=>String(e.date).slice(0,7)))];
+  const mName=m=>{const [y,mo]=m.split("-").map(Number);return `${y} 年 ${mo} 月`};
+  const article=e=>{
+    const dt=fromKey(e.date),rs=replies.filter(r=>r.entry===e.id),hearts=rs.filter(r=>r.kind==="heart").length,texts=rs.filter(r=>r.kind==="text"),ph=photos.find(p=>p.entry===e.id);
+    return `<article><h3>${esc(e.date)}（${wk[dt.getDay()]}）<span>${esc(e.by||"未署名")}${e.happy?` · ⭐ ${esc(e.happy)}/10`:""}${hearts?` · ❤️ ${hearts}`:""}</span></h3><dl>${[["心情",e.mood],["吃了",e.food],["最好笑",e.funny],["想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}${ph?`<img src="${esc(ph.th)}" alt="當天的照片">`:""}${texts.map(r=>`<p class="re"><b>${esc(r.by)}</b> ${esc(r.text)}</p>`).join("")}</article>`;
+  };
+  const wishes=xs("wishes"),caps=xs("capsules"),rounds=xs("rounds"),answers=xs("answers"),wall=photos.filter(p=>!p.entry);
+  const passed=rounds.filter(r=>new Set(answers.filter(a=>a.round===r.id).map(a=>a.by)).size>=2);
+  const part=(id,title,body)=>body?`<section id="${id}"><h2>${title}</h2>${body}</section>`:"";
+  const json=JSON.stringify(b).replace(/</g,"\\u003c");
+  return `<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>戀愛基地備份 ${esc(dayOf(b.exportedAt))}</title><style>
+:root{color-scheme:light}body{margin:0;background:#fbf6f8;color:#2a1b25;font:16px/1.75 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+main{max-width:680px;margin:0 auto;padding:32px 16px 64px}h1{font-size:28px;margin:0}header p{margin:4px 0;color:#7c6672}
+nav{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 0}nav a{background:#fff;border:1px solid #ead9e1;border-radius:99px;padding:2px 12px;color:#2a1b25;text-decoration:none;font-size:14px}
+h2{font-size:20px;margin:36px 0 12px;padding-bottom:6px;border-bottom:2px solid #e2457a}h3{font-size:16px;margin:0 0 6px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 12px}h3 span{font-weight:400;font-size:14px;color:#7c6672}
+article{background:#fff;border:1px solid #ead9e1;border-radius:12px;padding:14px 16px;margin:0 0 12px;break-inside:avoid;overflow-wrap:anywhere}dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:0}dt{color:#7c6672}dd{margin:0;white-space:pre-wrap}
+blockquote{margin:8px 0 0;padding:8px 12px;background:#fde3ec;border-radius:8px}article img{display:block;width:140px;height:140px;object-fit:cover;border-radius:8px;margin-top:8px}.re{margin:6px 0 0;padding:4px 10px;background:#f4ebef;border-radius:8px;font-size:14px}
+ul{margin:0;padding-left:1.3em}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}figure{margin:0;font-size:13px;color:#7c6672}figure img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block}
+</style></head><body><main><header><h1>我們的戀愛遊戲基地</h1><p>備份於 ${esc(dayOf(b.exportedAt))} · ${diary.length} 篇日記 · ${photos.length} 張照片${b.full?" · 含原圖":""}</p><p>要救回資料時，到網站的「資料備份」選「從備份檔補回資料」，選這個檔案就可以。</p><nav>${months.map(m=>`<a href="#m${m}">${mName(m)}</a>`).join("")}${wishes.length?'<a href="#wishes">願望</a>':""}${passed.length?'<a href="#draw">抽題</a>':""}${caps.length?'<a href="#caps">膠囊</a>':""}${wall.length?'<a href="#wall">照片</a>':""}</nav></header>
+${months.map(m=>{const list=diary.filter(e=>String(e.date).startsWith(m));return part("m"+m,`${mName(m)}（${list.length} 篇）`,list.map(article).join(""))}).join("")}
+${part("wishes","願望清單",wishes.length?`<ul>${wishes.map(w=>`<li>${w.done?"✅":"⬜"} ${esc(w.text)}${w.done?`（${esc(w.doneDate)} 完成）`:""}</li>`).join("")}</ul>`:"")}
+${part("draw","抽題紀錄",passed.map(r=>`<article><h3>${esc(r.q)}<span>${esc(dayOf(r.at))}</span></h3><dl>${[...new Map(answers.filter(a=>a.round===r.id).sort(byAt).map(a=>[a.by,a])).values()].map(a=>`<dt>${esc(a.by)}</dt><dd>${esc(a.text)}</dd>`).join("")}</dl></article>`).join(""))}
+${part("caps","時光膠囊",caps.map(c=>`<article><h3>${c.openDate>tk?"🔒 封存中":"💌 已打開"}<span>${esc(c.by)} · ${esc(c.openDate)} 打開</span></h3>${c.openDate>tk?"":`<p style="margin:0;white-space:pre-wrap">${esc(c.text)}</p>`}</article>`).join(""))}
+${part("wall","照片",wall.length?`<div class="grid">${wall.map(p=>`<figure><img src="${esc(p.th)}" alt="${esc(p.by)} 的照片" loading="lazy">${esc(p.date)} · ${esc(p.by)}${p.cap?`<br>${esc(p.cap)}`:""}</figure>`).join("")}</div>`:"")}
+</main>${BK_TAG}${json}<${"/"}script></body></html>`;
+}
+function saveFile(name,text){const a=document.createElement("a"),url=URL.createObjectURL(new Blob([text],{type:"text/html;charset=utf-8"}));a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000)}
 function showLastBackup(){let v="";try{v=localStorage.getItem(BK_KEY)||""}catch(e){}bkMsg(v?`這台裝置上次備份：${v}`:"這台裝置還沒備份過。")}
 async function exportBackup(full){
   if(!db||!navigator.onLine){toast("要連上網路才能備份");return}
@@ -1248,7 +1282,7 @@ async function exportBackup(full){
       const s=await db.collection(c).get();
       data[c]={};s.docs.forEach(d=>data[c][d.id]=d.data());
     }
-    saveFile(`love-base-backup-${key(today())}${full?"-full":""}.json`,JSON.stringify({app:"love-base",version:1,exportedAt:nowIso(),full,data}));
+    saveFile(`戀愛基地備份_${key(today())}${full?"_完整":""}.html`,backupHtml({app:"love-base",version:2,exportedAt:nowIso(),full,data}));
     try{localStorage.setItem(BK_KEY,key(today()))}catch(e){}
     try{await addDoc("backups",{full,by:myName(),at:nowIso()})}catch(e){}
     showLastBackup();toast("備份下載好了 💾");
@@ -1257,7 +1291,7 @@ async function exportBackup(full){
 }
 async function prepRestore(text){
   $("bkConfirm").hidden=true;bkPending=[];
-  let b;try{b=JSON.parse(text)}catch(e){bkMsg("這個檔案讀不出來，請選下載的備份檔。");return}
+  let b;try{b=JSON.parse(backupPayload(text))}catch(e){bkMsg("這個檔案讀不出來，請選下載的備份檔。");return}
   if(b?.app!=="love-base"||!b.data){bkMsg("這不是基地的備份檔。");return}
   if(!db||!navigator.onLine){bkMsg("要連上網路才能補回資料。");return}
   bkMsg("比對中…");
@@ -1270,7 +1304,7 @@ async function prepRestore(text){
   }catch(e){bkMsg("比對失敗，請確認網路後再試一次。");return}
   if(!bkPending.length){bkMsg("備份裡的資料目前都還在，不用補回。");return}
   $("bkConfirm").textContent=`補回 ${bkPending.length} 筆資料`;$("bkConfirm").hidden=false;
-  bkMsg(`備份日期 ${String(b.exportedAt||"").slice(0,10)}。只會補回目前沒有的資料，現有內容不會被改動；已經刪掉的東西也會一起回來。`);
+  bkMsg(`備份日期 ${dayOf(b.exportedAt)}。只會補回目前沒有的資料，現有內容不會被改動；已經刪掉的東西也會一起回來。`);
 }
 async function applyRestore(){
   const list=bkPending;let ok=0;
