@@ -207,8 +207,6 @@ form.wishform{display:flex;gap:8px}
 .reveal b{margin-right:8px;color:var(--pink)}
 .log,.custom{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .left-hint{text-align:left}
-.ctform{display:grid;grid-template-columns:auto 1fr 2fr auto;gap:8px}
-@media (max-width:520px){.ctform{grid-template-columns:1fr}}
 .citem{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px}
 .citem span{min-width:0;overflow-wrap:anywhere}
 .citem .del{font-size:12px;padding:4px 10px}
@@ -387,7 +385,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   <div class="side-head"><b>戀愛基地</b><button class="side-toggle" type="button" id="sideToggle" aria-controls="sideNav"></button></div>
   <nav id="sideNav" aria-label="區塊" style="display:flex;flex-direction:column;gap:2px">
     <a href="#today" data-s="today" title="今天"><span class="ic" aria-hidden="true">🏠</span><span class="lb">今天</span></a>
-    <a href="#quests" data-s="quests" title="任務與日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">任務與日記</span></a>
+    <a href="#quests" data-s="quests" title="日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">日記</span></a>
     <a href="#photos" data-s="photos" title="照片"><span class="ic" aria-hidden="true">📷</span><span class="lb">照片</span></a>
     <a href="#ladder" data-s="ladder" title="成就"><span class="ic" aria-hidden="true">🏆</span><span class="lb">成就</span></a>
     <a href="#calendar" data-s="calendar" title="月曆"><span class="ic" aria-hidden="true">📅</span><span class="lb">月曆</span></a>
@@ -443,13 +441,13 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </section>
 
   <section id="quests">
-    <div><h2>💌 今天的任務與日記</h2></div>
+    <div><h2>💌 今天的日記</h2></div>
     <div class="streak" id="streak"></div>
-    <div class="today">
+    <div class="today" id="todayBox" hidden>
       <div id="todayCard" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
   <div class="diary-block" id="diary">
-      <div><h3 style="font-size:16px;font-weight:900">💌 今天的日記</h3><p class="sub">寫下今天的日記，今天的任務就算完成。每天第一篇 +5 XP。</p></div>
+      <p class="sub" style="margin:0">寫日記或傳照片，今天就算有紀錄。每天第一篇日記 +5 XP。</p>
       <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
       <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填）" aria-label="照片說明">
       <div class="entries" id="diaryToday"></div>
@@ -481,13 +479,6 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
         </div>
       </details>
       </div>
-    <details class="month">
-      <summary>這週任務</summary>
-      <div class="month-body">
-        <p class="sub" style="margin:0">兩個人都做到就打勾領 XP。這週漏掉的也可以補，補打勾有 XP，但不算連續天數。</p>
-        <div class="week" id="week"></div>
-      </div>
-    </details>
     <input type="file" id="photoFile" accept="image/*" hidden>
   </section>
 
@@ -510,7 +501,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <div class="row between"><button class="btn ghost" type="button" id="calPrev" aria-label="上個月">‹</button><h3 id="calTitle"></h3><button class="btn ghost" type="button" id="calNext" aria-label="下個月">›</button></div>
       <div class="cal-head" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
       <div class="cal" id="calGrid"></div>
-      <div class="cal-legend"><span><i class="d-diary"></i>日記</span><span><i class="d-photo"></i>照片</span><span><i class="d-task"></i>任務</span><span><i class="d-wish"></i>願望</span></div>
+      <div class="cal-legend"><span><i class="d-diary"></i>日記</span><span><i class="d-photo"></i>照片</span><span><i class="d-task"></i>紀錄</span><span><i class="d-wish"></i>願望</span></div>
     </div>
     <div class="entries" id="calDetail"></div>
   </section>
@@ -543,19 +534,12 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <div class="log" id="logList"></div>
     </details>
     <details class="rules">
-      <summary>✏️ 自訂題庫和任務</summary>
+      <summary>✏️ 自訂題庫</summary>
       <div class="custom">
         <form class="wishform" id="cqForm" autocomplete="off">
           <input id="cqText" maxlength="100" required placeholder="新增題目，放你們才懂的梗" aria-label="新增題目">
           <button class="btn" type="submit" id="cqSave">加入題庫</button>
         </form>
-        <form class="ctform" id="ctForm" autocomplete="off">
-          <select id="ctDay" aria-label="星期"><option value="0">星期一</option><option value="1">星期二</option><option value="2">星期三</option><option value="3">星期四</option><option value="4">星期五</option><option value="5">星期六</option><option value="6">星期日</option></select>
-          <input id="ctName" maxlength="12" required placeholder="任務名稱" aria-label="任務名稱">
-          <input id="ctText" maxlength="80" required placeholder="任務內容" aria-label="任務內容">
-          <button class="btn" type="submit" id="ctSave">加入任務</button>
-        </form>
-        <div class="hint left-hint">自訂任務固定 +10 XP，會和同一天的原本任務每週輪流出現；輪到自訂任務的那天不用上傳照片。</div>
         <div class="log" id="customList"></div>
       </div>
     </details>
@@ -704,7 +688,7 @@ const TITLES=[[50,"🐣 戀愛新手村"],[100,"🧸 黏踢踢小情侶"],[200,"
 const QUESTIONS=["你覺得我最欠揍但又最可愛的地方是什麼？","如果我變成一隻蟑螂，你還會愛我嗎？","如果我們一起被困在荒島，你覺得誰會先崩潰？","最近哪一個瞬間讓你突然很想我？","第一次見到我的時候，你心裡在想什麼？","我做過最讓你傻眼的一件事是什麼？","用三個詞形容我們這段關係。","如果明天放假一整天，你想跟我做什麼？","你覺得我們誰比較會吃醋？","我最常對你說的一句話是什麼？","如果要幫我們拍一部電影，片名叫什麼？","你偷偷覺得我哪一個習慣很好笑？","我們吵架之後，你最希望我怎麼哄你？","你最想跟我一起完成的一件事是什麼？","如果可以交換身份一天，你最想用我的身份做什麼？","你覺得我們十年後會在幹嘛？","我哪一個表情你最受不了（但其實很喜歡）？","你最想吃我煮的哪一道菜？","我們之間最好笑的一個暗號或梗是什麼？","哪一首歌會讓你想到我？","如果我們養一隻寵物，要叫什麼名字？","我最近做了什麼讓你覺得被照顧到？","你覺得我們的戀愛像哪一種遊戲？","你今天最想對我撒嬌的一句話是？","如果只能用一個 emoji 代表我，你會選哪個？","我們第一次約會，你最記得哪個畫面？","你覺得我身上最像小孩的地方是什麼？","如果我們一起去旅行，誰負責迷路？"];
 
 const LOVE_START=new Date(2026,10,4);
-const DIARY_XP=5, WISH_XP=10, CUSTOM_XP=10, STREAK_BONUS=10, STREAK_STEP=7;
+const DIARY_XP=5, WISH_XP=10, STREAK_BONUS=10, STREAK_STEP=7;
 const NOSAVE="沒存到，請再試一次";
 
 const $=id=>document.getElementById(id);
@@ -721,7 +705,6 @@ function pad(n){return String(n).padStart(2,"0")}
 function key(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
 function today(){const d=new Date();d.setHours(0,0,0,0);return d}
 function dow(d){return (d.getDay()+6)%7} // Mon=0
-function weekDates(){const t=today();const m=new Date(t);m.setDate(t.getDate()-dow(t));return [...Array(7)].map((_,i)=>{const d=new Date(m);d.setDate(m.getDate()+i);return d})}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2200)}
 
@@ -759,13 +742,7 @@ async function delDoc(c,id){
 function armDelete(box,c){box.querySelectorAll(".del").forEach(b=>{b.onclick=()=>{
   if(b.dataset.confirm){delDoc(c,b.dataset.id)}else{b.dataset.confirm=1;b.textContent="再按一次";setTimeout(()=>{if(b.isConnected){delete b.dataset.confirm;b.textContent="刪除"}},3000)}}})}
 
-// 自訂任務和同一天的原本任務每週輪流
-function weekNo(d){return Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5+3)/7)}
-function taskFor(d){
-  const i=dow(d),extra=store.custom.filter(c=>c.kind==="task"&&Number(c.day)===i).sort(byAt);
-  const list=[TASKS[i],...extra.map(c=>({day:TASKS[i].day,name:c.name,text:c.text,xp:CUSTOM_XP,custom:true}))];
-  return list[weekNo(d)%list.length];
-}
+function taskFor(d){return TASKS[dow(d)]}
 
 // 當天打勾才算連續，或用補簽卡補上的日子
 function onTimeDays(){return Object.entries(done).filter(([k,v])=>v.at&&dayOf(v.at)===k).map(([k])=>k)}
@@ -821,13 +798,11 @@ function renderHUD(){
 
 function renderQuests(){
   const t=today(), tk=key(t), ti=dow(t), task=taskFor(t), isDone=!!done[tk];
+  $("todayBox").hidden=ti!==6;
   $("todayCard").innerHTML=`<div class="tag">今天 · 星期${task.day}</div><h3>${esc(task.name)} <span class="xpchip num" style="font-size:16px">+${task.xp} XP</span></h3><p>${esc(task.text)}</p>
   <div class="row">${isDone?'<span class="done-line">✓ 今天的任務完成了</span><button class="btn ghost" type="button" id="todayUndo">取消</button>':'<button class="btn" id="todayBtn" type="button">我們完成了！</button>'}</div>`;
   if(!isDone)$("todayBtn").onclick=()=>toggle(tk,ti,true);
   if(isDone)$("todayUndo").onclick=()=>toggle(tk,ti,false);
-  $("week").innerHTML=weekDates().map((d,i)=>{const k=key(d),T=taskFor(d),dn=!!done[k],future=d>t;
-    return `<div class="q ${dn?"done":""} ${k===tk?"is-today":""}"><div class="d">${T.day}</div><div class="t"><b>${esc(T.name)}</b>${dn&&done[k].by?` <span class="who">· ${esc(done[k].by)} 打勾</span>`:""}<div>${esc(T.text)}</div>${weekThumbs(k,i,future)}</div><div class="s"><span class="xpchip num">+${T.xp}</span><button class="check" type="button" data-k="${k}" data-i="${i}" aria-pressed="${dn}" aria-label="星期${T.day}${dn?"已完成，點一下取消":"標記完成"}" ${future?"disabled":""}>✓</button></div></div>`}).join("");
-  $("week").querySelectorAll(".check").forEach(b=>b.onclick=()=>toggle(b.dataset.k,+b.dataset.i,!done[b.dataset.k]));
   renderTodayPhotos();
 }
 
@@ -839,15 +814,9 @@ const isPhotoDay=i=>i<6;
 function photosOn(d){return photos.filter(p=>p.date===d&&!p.entry)}
 function myPhoto(d){return photos.find(p=>p.date===d&&p.by===myName()&&!p.entry)}
 function photoBtn(p,cls){return `<button type="button" class="${cls}" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片"><img src="${p.th}" alt="" loading="lazy"><span class="nm">${esc(p.by)}${p.by===myName()?"（我）":""}</span></button>`}
-function weekThumbs(k,i,future){
-  if(!isPhotoDay(i)||future||taskFor(fromKey(k)).custom)return "";
-  const ps=photosOn(k), canUp=!!db&&!photoErr&&!myPhoto(k)&&k!==key(today());
-  if(!ps.length&&!canUp)return "";
-  return `<div class="thumbs">${ps.map(p=>`<button type="button" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片"><img src="${p.th}" alt="" loading="lazy"></button>`).join("")}${canUp?`<button type="button" class="cam" data-up="${k}" aria-label="補傳這天的照片">${uploading===k?"…":"📷"}</button>`:""}</div>`;
-}
 function renderTodayPhotos(){
   const t=today(), k=key(t), box=$("todayPhotos");
-  const show=isPhotoDay(dow(t))&&!taskFor(t).custom;
+  const show=isPhotoDay(dow(t));
   box.hidden=!show;$("photoCap").hidden=!show||!db||!!photoErr||!myPhoto(k)||!capEditing;
   if(!show)return;
   if(!db){box.innerHTML='<div class="ph-note">📸 要連上伺服器才能上傳照片。</div>';return}
@@ -1055,7 +1024,7 @@ $("diaryForm").addEventListener("submit",async ev=>{
   try{
     if(db){const ref=db.collection("diary").doc();await commit(ref.set(e));if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e});await attachDiaryPhoto(ref.id,e)}
     else{e.id="l"+Date.now();entries.push(e);saveLocal()}
-    const autoDone=e.date===key(today())&&!done[key(today())];if(autoDone)toggle(key(today()),dow(today()),true);diaryFormOpen=false;$("dDate").value=key(today());clearDraft();$("dMsg").textContent="";["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(autoDone?"寫好了 💌 今天的任務也完成了":counted?"寫好了 💌 今天的日記 XP 已經領過了":`寫好了！+${DIARY_XP} XP 💌`);
+    const autoDone=e.date===key(today())&&!done[key(today())];if(autoDone)toggle(key(today()),dow(today()),true);diaryFormOpen=false;$("dDate").value=key(today());clearDraft();$("dMsg").textContent="";["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(autoDone?"寫好了 💌 今天的紀錄完成了":counted?"寫好了 💌 今天的日記 XP 已經領過了":`寫好了！+${DIARY_XP} XP 💌`);
   }catch(err){$("dMsg").textContent="沒存到，請確認你有這個頁面的編輯權限"}
   $("dSave").disabled=false;
 });
@@ -1114,7 +1083,7 @@ function bindForm(form,btn,build,after){
   });
 }
 // 中文選字按 Enter 時不要送出
-["wishForm","cqForm","ctForm"].forEach(f=>$(f).addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.isComposing||ev.keyCode===229))ev.preventDefault()}));
+["wishForm","cqForm"].forEach(f=>$(f).addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.isComposing||ev.keyCode===229))ev.preventDefault()}));
 bindForm("ansForm","ansSave",()=>{const r=curRound(),text=$("ansText").value.trim();return r&&text&&{c:"answers",doc:{round:r.id,text,by:myName(),at:nowIso()}}},()=>{$("ansText").value=""});
 
 // 願望清單
@@ -1137,12 +1106,11 @@ bindForm("wishForm","wSave",()=>{const text=$("wText").value.trim();return text&
 
 // 自訂題庫和任務
 function renderCustom(){
-  const box=$("customList"),items=[...store.custom].sort(byAt).reverse();
+  const box=$("customList"),items=store.custom.filter(c=>c.kind==="q").sort(byAt).reverse();
   box.innerHTML=items.map(c=>`<div class="citem"><span>${c.kind==="q"?"💬 "+esc(c.text):`📌 星期${TASKS[Number(c.day)]?.day??""} ${esc(c.name)}：${esc(c.text)}`}</span><button class="btn ghost del" type="button" data-id="${esc(c.id)}">刪除</button></div>`).join("");
   armDelete(box,"custom");
 }
 bindForm("cqForm","cqSave",()=>{const text=$("cqText").value.trim();return text&&{c:"custom",doc:{kind:"q",text,by:myName(),at:nowIso()}}},()=>{$("cqText").value="";toast("加進題庫了")});
-bindForm("ctForm","ctSave",()=>{const name=$("ctName").value.trim(),text=$("ctText").value.trim();return name&&text&&{c:"custom",doc:{kind:"task",day:+$("ctDay").value,name,text,by:myName(),at:nowIso()}}},()=>{$("ctName").value="";$("ctText").value="";toast("任務加好了")});
 
 // 時光膠囊
 function renderCapsules(){
@@ -1193,7 +1161,7 @@ function renderMonth(){
   pick.value=months.includes(keep)?keep:cur;
   const m=pick.value,es=entries.filter(e=>String(e.date).startsWith(m)),rated=es.filter(e=>e.happy);
   const avg=rated.length?(rated.reduce((a,e)=>a+ +e.happy,0)/rated.length).toFixed(1):"—";
-  const tiles=[["日記",es.length+" 篇"],["完成任務",Object.keys(done).filter(k=>k.startsWith(m)).length+" 天"],["達成願望",store.wishes.filter(w=>w.done&&String(w.doneDate).startsWith(m)).length+" 個"],["平均幸福",avg]];
+  const tiles=[["日記",es.length+" 篇"],["有紀錄",Object.keys(done).filter(k=>k.startsWith(m)).length+" 天"],["達成願望",store.wishes.filter(w=>w.done&&String(w.doneDate).startsWith(m)).length+" 個"],["平均幸福",avg]];
   $("mStats").innerHTML=tiles.map(([a,b])=>`<div class="stat"><span>${a}</span><b>${b}</b></div>`).join("");
   const best=[...rated].sort((a,b)=>b.happy-a.happy||String(b.date).localeCompare(String(a.date)))[0],funny=es.filter(e=>e.funny).slice(-3);
   $("mBest").innerHTML=(best?`<p>⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(best.say||best.mood||"")}</p>`:"")+funny.map(e=>`<p>🤪 ${esc(e.date)}：${esc(e.funny)}</p>`).join("")||'<p class="sub">這個月還沒有日記。</p>';
@@ -1226,7 +1194,7 @@ function renderCalendar(){
   let h='<span></span>'.repeat(offset);
   for(let d=1;d<=count;d++){
     const k=calMonth+"-"+pad(d);
-    const marks=[[entries.some(e=>e.date===k),"diary","日記"],[ps.some(p=>p.date===k),"photo","照片"],[!!done[k],"task","任務"],[store.wishes.some(w=>w.done&&w.doneDate===k),"wish","願望"]].filter(x=>x[0]);
+    const marks=[[entries.some(e=>e.date===k),"diary","日記"],[ps.some(p=>p.date===k),"photo","照片"],[!!done[k],"task","紀錄"],[store.wishes.some(w=>w.done&&w.doneDate===k),"wish","願望"]].filter(x=>x[0]);
     h+=`<button type="button" data-d="${k}" class="${marks.length?"has":""} ${k===tk?"today":""}" aria-pressed="${k===calDay}" aria-label="${m} 月 ${d} 日${marks.length?"，有"+marks.map(x=>x[2]).join("、"):""}" ${k>tk?"disabled":""}>${d}<span class="dots">${marks.map(x=>`<i class="d-${x[1]}"></i>`).join("")}</span></button>`;
   }
   $("calGrid").innerHTML=h;
@@ -1237,9 +1205,9 @@ function renderCalDetail(){
   const box=$("calDetail"),k=calDay;
   if(!k){box.innerHTML='<div class="empty">點一個日期，看那天的紀錄。</div>';return}
   const dt=fromKey(k),label=`${dt.getMonth()+1}/${dt.getDate()}（${"日一二三四五六"[dt.getDay()]}）`;
-  const es=entries.filter(e=>e.date===k).sort(byAt),ps=calAllPhotos().filter(p=>p.date===k),ws=store.wishes.filter(w=>w.done&&w.doneDate===k),d=done[k];
-  if(!es.length&&!ps.length&&!ws.length&&!d){box.innerHTML=`<div class="empty">${label} 還沒有紀錄。</div>`;return}
-  box.innerHTML=`<article class="entry"><header><b>📅 ${label}</b></header>${d?`<div>🎮 完成每日任務${d.by?`（${esc(d.by)} 打勾）`:""}</div>`:""}${ws.map(w=>`<div>🌠 達成願望：${esc(w.text)}</div>`).join("")}${ps.length?`<div class="wall-grid">${ps.map(p=>photoBtn(p,"")).join("")}</div>`:""}</article>`+es.map(e=>`<article class="entry ${e.by?(e.by===myName()?"me":"them"):""}"><header><div>${byChip(e.by)}</div><span>${e.happy?"⭐ "+esc(e.happy)+"/10":""}</span></header><dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}</article>`).join("");
+  const es=entries.filter(e=>e.date===k).sort(byAt),ps=calAllPhotos().filter(p=>p.date===k),ws=store.wishes.filter(w=>w.done&&w.doneDate===k);
+  if(!es.length&&!ps.length&&!ws.length){box.innerHTML=`<div class="empty">${label} 還沒有紀錄。</div>`;return}
+  box.innerHTML=`<article class="entry"><header><b>📅 ${label}</b></header>${ws.map(w=>`<div>🌠 達成願望：${esc(w.text)}</div>`).join("")}${ps.length?`<div class="wall-grid">${ps.map(p=>photoBtn(p,"")).join("")}</div>`:""}</article>`+es.map(e=>`<article class="entry ${e.by?(e.by===myName()?"me":"them"):""}"><header><div>${byChip(e.by)}</div><span>${e.happy?"⭐ "+esc(e.happy)+"/10":""}</span></header><dl>${[["⛅ 心情",e.mood],["🍜 吃了",e.food],["🤪 最好笑",e.funny],["💞 想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}</article>`).join("");
 }
 function shiftCal(n){
   const [y,m]=calMonth.split("-").map(Number);
@@ -1476,7 +1444,7 @@ function renderAway(){
   const card=$("awayCard");
   if(!db||!seenMs){card.hidden=true;return}
   const me=myName(),fresh=x=>x.by&&x.by!==me&&x.at&&new Date(x.at).getTime()>seenMs;
-  const groups=[[entries.filter(fresh),n=>`💌 寫了 ${n} 篇日記`,"diary"],[photos.filter(fresh),n=>`📷 傳了 ${n} 張照片`,"photos"],[Object.values(done).filter(fresh),()=>"🎮 完成了每日任務","quests"],[store.answers.filter(fresh),n=>`🎲 回答了 ${n} 題抽題`,"draw"],[store.wishes.filter(fresh),n=>`🌠 許了 ${n} 個願望`,"wishes"],[store.capsules.filter(fresh),n=>`⏳ 封存了 ${n} 顆膠囊`,"capsule"],[store.replies.filter(fresh).filter(r=>entries.find(e=>e.id===r.entry)?.by===me),n=>`💬 回應了你的日記（${n}）`,"diary"],[store.hugs.filter(fresh),()=>"🤗 來討抱抱","hugCard"],[store.hugs.filter(h=>h.by===me&&h.backBy&&new Date(h.backAt).getTime()>seenMs),()=>"💞 抱了你","hugCard"]].filter(g=>g[0].length&&!layout.hidden.includes(g[2]==="diary"?"quests":g[2]));
+  const groups=[[entries.filter(fresh),n=>`💌 寫了 ${n} 篇日記`,"diary"],[photos.filter(fresh),n=>`📷 傳了 ${n} 張照片`,"photos"],[store.answers.filter(fresh),n=>`🎲 回答了 ${n} 題抽題`,"draw"],[store.wishes.filter(fresh),n=>`🌠 許了 ${n} 個願望`,"wishes"],[store.capsules.filter(fresh),n=>`⏳ 封存了 ${n} 顆膠囊`,"capsule"],[store.replies.filter(fresh).filter(r=>entries.find(e=>e.id===r.entry)?.by===me),n=>`💬 回應了你的日記（${n}）`,"diary"],[store.hugs.filter(fresh),()=>"🤗 來討抱抱","hugCard"],[store.hugs.filter(h=>h.by===me&&h.backBy&&new Date(h.backAt).getTime()>seenMs),()=>"💞 抱了你","hugCard"]].filter(g=>g[0].length&&!layout.hidden.includes(g[2]==="diary"?"quests":g[2]));
   if(!groups.length){card.hidden=true;return}
   const name=groups[0][0][0].by===me?groups[0][0][0].backBy:groups[0][0][0].by;
   card.innerHTML=`<h3>你不在時，${esc(name)}…</h3><div class="away-list">${groups.map(g=>`<a href="#${g[2]}">${g[1](g[0].length)}</a>`).join("")}</div><button class="btn ghost" type="button" id="awayOk">知道了</button>`;
@@ -1517,7 +1485,7 @@ $("hugForm").addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.isComposin
 function renderTodo(){
   const t=today(),tk=key(t),me=myName(),items=[];
   if(store.hugs.some(h=>h.by&&h.by!==me&&!h.backAt))items.push([false,"🤗 抱抱對方","hugCard"]);
-  if(db&&isPhotoDay(dow(t))&&!taskFor(t).custom)items.push([!!myPhoto(tk),"📷 上傳我的照片","diary"]);
+  if(db&&isPhotoDay(dow(t)))items.push([!!myPhoto(tk),"📷 上傳我的照片","diary"]);
   items.push([entries.some(e=>e.by===me&&dayOf(e.at)===tk),"💌 寫今天的日記","diary"]);
   const r=curRound(),ans=r?pairOf(r.id):[],answered=ans.some(a=>a.by===me),over=!!r&&ans.length>=need();
   if(r&&!over)items.push(answered?[true,"🎲 已回答抽題，等對方揭曉","draw"]:[false,"🎲 回答抽題","draw"]);
@@ -1747,7 +1715,7 @@ function renderBook(){
   if(!es.length&&!ps.length){$("bookBody").innerHTML='<div class="empty">這一年還沒有回憶，寫下第一篇日記吧。</div>';return}
   const rated=es.filter(e=>e.happy),avg=rated.length?(rated.reduce((s,e)=>s+ +e.happy,0)/rated.length).toFixed(1):"—";
   const dayN=Math.round((Math.min(to,today())-from)/864e5)+1;
-  const tiles=[["日記",es.length+" 篇"],["照片",ps.length+" 張"],["完成任務",Object.keys(done).filter(inR).length+" 天"],["達成願望",store.wishes.filter(w=>w.done&&inR(w.doneDate)).length+" 個"],["抽題過關",store.rounds.filter(r=>inR(dayOf(r.at))&&pairOf(r.id).length>=need()).length+" 題"],["抱抱",store.hugs.filter(h=>h.backAt&&inR(dayOf(h.backAt))).length+" 次"],["回應日記",store.replies.filter(r=>r.kind==="text"&&es.some(e=>e.id===r.entry)).length+" 則"],["平均幸福",avg]];
+  const tiles=[["日記",es.length+" 篇"],["照片",ps.length+" 張"],["有紀錄",Object.keys(done).filter(inR).length+" 天"],["達成願望",store.wishes.filter(w=>w.done&&inR(w.doneDate)).length+" 個"],["抽題過關",store.rounds.filter(r=>inR(dayOf(r.at))&&pairOf(r.id).length>=need()).length+" 題"],["抱抱",store.hugs.filter(h=>h.backAt&&inR(dayOf(h.backAt))).length+" 次"],["回應日記",store.replies.filter(r=>r.kind==="text"&&es.some(e=>e.id===r.entry)).length+" 則"],["平均幸福",avg]];
   const say=e=>e.say||((e.s1||e.s2)?`今天雖然${e.s1||"＿＿"}，但因為有你${e.s2||"＿＿"}。`:"")||e.mood||e.funny||"";
   const best=[...rated].sort((x,y)=>y.happy-x.happy||String(y.date).localeCompare(String(x.date)))[0];
   const pages=months.map(m=>{
