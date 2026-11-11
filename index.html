@@ -511,7 +511,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
   </section>
 
   <section id="draw" class="fold">
-    <div><h2>🎲 今日隨機抽題</h2><p class="sub">兩個人看同一題，都答完才會揭曉，答案會留在過關紀錄。</p></div>
+    <div><h2>🎲 今日隨機抽題</h2><p class="sub">每天輪流抽一題，每個月換一套主題題庫。兩個人都答完才會揭曉，答案會留在過關紀錄。</p></div>
     <div class="draw">
       <div class="card" id="qCard">按下面的按鈕抽一題</div>
       <div class="hint" id="drawWho" hidden></div>
@@ -1027,29 +1027,45 @@ $("diaryForm").addEventListener("submit",async ev=>{
   $("dSave").disabled=false;
 });
 
-// 抽題：兩人共用同一題，每人一份答案，都答完才揭曉
-let lastRound=null;
+// 抽題：每天輪流抽一題（寒冰、夏夏隔天輪），每個月的題庫在 questions.json
+// 兩人共用同一題，每人一份答案，都答完才揭曉
+let lastRound=null, MONTHLY=null;
 const need=()=>db?2:1;
-function allQuestions(){return [...QUESTIONS,...store.custom.filter(c=>c.kind==="q").map(c=>c.text)]}
+fetch("questions.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).then(j=>{if(j){MONTHLY=j;renderDraw();if(typeof renderTodo==="function")renderTodo()}}).catch(()=>{});
+function monthBank(){const m=key(today()).slice(0,7),b=MONTHLY&&MONTHLY[m];return b&&Array.isArray(b.q)&&b.q.length?{month:Number(m.slice(5)),theme:b.theme||"",q:b.q}:{month:Number(m.slice(5)),theme:"",q:QUESTIONS}}
+function allQuestions(){return [...monthBank().q,...store.custom.filter(c=>c.kind==="q").map(c=>c.text)]}
+function roundDay(r){return r.day||dayOf(r.at)}
 function curRound(){return store.rounds.reduce((a,b)=>!a||String(b.at)>String(a.at)?b:a,null)}
+function todayRound(){const tk=key(today());return store.rounds.filter(r=>roundDay(r)===tk).reduce((a,b)=>!a||String(b.at)>String(a.at)?b:a,null)}
+function turnOf(k){const [y,m,d]=k.split("-").map(Number);return NAMES[Math.floor(Date.UTC(y,m-1,d)/864e5)%2]}
+function myTurn(){return !db||myName()===turnOf(key(today()))}
+// 畫面上顯示的題目：今天的題目；今天還沒抽的話，顯示還沒揭曉的舊題目讓大家補答
+function shownRound(){const t=todayRound();if(t)return t;const r=curRound();return r&&pairOf(r.id).length<need()?r:null}
 function pairOf(id){const seen=new Map();store.answers.filter(a=>a.round===id).sort(byAt).forEach(a=>{if(!seen.has(a.by))seen.set(a.by,a)});return [...seen.values()].sort((a,b)=>(b.by===myName())-(a.by===myName()))}
 function renderDraw(){
-  const r=curRound(),all=allQuestions(),extra=all.length-QUESTIONS.length;
-  $("drawHint").textContent=`題庫共 ${all.length} 題${extra?`（自訂 ${extra} 題）`:""}，全部抽過才會重複`;
+  const tk=key(today()),bank=monthBank(),extra=store.custom.filter(c=>c.kind==="q").length;
+  const turn=turnOf(tk),tomorrow=new Date(today());tomorrow.setDate(tomorrow.getDate()+1);const next=turnOf(key(tomorrow));
+  $("drawHint").textContent=`${bank.month} 月${bank.theme?"主題「"+bank.theme+"」":"題庫"} · 共 ${bank.q.length} 題${extra?`（另有自訂 ${extra} 題）`:""}`;
   renderLog();
-  if(!r){$("ansForm").hidden=true;$("reveal").hidden=true;$("ansHint").textContent="";$("drawWho").hidden=true;return}
-  const c=$("qCard");
+  const t=todayRound(),r=shownRound(),b=$("drawBtn"),c=$("qCard");
+  // 抽題按鈕：今天輪到的人才看得到；已經有人答了就不能換題
+  if(!t){b.hidden=!myTurn();b.textContent="🎲 抽今天的題目"}
+  else{b.hidden=!myTurn()||pairOf(t.id).length>0;b.textContent="🔁 換一題"}
+  const turnLine=db?(t?(next===myName()?"明天輪到你抽":`明天輪到 ${next} 抽`):(myTurn()?"今天輪到你抽題":`今天輪到 ${turn} 抽題`)):"";
+  if(!r){
+    c.textContent=db&&!myTurn()?`今天輪到 ${turn} 抽題 🎲`:"按下面的按鈕抽今天的題目";
+    $("ansForm").hidden=true;$("reveal").hidden=true;$("drawWho").hidden=true;$("ansHint").textContent=turnLine;lastRound=null;return}
   c.textContent=r.q;
   if(lastRound&&r.id!==lastRound){c.classList.remove("flip");void c.offsetWidth;c.classList.add("flip")}
   lastRound=r.id;
   const d=new Date(r.at);$("drawWho").hidden=false;
-  $("drawWho").textContent=`🎲 ${r.by?nameOf(r.by):"有人"} 在 ${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 抽的`;
+  $("drawWho").textContent=(r===t?"":"📌 還沒揭曉的題目 · ")+`🎲 ${r.by?nameOf(r.by):"有人"} 在 ${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 抽的`;
   const ans=pairOf(r.id),mine=ans.find(a=>a.by===myName()),over=ans.length>=need();
   $("ansForm").hidden=!!mine||over;
   $("reveal").hidden=!over;
   if(over)$("reveal").innerHTML=ans.map(a=>`<div><b>${esc(nameOf(a.by))}</b>${esc(a.text)}</div>`).join("");
-  $("ansHint").textContent=over?"過關！答案收進過關紀錄了":mine?"你答好了，等對方回答就會揭曉":ans.length?"對方答好了，換你":"";
-  if(!$("drawBtn").dataset.confirm)$("drawBtn").textContent=over?"🎲 抽下一題":"🔁 換一題";
+  const st=over?"過關！答案收進過關紀錄了":mine?"你答好了，等對方回答就會揭曉":ans.length?"對方答好了，換你":"";
+  $("ansHint").textContent=[st,turnLine].filter(Boolean).join(" · ");
 }
 function renderLog(){
   const list=store.rounds.filter(r=>pairOf(r.id).length>=need()).sort(byAt).reverse();
@@ -1057,16 +1073,20 @@ function renderLog(){
   $("logList").innerHTML=list.length?list.map(r=>`<article class="entry"><header><b>${esc(r.q)}</b><span>${esc(dayOf(r.at))}</span></header><dl>${pairOf(r.id).map(a=>`<dt>${esc(nameOf(a.by))}</dt><dd>${esc(a.text)}</dd>`).join("")}</dl></article>`).join(""):'<div class="empty">還沒有過關的題目。</div>';
 }
 async function drawQ(){
-  const r=curRound(),b=$("drawBtn");
-  if(r&&pairOf(r.id).length&&pairOf(r.id).length<need()&&!b.dataset.confirm){
-    b.dataset.confirm=1;b.textContent="這題還沒揭曉，再按一次換題";
-    setTimeout(()=>{if(b.dataset.confirm){delete b.dataset.confirm;renderDraw()}},3000);return}
-  delete b.dataset.confirm;
-  const all=allQuestions(),cnt=q=>store.rounds.filter(x=>x.q===q).length,min=Math.min(...all.map(cnt));
-  let pool=all.filter(q=>cnt(q)===min&&q!==r?.q);
-  if(!pool.length)pool=all.filter(q=>q!==r?.q);
+  if(!myTurn())return;
+  const t=todayRound(),b=$("drawBtn");
+  if(t&&pairOf(t.id).length)return;
+  // 這個月的題目裡，挑抽過次數最少的
+  const all=allQuestions(),cnt=q=>store.rounds.filter(x=>x.q===q&&x.id!==t?.id).length,min=Math.min(...all.map(cnt));
+  let pool=all.filter(q=>cnt(q)===min&&q!==t?.q);
+  if(!pool.length)pool=all.filter(q=>q!==t?.q);
+  if(!pool.length)return;
+  const q=pool[Math.floor(Math.random()*pool.length)];
   b.disabled=true;
-  try{await addDoc("rounds",{q:pool[Math.floor(Math.random()*pool.length)],at:nowIso(),by:myName()})}catch(e){toast("沒抽成功，請再試一次")}
+  try{
+    if(t)await updDoc("rounds",t.id,{q,at:nowIso(),by:myName()});
+    else await addDoc("rounds",{q,at:nowIso(),by:myName(),day:key(today())});
+  }catch(e){toast("沒抽成功，請再試一次")}
   b.disabled=false;
 }
 $("drawBtn").onclick=drawQ;
@@ -1082,7 +1102,7 @@ function bindForm(form,btn,build,after){
 }
 // 中文選字按 Enter 時不要送出
 ["wishForm","cqForm"].forEach(f=>$(f).addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.isComposing||ev.keyCode===229))ev.preventDefault()}));
-bindForm("ansForm","ansSave",()=>{const r=curRound(),text=$("ansText").value.trim();return r&&text&&{c:"answers",doc:{round:r.id,text,by:myName(),at:nowIso()}}},()=>{$("ansText").value=""});
+bindForm("ansForm","ansSave",()=>{const r=shownRound(),text=$("ansText").value.trim();return r&&text&&{c:"answers",doc:{round:r.id,text,by:myName(),at:nowIso()}}},()=>{$("ansText").value=""});
 
 // 願望清單
 function renderWishes(){
@@ -1482,10 +1502,10 @@ function renderTodo(){
   if(db)items.push([!!myPhoto(tk),"📷 上傳我的照片","diary"]);
   items.push([entries.some(e=>e.by===me&&dayOf(e.at)===tk),"💌 寫今天的日記","diary"]);
   items.push([store.wishes.some(w=>w.by===me&&dayOf(w.at)===tk),"🌠 許個願","wishes"]);
-  const r=curRound(),ans=r?pairOf(r.id):[],answered=ans.some(a=>a.by===me),over=!!r&&ans.length>=need();
+  const r=shownRound(),ans=r?pairOf(r.id):[],answered=ans.some(a=>a.by===me),over=!!r&&ans.length>=need();
   if(r&&!over)items.push(answered?[true,"🎲 已回答抽題，等對方揭曉","draw"]:[false,"🎲 回答抽題","draw"]);
-  else if(over&&dayOf(r.at)===tk)items.push([true,"🎲 今天的抽題過關了","draw"]);
-  else items.push([false,"🎲 抽今天的題目","draw"]);
+  else if(over&&roundDay(r)===tk)items.push([true,"🎲 今天的抽題過關了","draw"]);
+  else if(myTurn())items.push([false,"🎲 今天輪到你抽題","draw"]);
   for(let i=items.length-1;i>=0;i--)if(layout.hidden.includes(["diary","todayBox"].includes(items[i][2])?"quests":items[i][2]))items.splice(i,1);
   const n=items.filter(x=>x[0]).length,all=n===items.length;
   $("todoCard").innerHTML=`<div class="row between"><h3>${all?"今天都完成了 🎉":"今天還差什麼"}</h3><span class="num">${n} / ${items.length}</span></div>${items.map(([ok,label,id])=>`<a class="todo-i ${ok?"ok":""}" href="#${id}"><span class="tick" aria-hidden="true">✓</span>${label}${ok?'<span class="sr-only">（已完成）</span>':""}</a>`).join("")}`;
