@@ -891,6 +891,7 @@ $("photoFile").addEventListener("change",async()=>{
     const img=shrinkFull(im), th=shrinkThumb(im);URL.revokeObjectURL(url);
     const id=date+"_"+myName(), earned=!store.bonus.some(b=>b.id===id);
     const meta={date,by:myName(),th,cap:"",at:new Date().toISOString()};
+    await archivePhoto(id); // 換一張：舊的先搬進垃圾桶，不直接蓋掉
     await db.collection("pics").doc(id).set({img,date,by:myName()});
     await db.collection("photos").doc(id).set(meta);
     photos=photos.filter(p=>p.id!==id).concat([{id,...meta}]);
@@ -1382,7 +1383,7 @@ const trashExpired=x=>Date.now()-new Date(x.trashed.at).getTime()>=TRASH_DAYS*86
 const trashDaysLeft=x=>Math.max(1,Math.ceil((new Date(x.trashed.at).getTime()+TRASH_DAYS*864e5-Date.now())/864e5));
 function trashLabel(c,x){
   if(c==="diary")return `💌 ${esc(x.date)} 的日記：${esc(String(x.mood||x.say||x.funny||x.food||x.s1||x.s2||"").slice(0,40))}`;
-  if(c==="photos")return `<img src="${esc(x.th)}" alt="" loading="lazy">📷 ${esc(x.date)} ${esc(x.by)} 的照片`;
+  if(c==="photos")return `<img src="${esc(x.th)}" alt="" loading="lazy">📷 ${esc(x.date)} ${esc(x.by)} 的照片${x.replaced?"（被換掉的）":""}`;
   if(c==="wishes")return `🌠 ${esc(x.text)}`;
   if(c==="capsules")return x.openDate>key(today())?`🔒 封存中的膠囊（${esc(x.openDate)} 打開）`:`⏳ ${esc(x.text)}`;
   return x.kind==="q"?`💬 ${esc(x.text)}`:`📌 ${esc(x.name)}：${esc(x.text)}`;
@@ -1395,10 +1396,37 @@ function renderTrash(){
   box.querySelectorAll("[data-purge]").forEach(b=>{b.onclick=()=>{
     if(b.dataset.confirm){purgeItem(b.dataset.purge,b.dataset.id)}else{b.dataset.confirm=1;b.textContent="無法復原，再按一次";setTimeout(()=>{if(b.isConnected){delete b.dataset.confirm;b.textContent="永久刪除"}},3000)}}});
 }
+// 把某張照片（含原圖）複製到垃圾桶裡的新位置，原本的位置就可以放新照片
+async function archivePhoto(id){
+  if(!db)return;
+  const ps=await db.collection("photos").doc(id).get();if(!ps.exists)return;
+  const meta=ps.data()||{},pc=await db.collection("pics").doc(id).get();
+  const nid=id+"~"+Date.now().toString(36);
+  if(pc.exists)await db.collection("pics").doc(nid).set(pc.data());
+  const {trashed,replaced,...rest}=meta;
+  const doc={...rest,trashed:trashed||trashMark(),replaced:id};
+  await db.collection("photos").doc(nid).set(doc);
+  trash.photos=trash.photos.filter(x=>x.id!==id).concat([{id:nid,...doc}]);
+}
+// 復原被換掉的照片：跟現在那張交換，現在那張進垃圾桶
+async function restoreReplaced(item){
+  const orig=item.replaced,{id,trashed,replaced,...data}=item;
+  const pc=await db.collection("pics").doc(id).get();
+  await archivePhoto(orig);
+  if(pc.exists)await db.collection("pics").doc(orig).set(pc.data());
+  await db.collection("photos").doc(orig).set(data);
+  await db.collection("photos").doc(id).delete();await db.collection("pics").doc(id).delete().catch(()=>{});
+  trash.photos=trash.photos.filter(x=>x.id!==id);
+  photos=photos.filter(p=>p.id!==orig).concat([{id:orig,...data}]);calPhotos=calPhotos.filter(p=>p.id!==orig).concat([{id:orig,...data}]);
+}
 function trashRef(c,id){return c==="diary"||c==="photos"?db.collection(c).doc(id):xRef(c,id)}
 async function restoreItem(c,id){
   const item=trash[c].find(x=>x.id===id);if(!item)return;
-  const {id:_id,trashed,...data}=item;
+  if(c==="photos"&&item.replaced&&db){
+    try{await restoreReplaced(item);renderAll();toast("換回這張了 ♻️ 原本那張放進垃圾桶")}catch(e){toast("復原失敗，請再試一次")}
+    return;
+  }
+  const {id:_id,trashed,replaced:_r,...data}=item;
   const list=c==="diary"?entries:c==="photos"?photos:store[c];
   trash[c]=trash[c].filter(x=>x.id!==id);list.push({id,...data});renderAll();
   try{
@@ -1417,6 +1445,7 @@ async function hardDelete(c,id){
   if(c==="diary"){
     store.replies.filter(r=>r.entry===id).forEach(r=>xRef("replies",r.id).delete().catch(()=>{}));
     db.collection("photos").doc("d_"+id).delete().catch(()=>{});db.collection("pics").doc("d_"+id).delete().catch(()=>{});
+    db.collection("photos").where("entry","==",id).get().then(s=>s.docs.forEach(d=>{d.ref.delete().catch(()=>{});db.collection("pics").doc(d.id).delete().catch(()=>{})})).catch(()=>{});
   }
 }
 async function purgeItem(c,id){
