@@ -832,9 +832,11 @@ function renderQuests(){
 /* ===== 生活紀錄照片 =====
    photos/{日期_名字}：縮圖 th + 說明（列表用，檔案小）
    pics/{日期_名字}：原圖 img（點開才載入） */
-let photos=[], photoLimit=30, photoUnsub=null, photoErr="", uploading=null, pendingDate=null;
+let photos=[], photoLimit=30, photoUnsub=null, photoErr="", uploading=null, pendingDate=null, pendingSwap=false;
 function photosOn(d){return photos.filter(p=>p.date===d&&!p.entry)}
-function myPhoto(d){return photos.find(p=>p.date===d&&p.by===myName()&&!p.entry)}
+const DAY_PH_MAX=9;
+function myPhotos(d){const main=d+"_"+myName();return photos.filter(p=>p.date===d&&p.by===myName()&&!p.entry).sort((a,b)=>(b.id===main)-(a.id===main)||String(a.at).localeCompare(String(b.at)))}
+function myPhoto(d){return myPhotos(d)[0]}
 function photoBtn(p,cls){return `<button type="button" class="${cls}" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片"><img src="${p.th}" alt="" loading="lazy"><span class="nm">${esc(p.by)}${p.by===myName()?"（我）":""}</span></button>`}
 function renderTodayPhotos(){
   const t=today(), k=key(t), box=$("todayPhotos");
@@ -843,10 +845,11 @@ function renderTodayPhotos(){
   if(photoErr==="rules"){box.innerHTML='<div class="ph-note">📸 照片功能還沒開通：要先到 Firebase 更新一次「規則」。</div>';return}
   const mine=myPhoto(k), others=photosOn(k).filter(p=>p.by!==myName()), up=uploading===k;
   let h='<div class="ph-pair">';
-  h+=mine?photoBtn(mine,"ph-slot has"):`<button type="button" class="ph-slot" data-up="${k}" ${up?"disabled":""}>${up?"上傳中…":"📸<br>上傳我的照片"}</button>`;
+  const mineAll=myPhotos(k);
+  h+=mine?mineAll.map(p=>photoBtn(p,"ph-slot has")).join("")+(mineAll.length<DAY_PH_MAX?`<button type="button" class="ph-slot" data-up="${k}" ${up?"disabled":""}>${up?"上傳中…":"＋<br>再加照片"}</button>`:""):`<button type="button" class="ph-slot" data-up="${k}" ${up?"disabled":""}>${up?"上傳中…":"📸<br>上傳我的照片<br><small>可以一次選很多張</small>"}</button>`;
   h+=others.length?others.map(p=>photoBtn(p,"ph-slot has")).join(""):'<div class="ph-slot wait">等對方上傳…</div>';
   h+='</div>';
-  if(mine)h+=`<div class="row"><button class="btn ghost" type="button" data-up="${k}" ${up?"disabled":""}>${up?"上傳中…":"換一張"}</button><button class="btn ghost small" type="button" id="capEdit">✏️ ${mine.cap?"改這句話":"寫一句話"}</button>${mine.cap?`<span class="ph-note">「${esc(mine.cap)}」</span>`:""}</div>`;
+  if(mine)h+=`<div class="row"><button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up?"disabled":""}>${up?"上傳中…":mineAll.length>1?"換第一張":"換一張"}</button><button class="btn ghost small" type="button" id="capEdit">✏️ ${mine.cap?"改這句話":"寫一句話"}</button>${mine.cap?`<span class="ph-note">「${esc(mine.cap)}」</span>`:""}</div>`;
   box.innerHTML=h;
   if(mine)$("capEdit").onclick=()=>{capEditing=true;const c=$("photoCap");c.value=mine.cap||"";c.hidden=false;c.focus()};
 }
@@ -878,34 +881,47 @@ function shrink(im,side,maxLen,q){
 $("wallMore").onclick=()=>{photoLimit+=30;subPhotos()};
 document.addEventListener("click",ev=>{
   const u=ev.target.closest("[data-up]");
-  if(u&&!u.disabled){if(!db||photoErr||uploading)return;pendingDate=u.dataset.up;$("photoFile").value="";$("photoFile").click();return}
+  if(u&&!u.disabled){if(!db||photoErr||uploading)return;pendingDate=u.dataset.up;pendingSwap=!!u.dataset.swap;$("photoFile").multiple=!pendingSwap;$("photoFile").value="";$("photoFile").click();return}
   const o=ev.target.closest("[data-open]");if(o)openPhoto(o.dataset.open);
 });
 $("photoFile").addEventListener("change",async()=>{
-  const f=$("photoFile").files[0], date=pendingDate;if(!f||!date)return;
+  const date=pendingDate;let files=pickFiles($("photoFile").files||[],99);if(!files.length||!date)return;
   if(!navigator.onLine){toast("沒有網路，連上後再上傳照片");return}
   if(!myName()){toast("請先登出再選你是誰");return}
+  const mainId=date+"_"+myName(),hasMain=myPhotos(date).some(p=>p.id===mainId);
+  if(pendingSwap)files=files.slice(0,1);
+  else{const room=DAY_PH_MAX-myPhotos(date).length;if(files.length>room){files=files.slice(0,Math.max(0,room));toast(`一天最多 ${DAY_PH_MAX} 張，只放前 ${files.length} 張`)}}
+  if(!files.length)return;
   uploading=date;renderPhotosAll();
-  try{
-    const {im,url}=await loadImg(f);
-    const img=shrinkFull(im), th=shrinkThumb(im);URL.revokeObjectURL(url);
-    const id=date+"_"+myName(), earned=!store.bonus.some(b=>b.id===id);
-    const meta={date,by:myName(),th,cap:"",at:new Date().toISOString()};
-    await archivePhoto(id); // 換一張：舊的先搬進垃圾桶，不直接蓋掉
-    await db.collection("pics").doc(id).set({img,date,by:myName()});
-    await db.collection("photos").doc(id).set(meta);
-    photos=photos.filter(p=>p.id!==id).concat([{id,...meta}]);
-    uploading=null;
-    const bonus=earned,partner=store.bonus.some(b=>b.date===date&&b.by!==myName());
-    if(bonus){
-      const doc={date,xp:PHOTO_BONUS,by:myName(),at:new Date().toISOString()};
-      try{await commit(xRef("bonus",id).set(doc));if(!store.bonus.some(b=>b.id===id))store.bonus.push({id,...doc})}catch(err){}
+  let ok=0,msg="";
+  for(let i=0;i<files.length;i++){
+    try{
+      const {im,url}=await loadImg(files[i]);
+      const img=shrinkFull(im), th=shrinkThumb(im);URL.revokeObjectURL(url);
+      // 第一張用固定的 id（日期_名字），其他張加亂數
+      const asMain=pendingSwap||(!hasMain&&i===0);
+      const id=asMain?mainId:`${mainId}_${Date.now().toString(36)}${Math.random().toString(36).slice(2,5)}`;
+      const meta={date,by:myName(),th,cap:"",at:new Date().toISOString()};
+      if(asMain)await archivePhoto(id); // 換一張：舊的先搬進垃圾桶，不直接蓋掉
+      await db.collection("pics").doc(id).set({img,date,by:myName()});
+      await db.collection("photos").doc(id).set(meta);
+      photos=photos.filter(p=>p.id!==id).concat([{id,...meta}]);ok++;
+      if(files.length>1)renderPhotosAll();
+    }catch(e){
+      msg=e&&e.code==="permission-denied"?"照片功能還沒開通，要先更新 Firebase 規則":e&&e.message==="decode"?"有照片讀不到，換一張試試":"有照片上傳失敗，請再試一次";
     }
-    toast(bonus&&partner?`兩個人都傳了！+${PHOTO_BONUS} XP 📸`:bonus?`照片上傳好了 📸 等對方也傳就 +${PHOTO_BONUS} XP`:"照片上傳好了 📸");
-  }catch(e){
-    toast(e&&e.code==="permission-denied"?"照片功能還沒開通，要先更新 Firebase 規則":e&&e.message==="decode"?"這張照片讀不到，換一張試試":"上傳失敗，請再試一次");
   }
-  uploading=null;renderPhotosAll();
+  uploading=null;
+  if(ok){
+    const earned=!store.bonus.some(b=>b.id===mainId),partner=store.bonus.some(b=>b.date===date&&b.by!==myName());
+    if(earned){
+      const doc={date,xp:PHOTO_BONUS,by:myName(),at:new Date().toISOString()};
+      try{await commit(xRef("bonus",mainId).set(doc));if(!store.bonus.some(b=>b.id===mainId))store.bonus.push({id:mainId,...doc})}catch(err){}
+    }
+    const n=ok>1?`${ok} 張照片`:"照片";
+    toast(msg||(earned&&partner?`兩個人都傳了！+${PHOTO_BONUS} XP 📸`:earned?`${n}上傳好了 📸 等對方也傳就 +${PHOTO_BONUS} XP`:`${n}上傳好了 📸`));
+  }else if(msg)toast(msg);
+  renderPhotosAll();
 });
 let lbId=null;
 function openPhoto(id){
