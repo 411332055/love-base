@@ -1,5 +1,5 @@
 // 讓網站沒網路也打得開：網頁永遠先拿最新版，拿不到才用存下來的
-const CACHE = "love-base-v2";
+const CACHE = "love-base-v3";
 const SHELL = ["./", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 const LIBS = [
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js",

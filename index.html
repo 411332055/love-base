@@ -233,7 +233,7 @@ details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:
 .d-wish{background:var(--fg)}
 .cal-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
 .cal-legend span{display:inline-flex;align-items:center;gap:4px}
-#dSearchN:empty{display:none}
+#dSearchN:empty,#wSearchN:empty,#lSearchN:empty{display:none}
 
 .citem small{display:block;font-size:12px;color:var(--muted)}
 .citem img{display:block;width:44px;height:44px;object-fit:cover;border-radius:6px;margin-bottom:4px}
@@ -507,6 +507,8 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
       <input id="wText" maxlength="80" required placeholder="例：一起去看一次日出" aria-label="新增願望">
       <button class="btn" type="submit" id="wSave">許願</button>
     </form>
+    <input type="search" id="wSearch" placeholder="🔍 搜尋願望，例：日出" aria-label="搜尋願望" autocomplete="off">
+    <div class="sub" id="wSearchN"></div>
     <div class="wishes" id="wishList"></div>
   </section>
 
@@ -526,7 +528,11 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
     </div>
     <details class="rules">
       <summary>📚 過關紀錄（<span id="logN">0</span>）</summary>
-      <div class="log" id="logList"></div>
+      <div class="log">
+        <input type="search" id="lSearch" placeholder="🔍 搜尋題目或答案，例：旅行" aria-label="搜尋過關紀錄" autocomplete="off">
+        <div class="sub" id="lSearchN"></div>
+        <div class="log" id="logList" style="margin-top:0"></div>
+      </div>
     </details>
     <details class="rules">
       <summary>✏️ 自訂題庫</summary>
@@ -1068,9 +1074,15 @@ function renderDraw(){
   $("ansHint").textContent=[st,turnLine].filter(Boolean).join(" · ");
 }
 function renderLog(){
-  const list=store.rounds.filter(r=>pairOf(r.id).length>=need()).sort(byAt).reverse();
-  $("logN").textContent=list.length;
-  $("logList").innerHTML=list.length?list.map(r=>`<article class="entry"><header><b>${esc(r.q)}</b><span>${esc(dayOf(r.at))}</span></header><dl>${pairOf(r.id).map(a=>`<dt>${esc(nameOf(a.by))}</dt><dd>${esc(a.text)}</dd>`).join("")}</dl></article>`).join(""):'<div class="empty">還沒有過關的題目。</div>';
+  const all=store.rounds.filter(r=>pairOf(r.id).length>=need()).sort(byAt).reverse();
+  $("logN").textContent=all.length;
+  const q=$("lSearch").value.trim().toLowerCase();
+  const hit=r=>!q||[r.q,roundDay(r),...pairOf(r.id).flatMap(a=>[a.text,a.by])].some(v=>String(v||"").toLowerCase().includes(q));
+  const list=all.filter(hit);
+  $("lSearch").hidden=!all.length;
+  $("lSearchN").textContent=q?`找到 ${list.length} 題`:"";
+  if(q&&!list.length){$("logList").innerHTML=`<div class="empty">找不到「${esc(q)}」的過關紀錄。</div>`;return}
+  $("logList").innerHTML=list.length?list.map(r=>`<article class="entry"><header><b>${esc(r.q)}</b><span>${esc(roundDay(r))}</span></header><dl>${pairOf(r.id).map(a=>`<dt>${esc(nameOf(a.by))}</dt><dd>${esc(a.text)}</dd>`).join("")}</dl></article>`).join(""):'<div class="empty">還沒有過關的題目。</div>';
 }
 async function drawQ(){
   if(!myTurn())return;
@@ -1106,8 +1118,12 @@ bindForm("ansForm","ansSave",()=>{const r=shownRound(),text=$("ansText").value.t
 
 // 願望清單
 function renderWishes(){
-  const box=$("wishList"),wishes=store.wishes;
-  if(!wishes.length){box.innerHTML='<div class="empty">還沒有願望。寫下第一件想一起完成的事。</div>';return}
+  const box=$("wishList"),q=$("wSearch").value.trim().toLowerCase();
+  $("wSearch").hidden=!store.wishes.length;
+  if(!store.wishes.length){$("wSearchN").textContent="";box.innerHTML='<div class="empty">還沒有願望。寫下第一件想一起完成的事。</div>';return}
+  const wishes=store.wishes.filter(w=>!q||[w.text,w.by,w.doneDate,dayOf(w.at),w.done?"已完成":"未完成"].some(v=>String(v||"").toLowerCase().includes(q)));
+  $("wSearchN").textContent=q?`找到 ${wishes.length} 個（完成 ${wishes.filter(w=>w.done).length} 個）`:"";
+  if(!wishes.length){box.innerHTML=`<div class="empty">找不到「${esc(q)}」的願望。</div>`;return}
   const open=wishes.filter(w=>!w.done).sort((a,b)=>byAt(b,a));
   const closed=wishes.filter(w=>w.done).sort((a,b)=>String(b.doneDate).localeCompare(String(a.doneDate)));
   box.innerHTML=[...open,...closed].map(w=>`<div class="wish ${w.done?"done":""}"><button class="check" type="button" data-id="${esc(w.id)}" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}：${w.done?"已完成，點一下取消":"標記完成"}">✓</button><div class="t"><b>${esc(w.text)}</b><div>${esc(w.by||"")} 許的${w.done?` · ${esc(w.doneDate)} 完成`:""}</div></div><button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`).join("");
@@ -1819,6 +1835,8 @@ function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,..
 function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];Object.keys(store).forEach(c=>store[c]=s[c]||[]);if(s.trash)Object.assign(trash,s.trash);delete done["draw-state"]}}catch(e){}}
 
 $("dSearch").addEventListener("input",renderEntries);
+$("wSearch").addEventListener("input",renderWishes);
+$("lSearch").addEventListener("input",renderLog);
 $("filter").querySelectorAll("button").forEach(b=>b.onclick=()=>{who=b.dataset.w;$("filter").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));renderEntries()});
 $("dDate").value=key(today());
 $("capDate").min=key(addDays(today(),1));$("capDate").value=key(nextAnniv());
