@@ -218,6 +218,29 @@ document.addEventListener("click",ev=>{
   const o=ev.target.closest("[data-open]");
   if(o){const box=o.closest("#wall")||o.closest(".wall-grid,.ph-pair,.thumbs")||o.parentElement;openPhoto(o.dataset.open,[...box.querySelectorAll("[data-open]")].map(x=>x.dataset.open))}
 });
+// 上傳一張照片（每日照片和日記照片共用）：壓縮後存原圖到 pics、縮圖和說明到 photos
+// opt.id 不給就用「日期_名字_亂數」；opt.entry 是所屬日記；opt.replace 表示蓋掉同 id 的舊照片（舊的先進垃圾桶）
+const newPhotoId=date=>`${date}_${myName()}_${Date.now().toString(36)}${Math.random().toString(36).slice(2,5)}`;
+async function savePhoto(file,date,opt={}){
+  const {im,url}=await loadImg(file);
+  const img=shrinkFull(im),th=shrinkThumb(im);
+  URL.revokeObjectURL(url);
+  const id=opt.id||newPhotoId(date);
+  const meta={date,by:myName(),th,cap:"",at:new Date().toISOString()};
+  if(opt.entry)meta.entry=opt.entry;
+  if(opt.replace)await archivePhoto(id);
+  await db.collection("pics").doc(id).set({img,date,by:myName()});
+  await db.collection("photos").doc(id).set(meta);
+  const item={id,...meta};
+  photos=photos.filter(p=>p.id!==id).concat([item]);
+  calPhotos=calPhotos.filter(p=>p.id!==id).concat([item]);
+  return item;
+}
+function photoErrMsg(e){
+  if(e&&e.code==="permission-denied")return "照片功能還沒開通，要先更新 Firebase 規則";
+  if(e&&e.message==="decode")return "有照片讀不到，換一張試試";
+  return "有照片上傳失敗，請再試一次";
+}
 $("photoFile").addEventListener("change",async()=>{
   const date=pendingDate;let files=pickFiles($("photoFile").files||[],99);if(!files.length||!date)return;
   if(!navigator.onLine){toast("沒有網路，連上後再上傳照片");return}
@@ -230,19 +253,13 @@ $("photoFile").addEventListener("change",async()=>{
   let ok=0,msg="";
   for(let i=0;i<files.length;i++){
     try{
-      const {im,url}=await loadImg(files[i]);
-      const img=shrinkFull(im), th=shrinkThumb(im);URL.revokeObjectURL(url);
-      // 第一張用固定的 id（日期_名字），其他張加亂數
+      // 第一張用固定的 id（日期_名字），其他張加亂數；換一張時舊的先搬進垃圾桶
       const asMain=pendingSwap||(!hasMain&&i===0);
-      const id=asMain?mainId:`${mainId}_${Date.now().toString(36)}${Math.random().toString(36).slice(2,5)}`;
-      const meta={date,by:myName(),th,cap:"",at:new Date().toISOString()};
-      if(asMain)await archivePhoto(id); // 換一張：舊的先搬進垃圾桶，不直接蓋掉
-      await db.collection("pics").doc(id).set({img,date,by:myName()});
-      await db.collection("photos").doc(id).set(meta);
-      photos=photos.filter(p=>p.id!==id).concat([{id,...meta}]);ok++;
+      await savePhoto(files[i],date,asMain?{id:mainId,replace:true}:{});
+      ok++;
       if(files.length>1)renderPhotosAll();
     }catch(e){
-      msg=e&&e.code==="permission-denied"?"照片功能還沒開通，要先更新 Firebase 規則":e&&e.message==="decode"?"有照片讀不到，換一張試試":"有照片上傳失敗，請再試一次";
+      msg=photoErrMsg(e);
     }
   }
   uploading=null;
@@ -1126,13 +1143,7 @@ async function uploadQueue(entryId,date,list){
   for(let i=0;i<list.length;i++){
     $("dMsg").textContent=`上傳照片 ${i+1} / ${list.length}…`;
     try{
-      const {im,url}=await loadImg(list[i].file);
-      const img=shrinkFull(im),th=shrinkThumb(im);URL.revokeObjectURL(url);
-      const id=`${date}_${myName()}_${Date.now().toString(36)}${Math.random().toString(36).slice(2,5)}`;
-      const meta={date,by:myName(),th,cap:"",at:new Date().toISOString(),entry:entryId};
-      await db.collection("pics").doc(id).set({img,date,by:myName()});
-      await db.collection("photos").doc(id).set(meta);
-      const it={id,...meta};photos=photos.filter(p=>p.id!==id).concat([it]);calPhotos=calPhotos.filter(p=>p.id!==id).concat([it]);
+      await savePhoto(list[i].file,date,{entry:entryId});
       ok++;
     }catch(e){toast(e&&e.message==="decode"?"有一張照片讀不到，先跳過":"有一張照片沒傳成功，可以之後再加")}
   }
