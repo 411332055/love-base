@@ -272,7 +272,7 @@ function openPhoto(id,list){
   $("lbCapForm").hidden=true;$("lbCapEdit").hidden=!mine;$("lbCapEdit").textContent=p.cap?"✏️ 改這句話":"✏️ 寫一句話";
   const del=$("lbDel");del.hidden=!mine;delete del.dataset.confirm;del.textContent="刪除這張";
   $("lightbox").hidden=false;
-  db.collection("pics").doc(id).get().then(s=>{const d=s.exists?s.data():null;if(lbId===id&&d&&d.img){lbFull=d.img;$("lbImg").src=d.img}}).catch(()=>{});
+  db.collection("pics").doc(id).get().then(s=>{const d=s.exists?s.data():null;if(lbId===id&&d&&d.img){lbFull=d.img;$("lbImg").src=d.img}}).catch(()=>{if(lbId===id)$("lbCount").textContent=($("lbCount").textContent?$("lbCount").textContent+" · ":"")+"原圖沒載到，先顯示縮圖"});
 }
 function lbStep(n){const i=lbList.indexOf(lbId)+n;if(i>=0&&i<lbList.length)openPhoto(lbList[i])}
 $("lbPrev").onclick=()=>lbStep(-1);$("lbNext").onclick=()=>lbStep(1);
@@ -321,6 +321,8 @@ let who="all";
 function byChip(n){if(!n)return '<span class="by">未署名</span>';const me=n===myName();return `<span class="by ${me?"me":"them"}">✍️ ${esc(n)}${me?"（我）":""}</span>`}
 
 let monthOpen={}; // 月份 -> 使用者手動開合的狀態
+const SEARCH_PAGE=30;
+let lastQ="", searchShown=SEARCH_PAGE;
 function renderEntries(){
   const box=$("entries");
   if(!entries.length){box.innerHTML='<div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div>';return}
@@ -330,7 +332,6 @@ function renderEntries(){
   const q=$("dSearch").value.trim().toLowerCase();
   const hit=e=>!q||[e.date,e.mood,e.food,e.funny,e.say,e.s1,e.s2,e.by].some(v=>String(v||"").toLowerCase().includes(q));
   const shown=sorted.slice().reverse().filter(e=>(who==="all"||(who==="me"?e.by===me:e.by!==me))&&hit(e));
-  [...new Set(shown.map(e=>String(e.date||"").slice(0,7)).filter(Boolean))].forEach(loadCalPhotos);
   $("dSearchN").textContent=q?`找到 ${shown.length} 篇`:"";
   if(!shown.length){box.innerHTML=`<div class="empty">${q?`找不到「${esc(q)}」的日記。`:who==="me"?"你還沒寫過日記。":"對方還沒寫過日記。"}</div>`;return}
   const card=e=>`<article class="entry ${e.by?(e.by===me?"me":"them"):""}"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b><span>${esc(e.date)}${e.happy?" · ⭐ "+esc(e.happy)+"/10":""}</span></header>
@@ -341,10 +342,20 @@ function renderEntries(){
   const groups=new Map();
   shown.forEach(e=>{const m=String(e.date).slice(0,7);if(!groups.has(m))groups.set(m,[]);groups.get(m).push(e)});
   const cur=key(today()).slice(0,7),first=groups.has(cur)?cur:[...groups.keys()][0];
-  box.innerHTML=[...groups].map(([m,list])=>{const [y,mo]=m.split("-").map(Number);
-    return `<details class="month" data-m="${esc(m)}" ${(q||(monthOpen[m]??m===first))?"open":""}><summary>${y} 年 ${mo} 月<span>${list.length} 篇</span></summary><div class="month-body">${list.map(card).join("")}</div></details>`}).join("");
-  box.querySelectorAll(".month summary").forEach(s=>s.onclick=()=>{monthOpen[s.parentNode.dataset.m]=!s.parentNode.open;loadCalPhotos(s.parentNode.dataset.m)});
-  [...groups.keys()].filter(m=>q||(monthOpen[m]??m===first)).forEach(m=>loadCalPhotos(m));
+  // 日記多了以後不能一次全部畫出來：只畫打開的月份，搜尋結果先畫前 SEARCH_PAGE 篇
+  if(q!==lastQ){lastQ=q;searchShown=SEARCH_PAGE}
+  let budget=q?searchShown:Infinity;
+  const isOpen=m=>q?budget>0:(monthOpen[m]??m===first);
+  box.innerHTML=[...groups].map(([m,list])=>{const [y,mo]=m.split("-").map(Number),open=isOpen(m);
+    let body="";
+    if(open){const part=list.slice(0,budget);budget-=part.length;body=part.map(card).join("")}
+    return `<details class="month" data-m="${esc(m)}" ${open?"open":""}><summary>${y} 年 ${mo} 月<span>${list.length} 篇</span></summary><div class="month-body">${body}</div></details>`}).join("")
+    +(q&&shown.length>searchShown?`<button class="btn ghost" type="button" id="dSearchMore">再顯示 ${Math.min(SEARCH_PAGE,shown.length-searchShown)} 篇（還有 ${shown.length-searchShown} 篇）</button>`:"");
+  if(q&&shown.length>searchShown)$("dSearchMore").onclick=()=>{searchShown+=SEARCH_PAGE;renderEntries()};
+  // 點開月份時才畫那個月的日記和載入照片
+  box.querySelectorAll(".month summary").forEach(s=>s.onclick=()=>{const d=s.parentNode,m=d.dataset.m,opening=!d.open;monthOpen[m]=opening;
+    if(opening&&!q){loadCalPhotos(m);if(!d.querySelector(".month-body").children.length)setTimeout(renderEntries,0)}});
+  box.querySelectorAll("details.month[open]").forEach(d=>loadCalPhotos(d.dataset.m));
   attachReply("list");
   box.querySelectorAll(".edit").forEach(b=>b.onclick=()=>startEdit(b.dataset.id));
   box.querySelectorAll(".del").forEach(b=>{b.onclick=()=>{
@@ -628,7 +639,7 @@ function loadCalPhotos(m){
     const ids=new Set(s.docs.map(d=>d.id));
     calPhotos=calPhotos.filter(p=>!ids.has(p.id)).concat(s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>!p.trashed));
     renderDiaryToday();renderOpen();if($("diaryMore").open)renderEntries();
-  }).catch(()=>{});
+  }).catch(()=>{calLoaded.delete(m);if(navigator.onLine)toast("這個月的照片沒載到，稍後會再試")});
 }
 function renderCalendar(){
   loadCalPhotos(calMonth);
@@ -1323,7 +1334,7 @@ function renderOpen(){
   renderBook();
 }
 function renderAll(){renderHUD();renderStreak();renderQuests();renderToday();renderDiaryToday();renderOpen();renderQueue()}
-function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,...store,trash}))}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,...store,trash}))}catch(e){toast("這台裝置的儲存空間滿了，剛剛的內容沒有存到")}}
 function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];Object.keys(store).forEach(c=>store[c]=s[c]||[]);if(s.trash)Object.assign(trash,s.trash);delete done["draw-state"]}}catch(e){}}
 
 $("dSearch").addEventListener("input",renderEntries);
@@ -1352,7 +1363,7 @@ $("gateForm").addEventListener("submit",ev=>{
   if(!/^[A-Za-z0-9_-]{8,64}$/.test(code)){$("gateMsg").textContent="暗號要 8～64 個字，只能用英文、數字、- 或 _";return}
   const name=$("gateName").value.trim();
   if(!NAMES.includes(name)){$("gateMsg").textContent="請選「寒冰」或「夏夏」，對方才知道是誰寫的";return}
-  try{localStorage.setItem(ROOM_KEY,code);localStorage.setItem(NAME_KEY,name)}catch(e){}
+  try{localStorage.setItem(ROOM_KEY,code);localStorage.setItem(NAME_KEY,name)}catch(e){$("gateMsg").textContent="這個瀏覽器不能記住登入資料，可能是無痕模式，請改用一般視窗";return}
   location.reload();
 });
 $("logout").onclick=()=>{
