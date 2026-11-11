@@ -652,7 +652,7 @@ function renderCalendar(){
   let h='<span></span>'.repeat(offset);
   for(let d=1;d<=count;d++){
     const k=calMonth+"-"+pad(d);
-    const marks=[[entries.some(e=>e.date===k),"diary","日記"],[ps.some(p=>p.date===k),"photo","照片"],[together.has(k),"task","一起完成"],[store.wishes.some(w=>w.done&&w.doneDate===k),"wish","願望"]].filter(x=>x[0]);
+    const marks=[[entries.some(e=>e.date===k),"diary","日記"],[ps.some(p=>p.date===k),"photo","照片"],[together.has(k),"task","一起完成"]].filter(x=>x[0]);
     h+=`<button type="button" data-d="${k}" class="${marks.length?"has":""} ${k===tk?"today":""}" aria-pressed="${k===calDay}" aria-label="${m} 月 ${d} 日${marks.length?"，有"+marks.map(x=>x[2]).join("、"):""}" ${k>tk?"disabled":""}>${d}<span class="dots">${marks.map(x=>`<i class="d-${x[1]}"></i>`).join("")}</span></button>`;
   }
   $("calGrid").innerHTML=h;
