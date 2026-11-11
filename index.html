@@ -362,6 +362,12 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 .lightbox img{max-width:100%;max-height:70vh;border-radius:12px;object-fit:contain}
 .lightbox .cap{color:#fff;text-align:center;max-width:36em;font-size:15px;white-space:pre-wrap}
 .lightbox .btn.ghost{color:#fff;border-color:rgba(255,255,255,.35)}
+.ph-queue{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ph-queue .qi{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;background:var(--sunk)}
+.ph-queue .qi img{width:100%;height:100%;object-fit:cover;display:block}
+.ph-queue .qi button{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:12px;line-height:22px;padding:0}
+.ph-queue .add{width:64px;height:64px;border-radius:10px;border:2px dashed var(--line);background:var(--surface);color:var(--muted);font-size:22px;padding:0}
+.entry .wall-grid{margin-top:4px}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -462,10 +468,14 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
           <label>今天雖然……<textarea id="dS1" maxlength="200" rows="2"></textarea></label>
           <label>但因為有你……<textarea id="dS2" maxlength="200" rows="2"></textarea></label>
         </div>
+        <div class="full field" id="dPhotoBox"><span>📷 照片（可以選很多張，一篇最多 9 張）</span>
+          <div class="ph-queue" id="dPhotos"></div>
+        </div>
         <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span><button class="btn ghost" type="button" id="dDraftClear" hidden style="font-size:12px;padding:4px 10px">清除草稿</button></div>
       </form>
       </div>
     <input type="file" id="photoFile" accept="image/*" hidden>
+    <input type="file" id="dPhotoFile" accept="image/*" multiple hidden>
   </section>
 
   <section id="photos" class="fold">
@@ -939,6 +949,7 @@ function renderEntries(){
   const q=$("dSearch").value.trim().toLowerCase();
   const hit=e=>!q||[e.date,e.mood,e.food,e.funny,e.say,e.s1,e.s2,e.by].some(v=>String(v||"").toLowerCase().includes(q));
   const shown=sorted.slice().reverse().filter(e=>(who==="all"||(who==="me"?e.by===me:e.by!==me))&&hit(e));
+  [...new Set(shown.map(e=>String(e.date||"").slice(0,7)).filter(Boolean))].forEach(loadCalPhotos);
   $("dSearchN").textContent=q?`找到 ${shown.length} 篇`:"";
   if(!shown.length){box.innerHTML=`<div class="empty">${q?`找不到「${esc(q)}」的日記。`:who==="me"?"你還沒寫過日記。":"對方還沒寫過日記。"}</div>`;return}
   const card=e=>`<article class="entry ${e.by?(e.by===me?"me":"them"):""}"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b><span>${esc(e.date)}${e.happy?" · ⭐ "+esc(e.happy)+"/10":""}</span></header>
@@ -975,9 +986,11 @@ function startEdit(id){
   happy=Number(e.happy)||0;renderHearts();growAll();
   $("editBar").hidden=false;$("editText").textContent=`✏️ 正在編輯 ${e.date||""} 的日記`;
   $("diaryForm").classList.add("editing");$("dSave").textContent="儲存修改";$("dMsg").textContent="";$("dDraftClear").hidden=true;
+  clearQueue();
   openFor("diaryForm");
 }
 function endEdit(){
+  clearQueue();
   editId=null;$("editBar").hidden=true;$("diaryForm").classList.remove("editing");$("dSave").textContent="寫進日記";
   for(const el of Object.keys(FIELDS))$(el).value="";$("dDate").value=key(today());happy=0;renderHearts();growAll();restoreDraft();renderDiaryToday();
 }
@@ -1010,8 +1023,9 @@ $("diaryForm").addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.ta
 
 $("diaryForm").addEventListener("submit",async ev=>{
   ev.preventDefault();
+  const queued=dQueue.slice();
   const e={date:$("dDate").value,mood:$("dMood").value.trim(),food:$("dFood").value.trim(),funny:$("dFunny").value.trim(),say:$("dSay").value.trim(),happy:happy||null,s1:$("dS1").value.trim(),s2:$("dS2").value.trim(),at:new Date().toISOString(),by:myName()};
-  if(!e.mood&&!e.food&&!e.funny&&!e.say&&!e.s1&&!e.s2){$("dMsg").textContent="至少寫一格再存喔";return}
+  if(!e.mood&&!e.food&&!e.funny&&!e.say&&!e.s1&&!e.s2&&!queued.length){$("dMsg").textContent="至少寫一格或放一張照片再存喔";return}
   $("dSave").disabled=true;$("dMsg").textContent="";
   if(editId){
     const old=entries.find(x=>x.id===editId);
@@ -1020,15 +1034,19 @@ $("diaryForm").addEventListener("submit",async ev=>{
     try{
       if(db)await commit(db.collection("diary").doc(editId).set(upd));
       else{Object.assign(old,upd);saveLocal()}
-      Object.assign(old,upd);endEdit();renderAll();toast("修改好了 ✏️");
+      Object.assign(old,upd);const eid=editId;endEdit();renderAll();
+      const n=await uploadQueue(eid,upd.date,queued);toast(n?`修改好了 ✏️ 加了 ${n} 張照片`:"修改好了 ✏️");
     }catch(err){$("dMsg").textContent="沒存到，請再試一次"}
     $("dSave").disabled=false;return;
   }
   const counted=entries.some(x=>x.by===myName()&&x.date===e.date),partner=entries.some(x=>x.by&&x.by!==myName()&&x.date===e.date);
   try{
-    if(db){const ref=db.collection("diary").doc();await commit(ref.set(e));if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e})}
+    let newId;
+    if(db){const ref=db.collection("diary").doc();newId=ref.id;await commit(ref.set(e));if(!entries.find(x=>x.id===ref.id))entries.push({id:ref.id,...e})}
     else{e.id="l"+Date.now();entries.push(e);saveLocal()}
+    clearQueue();
     diaryFormOpen=false;$("dDate").value=key(today());clearDraft();$("dMsg").textContent="";["dMood","dFood","dFunny","dSay","dS1","dS2"].forEach(i=>$(i).value="");happy=0;renderHearts();growAll();renderAll();toast(counted?"寫好了 💌":partner?`兩個人都寫了！+${DIARY_XP} XP 💌`:`寫好了 💌 等對方也寫就 +${DIARY_XP} XP`);
+    if(newId&&queued.length){const n=await uploadQueue(newId,e.date,queued);if(n)toast(`日記寫好了，放了 ${n} 張照片 💌`)}
   }catch(err){$("dMsg").textContent="沒存到，請確認你有這個頁面的編輯權限"}
   $("dSave").disabled=false;
 });
@@ -1219,7 +1237,7 @@ function loadCalPhotos(m){
   db.collection("photos").where("date",">=",m+"-01").where("date","<=",m+"-31").get().then(s=>{
     const ids=new Set(s.docs.map(d=>d.id));
     calPhotos=calPhotos.filter(p=>!ids.has(p.id)).concat(s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>!p.trashed));
-    renderDiaryToday();renderOpen();
+    renderDiaryToday();renderOpen();if($("diaryMore").open)renderEntries();
   }).catch(()=>{});
 }
 function renderCalendar(){
@@ -1286,7 +1304,7 @@ function backupHtml(b){
   const mName=m=>{const [y,mo]=m.split("-").map(Number);return `${y} 年 ${mo} 月`};
   const article=e=>{
     const dt=fromKey(e.date),rs=replies.filter(r=>r.entry===e.id),texts=rs.filter(r=>r.kind==="text"),first=diary.find(x=>x.date===e.date&&x.by===e.by).id===e.id;
-    const phs=[photos.find(p=>p.entry===e.id),first?photos.find(p=>!p.entry&&p.date===e.date&&p.by===e.by):null].filter(Boolean);
+    const phs=[first?photos.find(p=>!p.entry&&p.date===e.date&&p.by===e.by):null,...photos.filter(p=>p.entry===e.id).sort((a,b)=>String(a.at).localeCompare(String(b.at)))].filter(Boolean);
     return `<article><h3>${esc(e.date)}（${wk[dt.getDay()]}）<span>${esc(e.by||"未署名")}${e.happy?` · ⭐ ${esc(e.happy)}/10`:""}</span></h3><dl>${[["心情",e.mood],["吃了",e.food],["最好笑",e.funny],["想對你說",e.say]].filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>${(e.s1||e.s2)?`<blockquote>今天雖然${esc(e.s1||"＿＿")}，但因為有你${esc(e.s2||"＿＿")}。</blockquote>`:""}${phs.map(p=>`<img src="${esc(p.th)}" alt="當天的照片">`).join("")}${texts.map(r=>`<p class="re"><b>${esc(r.by)}</b> ${esc(r.text)}</p>`).join("")}</article>`;
   };
   const wishes=xs("wishes"),caps=xs("capsules"),rounds=xs("rounds"),answers=xs("answers"),wall=photos.filter(p=>!p.entry),reviews=xs("reviews");
@@ -1640,14 +1658,70 @@ $("dNew").onclick=()=>{diaryFormOpen=!diaryFormOpen;if(!diaryFormOpen)$("dDate")
 const PHOTO_MAX=420000;
 const shrinkFull=im=>shrink(im,1280,PHOTO_MAX,.76), shrinkThumb=im=>shrink(im,420,60000,.72);
 
+// 日記照片：一篇最多 9 張，每張存成 photos/pics 各一筆，用 entry 欄位指回日記
+const DIARY_PH_MAX=9;
+let dQueue=[], diaryUp=null, addTarget=null;
+function entryPhotos(id,all){return (all||calAllPhotos()).filter(p=>p.entry===id&&!p.trashed).sort((a,b)=>String(a.at).localeCompare(String(b.at)))}
+function renderQueue(){
+  const box=$("dPhotos");$("dPhotoBox").hidden=!db||!!photoErr;
+  const have=editId?entryPhotos(editId).length:0, room=DIARY_PH_MAX-have-dQueue.length;
+  box.innerHTML=dQueue.map((q,i)=>`<div class="qi"><img src="${q.url}" alt=""><button type="button" data-unq="${i}" aria-label="拿掉這張">✕</button></div>`).join("")+(room>0?`<button type="button" class="add" id="dPhotoAdd" aria-label="加照片">＋</button>`:"")+(editId&&have?`<span class="ph-note">這篇已經有 ${have} 張</span>`:"");
+}
+function clearQueue(){dQueue.forEach(q=>URL.revokeObjectURL(q.url));dQueue=[];renderQueue()}
+function pickFiles(files,max){return [...files].filter(f=>/^image\//.test(f.type)||/\.(heic|heif|jpe?g|png|webp|gif)$/i.test(f.name)).slice(0,Math.max(0,max))}
+$("dPhotoFile").addEventListener("change",async()=>{
+  const files=$("dPhotoFile").files;if(!files||!files.length)return;
+  if(addTarget){ // 直接加到已經寫好的日記
+    const e=entries.find(x=>x.id===addTarget);addTarget=null;if(!e)return;
+    const list=pickFiles(files,DIARY_PH_MAX-entryPhotos(e.id).length);
+    if(list.length<files.length)toast(`一篇最多 ${DIARY_PH_MAX} 張，只放前 ${list.length} 張`);
+    const n=await uploadQueue(e.id,e.date,list.map(f=>({file:f})));if(n)toast(`加了 ${n} 張照片 📷`);
+    return;
+  }
+  const have=editId?entryPhotos(editId).length:0;
+  const list=pickFiles(files,DIARY_PH_MAX-have-dQueue.length);
+  if(list.length<files.length)toast(`一篇最多 ${DIARY_PH_MAX} 張`);
+  list.forEach(f=>dQueue.push({file:f,url:URL.createObjectURL(f)}));
+  renderQueue();
+});
+document.addEventListener("click",ev=>{
+  if(ev.target.closest("#dPhotoAdd")){if(!navigator.onLine){toast("沒有網路，連上後再加照片");return}addTarget=null;$("dPhotoFile").value="";$("dPhotoFile").click();return}
+  const u=ev.target.closest("[data-unq]");if(u){const q=dQueue.splice(+u.dataset.unq,1)[0];if(q)URL.revokeObjectURL(q.url);renderQueue();return}
+  const a=ev.target.closest("[data-addph]");
+  if(a&&!a.disabled){if(!navigator.onLine){toast("沒有網路，連上後再加照片");return}if(diaryUp)return;addTarget=a.dataset.addph;$("dPhotoFile").value="";$("dPhotoFile").click()}
+});
+async function uploadQueue(entryId,date,list){
+  if(!db||!list.length)return 0;
+  diaryUp=entryId;renderAll();
+  let ok=0;
+  for(let i=0;i<list.length;i++){
+    $("dMsg").textContent=`上傳照片 ${i+1} / ${list.length}…`;
+    try{
+      const {im,url}=await loadImg(list[i].file);
+      const img=shrinkFull(im),th=shrinkThumb(im);URL.revokeObjectURL(url);
+      const id=`${date}_${myName()}_${Date.now().toString(36)}${Math.random().toString(36).slice(2,5)}`;
+      const meta={date,by:myName(),th,cap:"",at:new Date().toISOString(),entry:entryId};
+      await db.collection("pics").doc(id).set({img,date,by:myName()});
+      await db.collection("photos").doc(id).set(meta);
+      const it={id,...meta};photos=photos.filter(p=>p.id!==id).concat([it]);calPhotos=calPhotos.filter(p=>p.id!==id).concat([it]);
+      ok++;
+    }catch(e){toast(e&&e.message==="decode"?"有一張照片讀不到，先跳過":"有一張照片沒傳成功，可以之後再加")}
+  }
+  (list||[]).forEach(q=>q.url&&URL.revokeObjectURL(q.url));
+  $("dMsg").textContent="";diaryUp=null;renderAll();
+  return ok;
+}
+
 // 回應日記：留言存成獨立資料，不佔日記本身的欄位
 const BF_KEY="love-base-backfill-skip";
 let replyTo=null;
 const replyFormEl=$("replyForm"),replyTextEl=$("replyText");
 function entryExtras(e,where,acts=""){
   const me=myName(),rs=store.replies.filter(r=>r.entry===e.id).sort(byAt),texts=rs.filter(r=>r.kind==="text"),all=calAllPhotos(),first=entries.filter(x=>x.date===e.date&&x.by===e.by).sort(byAt)[0]?.id===e.id;
-  const phs=[all.find(p=>p.entry===e.id),where==="list"&&first?all.find(p=>!p.entry&&p.date===e.date&&p.by===e.by):null].filter(Boolean);
-  return `${phs.length?`<div class="wall-grid">${phs.map(p=>photoBtn(p,"")).join("")}</div>`:""}${texts.length?`<div class="replies">${texts.map(r=>`<div class="reply ${r.by===me?"me":""}"><b>${esc(r.by)}</b> ${esc(r.text)}${r.by===me?` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>`:""}</div>`).join("")}</div>`:""}<div class="reply-bar"><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}">💬 回應</button>${acts}</div><div data-replyslot="${where}:${esc(e.id)}"></div>`;
+  const own=entryPhotos(e.id,all),phs=[where==="list"&&first?all.find(p=>!p.entry&&p.date===e.date&&p.by===e.by):null,...own].filter(Boolean);
+  const canAdd=db&&!photoErr&&e.by===me&&own.length<DIARY_PH_MAX;
+  const addBtn=canAdd?`<button type="button" class="btn ghost" data-addph="${esc(e.id)}" ${diaryUp===e.id?"disabled":""}>${diaryUp===e.id?"上傳中…":"📷 加照片"}</button>`:"";
+  return `${phs.length?`<div class="wall-grid">${phs.map(p=>photoBtn(p,"")).join("")}</div>`:""}${texts.length?`<div class="replies">${texts.map(r=>`<div class="reply ${r.by===me?"me":""}"><b>${esc(r.by)}</b> ${esc(r.text)}${r.by===me?` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>`:""}</div>`).join("")}</div>`:""}<div class="reply-bar"><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}">💬 回應</button>${addBtn}${acts}</div><div data-replyslot="${where}:${esc(e.id)}"></div>`;
 }
 function closeReply(){replyTo=null;replyFormEl.hidden=true;document.body.append(replyFormEl)}
 function attachReply(where){
@@ -1830,7 +1904,7 @@ function renderOpen(){
   if(open("tools"))renderTrash();
   renderBook();
 }
-function renderAll(){renderHUD();renderStreak();renderQuests();renderToday();renderDiaryToday();renderOpen()}
+function renderAll(){renderHUD();renderStreak();renderQuests();renderToday();renderDiaryToday();renderOpen();renderQueue()}
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({done,entries,...store,trash}))}catch(e){}}
 function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){done=s.done||{};entries=s.entries||[];Object.keys(store).forEach(c=>store[c]=s[c]||[]);if(s.trash)Object.assign(trash,s.trash);delete done["draw-state"]}}catch(e){}}
 
