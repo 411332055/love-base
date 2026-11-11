@@ -49,6 +49,7 @@ XP 是兩個人共用的一個總分，所有加分都要兩個人一起達成�
 | `sw.js` | 讓網站沒網路也打得開 |
 | `manifest.webmanifest`、`icon-*.png`、`apple-touch-icon.png` | 加到手機主畫面用的設定和圖示 |
 | `firestore.rules` | Firebase 資料庫的安全規則 |
+| `GEMINI.md` | 給 Gemini 等 AI 助手的修改須知，請它改網站前先讀 |
 
 ## 維護
 
