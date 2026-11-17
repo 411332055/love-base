@@ -2935,12 +2935,17 @@ function catSecs(c) {
 function renderNav() {
   const cur = CATS.find((c) => c.secs.includes(view)),
     secs = catSecs(cur),
-    sub = $("subNav");
+    sub = $("subNav"),
+    keyStr = secs.length < 2 ? "" : secs.join(",");
   sub.hidden = secs.length < 2;
-  sub.innerHTML =
-    secs.length < 2
-      ? ""
-      : secs.map((id) => `<a href="#${id}" aria-current="${id === view}">${SEC_META[id][0]}</a>`).join("");
+  if (sub.dataset.secs !== keyStr) {
+    sub.dataset.secs = keyStr;
+    sub.innerHTML =
+      secs.length < 2 ? "" : secs.map((id) => `<a href="#${id}" data-sub="${id}">${SEC_META[id][0]}</a>`).join("");
+  }
+  sub.querySelectorAll("a[data-sub]").forEach((a) => {
+    a.setAttribute("aria-current", a.dataset.sub === view);
+  });
   document.querySelectorAll("[data-c]").forEach((a) => {
     const c = CATS.find((x) => x.id === a.dataset.c);
     a.hidden = !catSecs(c).length;
@@ -3140,13 +3145,15 @@ $("subNav").addEventListener(
   (ev) => {
     const t = ev.touches[0];
     if (!t) return;
-    const el = document.elementFromPoint(t.clientX, t.clientY),
-      a = el && el.closest('#subNav a[href^="#"]');
-    if (a) {
-      const id = a.getAttribute("href").slice(1);
-      if (id && id !== view) {
-        openFor(id);
-        history.replaceState(null, "", "#" + id);
+    for (const a of $("subNav").querySelectorAll("a[data-sub]")) {
+      const r = a.getBoundingClientRect();
+      if (t.clientX >= r.left && t.clientX <= r.right) {
+        const id = a.dataset.sub;
+        if (id && id !== view) {
+          openFor(id);
+          history.replaceState(null, "", "#" + id);
+        }
+        break;
       }
     }
   },
