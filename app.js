@@ -2941,6 +2941,10 @@ function renderNav() {
     a.hidden = !catSecs(c).length;
     a.setAttribute("aria-current", c === cur);
   });
+  const visCats = CATS.filter((x) => catSecs(x).length),
+    tb = $("tabBar");
+  tb.style.setProperty("--tab-n", visCats.length || 1);
+  tb.style.setProperty("--tab-i", Math.max(0, visCats.indexOf(cur)));
 }
 function applyLayout() {
   layout.order.forEach((id) => {
@@ -3048,18 +3052,12 @@ renderLayoutList();
 function setView(id) {
   const sec = $(id);
   if (!sec || sec.hidden || !CATS.some((c) => c.secs.includes(id))) id = "today";
-  const allSecs = CATS.flatMap((x) => catSecs(x)),
-    oldIdx = allSecs.indexOf(view),
-    newIdx = allSecs.indexOf(id),
-    dir = oldIdx >= 0 && newIdx >= 0 && oldIdx !== newIdx ? (newIdx > oldIdx ? "r" : "l") : "";
   view = id;
   const c = CATS.find((x) => x.secs.includes(id));
   lastSub[c.id] = id;
   document.documentElement.dataset.view = c.id;
   document.querySelectorAll(".wrap>section").forEach((x) => {
     const on = x.id === id;
-    if (on && dir) x.dataset.dir = dir;
-    else delete x.dataset.dir;
     x.classList.toggle("current", on);
     x.classList.toggle("open", on);
   });
