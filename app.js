@@ -48,6 +48,7 @@ const QUESTIONS = [
 const LOVE_START = new Date(2026, 10, 4);
 const DIARY_XP = 10,
   PHOTO_BONUS = 10,
+  DRAW_XP = 5,
   STREAK_BONUS = 10,
   STREAK_STEP = 7;
 const NOSAVE = "沒存到，請再試一次";
@@ -61,6 +62,7 @@ const store = {
   wishes: [],
   rounds: [],
   answers: [],
+  passed: [],
   capsules: [],
   custom: [],
   fixes: [],
@@ -286,6 +288,11 @@ function totalXP() {
     reviews.get(r.date).add(r.by);
   });
   for (const who of reviews.values()) if (who.size >= need()) xp += SUNDAY_TASK.xp;
+  const passed = new Set(store.passed.map((p) => p.id));
+  store.rounds.forEach((r) => {
+    if (pairOf(r.id).length >= need()) passed.add(r.id);
+  });
+  xp += passed.size * DRAW_XP;
   return xp + streakBonus();
 }
 
@@ -1342,11 +1349,11 @@ function renderDraw() {
   $("reveal").hidden = !over;
   if (over) $("reveal").innerHTML = ans.map((a) => `<div><b>${esc(nameOf(a.by))}</b>${esc(a.text)}</div>`).join("");
   const st = over
-    ? "過關！答案收進過關紀錄了"
+    ? `過關！+${DRAW_XP} XP · 答案收進過關紀錄了`
     : mine
-      ? "你答好了，等對方回答就會揭曉"
+      ? `你答好了，等對方回答就會揭曉（+${DRAW_XP} XP）`
       : ans.length
-        ? "對方答好了，換你"
+        ? `對方答好了，換你（+${DRAW_XP} XP）`
         : "";
   $("ansHint").textContent = [st, turnLine].filter(Boolean).join(" · ");
 }
@@ -1428,16 +1435,26 @@ function bindForm(form, btn, build, after) {
     if (ev.key === "Enter" && (ev.isComposing || ev.keyCode === 229)) ev.preventDefault();
   }),
 );
+let ansRound = null;
 bindForm(
   "ansForm",
   "ansSave",
   () => {
     const r = shownRound(),
       text = $("ansText").value.trim();
+    ansRound = r;
     return r && text && { c: "answers", doc: { round: r.id, text, by: myName(), at: nowIso() } };
   },
-  () => {
+  async () => {
     $("ansText").value = "";
+    const r = ansRound;
+    if (!r) return;
+    if (pairOf(r.id).length >= need()) {
+      await markRoundPassed(r);
+      toast(`過關！+${DRAW_XP} XP 🎲`);
+    } else {
+      toast(`答案送出了 🎲 等對方回答就 +${DRAW_XP} XP`);
+    }
   },
 );
 
@@ -3403,6 +3420,36 @@ function syncPhotoBonus() {
         .catch(() => bonusSyncing.delete(id));
     });
 }
+async function markRoundPassed(r) {
+  const tag = "d" + r.id;
+  if (store.passed.some((p) => p.id === r.id) || bonusSyncing.has(tag)) return;
+  const doc = { day: roundDay(r), xp: DRAW_XP, by: myName() || r.by || "", at: nowIso() };
+  store.passed.push({ id: r.id, ...doc });
+  renderHUD();
+  if (!db) {
+    saveLocal();
+    return;
+  }
+  bonusSyncing.add(tag);
+  try {
+    await commit(xRef("passed", r.id).set(doc));
+  } catch (e) {
+    bonusSyncing.delete(tag);
+  }
+}
+function syncDrawMarks() {
+  if (!db || !dataReady) return;
+  store.rounds
+    .filter((r) => pairOf(r.id).length >= need())
+    .forEach((r) => {
+      const tag = "d" + r.id;
+      if (store.passed.some((p) => p.id === r.id) || bonusSyncing.has(tag)) return;
+      bonusSyncing.add(tag);
+      xRef("passed", r.id)
+        .set({ day: roundDay(r), xp: DRAW_XP, by: r.by || myName() || "", at: r.at || nowIso() })
+        .catch(() => bonusSyncing.delete(tag));
+    });
+}
 
 let reviewEditing = false;
 // 週日寫回顧時的參考：這七天的日記和照片
@@ -3650,6 +3697,7 @@ $("logout").onclick = () => {
       purgeExpired();
       syncPhotoBonus();
       syncDiaryMarks();
+      syncDrawMarks();
     }
   };
   db.collection("done").onSnapshot(

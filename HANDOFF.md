@@ -57,11 +57,12 @@
 | `reviews` | 星期日的這週回顧 | id 是 `日期_名字` |
 | `wrote` | 「這天這個人寫過日記」的永久紀錄 | id `日期_名字`，`date`、`by`、`at` |
 | `bonus` | 「這天這個人傳過照片」的永久紀錄 | id `日期_名字`，`date`、`xp`、`by`、`at` |
+| `passed` | 「這題抽題過關」的永久紀錄 | id 是題目 id，`day`、`xp`、`by`、`at` |
 | `fixes` | 補簽卡用掉的紀錄 | `day`、`by`、`at` |
 | `birthdays` | 生日 | id 是名字，`m`、`d` |
 | `backups` | 做過備份的紀錄 | `full`、`by`、`at` |
 
-`wrote` 和 `bonus` 是 XP 不倒扣的關鍵：日記或照片刪掉後，這兩種紀錄還在，分數就不會少。不要刪它們，也不要改成從 `diary`、`photos` 即時計算。
+`wrote`、`bonus` 和 `passed` 是 XP 不倒扣的關鍵：日記、照片或抽題刪掉後，這些紀錄還在，分數就不會少。不要刪它們，也不要改成只從 `diary`、`photos`、`answers` 即時計算。
 
 ### 刪除
 
@@ -75,7 +76,7 @@
 
 | 功能 | 函式 |
 |---|---|
-| XP、稱號、連續天數、補簽卡 | `dayRecords`、`totalXP`、`streakBonus`、`renderStreak`、`renderHUD`，常數 `TITLES`、`DIARY_XP`、`PHOTO_BONUS`、`STREAK_STEP` |
+| XP、稱號、連續天數、補簽卡 | `dayRecords`、`totalXP`、`streakBonus`、`renderStreak`、`renderHUD`，常數 `TITLES`、`DIARY_XP`、`PHOTO_BONUS`、`DRAW_XP`、`STREAK_STEP` |
 | 紀念日、生日倒數 | `renderAnniv`、`renderBdays`、`saveBday`，交往日 `LOVE_START` |
 | 每日照片、照片牆 | `renderTodayPhotos`、`renderWall`、`myPhotos`、`subPhotos` |
 | 照片上傳、壓縮 | `savePhoto`、`shrink`、`loadImg`、`uploadQueue`（日記照片排隊上傳） |
@@ -110,7 +111,7 @@
 - **暗號偏短**：目前的暗號強度不夠。建議做「換暗號並把資料搬到新路徑」的功能，這是最該優先做的。搬移時四個集合都要搬，`done` 的 id 要原樣保留。
 - **沒有通知**：對方寫了日記要自己打開才知道。做推播要加 Firebase Cloud Messaging，iPhone 要先加到主畫面才收得到。
 - `diary` 和 `done` 每次都整包載入。靠 Firestore 的離線快取所以不慢，幾年後資料很多時可能要分批。
-- 還沒做但討論過的點子：抽題過關也加 XP、回應可以按表情、那年今天、月底總結。
+- 還沒做但討論過的點子：回應可以按表情、那年今天、月底總結。
 - 名字 `寒冰`、`夏夏` 是寫死的（`NAMES`），不支援第三個人。
 
 ## 七、怎麼測試
@@ -121,4 +122,4 @@
 
 ## 八、改動紀錄
 
-`git log` 有完整紀錄，每一筆的訊息都用中文寫了改了什麼。目前版本號是 `sw.js` 的 `love-base-v10`、`index.html` 的 `?v=10`。
+`git log` 有完整紀錄，每一筆的訊息都用中文寫了改了什麼。目前版本號是 `sw.js` 的 `love-base-v11`、`index.html` 的 `?v=11`。
