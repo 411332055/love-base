@@ -30,11 +30,13 @@
 
 ## 一定要做的事
 
+- 推送後 GitHub 會自動檢查（語法、題庫、版本號、排版）。推送完到 GitHub 上看那筆提交，出現紅色叉叉就要馬上修好。
+
 - `app.js` 用 Prettier 排過版（設定在 `.prettierrc`，寬度 120）。新寫的程式請照一樣的多行寫法，一行一個敘述，不要把很多敘述擠在同一行。上傳照片一律呼叫 `savePhoto()`，不要另外寫一套。
 
 - **改了 `index.html`、`style.css`、`app.js`、`manifest.webmanifest` 或圖示時，兩個版本號都要加 1**：`sw.js` 第 2 行的 `CACHE`（例如 `love-base-v7` → `love-base-v8`），以及 `index.html` 裡 `style.css?v=7` 和 `app.js?v=7` 的數字（三個數字保持一樣）。不然手機可能一直顯示舊版，或新畫面配到舊程式。
 - 要用到新的集合或改規則時，先跟使用者說清楚：除了改 `firestore.rules`，**還要他自己到 Firebase 主控台的 Firestore「規則」頁貼上並發布**，不然功能會壞。能用 `done` + `x~種類~id` 解決就不要改規則。
-- 這個網站主要在 **iPhone Safari** 上用。輸入框字體至少 16px（不然 iPhone 會自動放大畫面），按鈕不要放在 `<label>` 裡（iPhone 會點錯），多行輸入用 `<textarea>`。
+- 寒冰用 **Android Chrome**，夏夏的手機要當成 iPhone Safari 也要能用，兩種都要顧到。輸入框字體至少 16px（不然 iPhone 會自動放大畫面），按鈕不要放在 `<label>` 裡（iPhone 會點錯），多行輸入用 `<textarea>`。
 - 顏色都用 `:root` 裡的 CSS 變數，深色模式也要看得清楚。
 - 改完後跟使用者說：改了什麼、要怎麼測、有沒有需要他到 Firebase 做什麼。
 

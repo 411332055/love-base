@@ -1,6 +1,6 @@
 # 專案交接文件
 
-這份文件把「我們的戀愛遊戲基地」到 2026-11-17 為止的來龍去脈、資料結構和程式位置整理給接手的 AI 助手。
+這份文件把「我們的戀愛遊戲基地」的來龍去脈、資料結構和程式位置整理給接手的 AI 助手。
 規則看 `GEMINI.md`，使用方式看 `README.md`，這份補的是那兩份沒寫的背景。
 
 **暗號不在這份文件裡，也不可以寫進這個 repo 的任何檔案。** 這個 repo 是公開的，暗號是資料唯一的門鎖。
@@ -9,7 +9,7 @@
 
 - 使用者是「寒冰」，和女朋友「夏夏」一起用這個網站。兩個人都不是工程師。
 - 用繁體中文、白話說明。一次改一件事，先說打算怎麼改，等他同意再動手。
-- 兩個人主要用 iPhone Safari，網站有加到主畫面當 App 用。電腦是 Windows。
+- 寒冰用 **Android（Samsung）的 Chrome**，網站有加到主畫面當 App 用。夏夏的手機型號沒有記錄，iPhone 和 Android 都要能用。電腦是 Windows。
 - 使用者在電腦的 `C:\Users\icebo\love-base` 有一份 repo，用 Antigravity CLI（指令 `agy`）修改。
 - 另一個 AI 助手（Claude）也會直接推送到 GitHub，所以**每次開始前都要先 `git pull`**，推送前也要再 pull 一次。
 
@@ -70,7 +70,7 @@
 
 ### 存在手機裡的設定（localStorage）
 
-`love-base-room`（暗號）、`love-base-name`（名字）、`love-base-theme`、`love-base-layout`、`love-base-draft`（日記草稿）、`love-base-seen`、`love-base-side`，以及沒連伺服器時的整份資料 `love-base-v1`。
+`love-base-room`（暗號）、`love-base-name`（名字）、`love-base-theme`、`love-base-haptic`（震動開關 on/off）、`love-base-haptic-level`（震動強度 light/mid/strong）、`love-base-layout`、`love-base-draft`（日記草稿）、`love-base-seen`、`love-base-side`，以及沒連伺服器時的整份資料 `love-base-v1`。
 
 ## 四、程式在哪裡（`app.js`，用函式名稱搜尋）
 
@@ -91,6 +91,7 @@
 | 垃圾桶 | `renderTrash`、`restoreItem`、`archivePhoto`、`restoreReplaced`、`hardDelete`、`purgeExpired` |
 | 備份、補回、更換暗號 | `exportBackup`、`backupHtml`、`prepRestore`、`applyRestore`、`moveRoomBtn` |
 | 選單、區塊順序、外觀 | `CATS`、`SEC_META`、`renderNav`、`applyLayout`、`setView` |
+| 震動回饋 | `haptic`（Android 用 `navigator.vibrate`，iPhone 用 `iosHaptic` 點隱藏的 iOS 18 開關元件）、`HAPTIC_LV`、`dragEndTick`、設定頁的「測試震動」 |
 | 登入畫面、連線、資料同步 | `showGate`，以及檔案最後面的啟動程式（`onSnapshot` 都在那裡） |
 | 重畫畫面 | `renderAll`，資料一變動就整個重畫 |
 
@@ -105,6 +106,8 @@
 - **換照片不直接蓋掉**：舊的複製到垃圾桶（`archivePhoto`），復原時跟現在那張對調。
 - **程式拆成 `index.html`、`style.css`、`app.js` 三個檔**，`app.js` 用 Prettier（寬度 120）排版。不要再拆，也不要引入建置工具。
 - **Gemini CLI 已經不能用個人帳號登入**，所以改用 Antigravity CLI。
+- **震動**：網頁只能控制震多久，不能控制力道，所以「強度」是震動長短。Samsung 在**靜音模式**下會擋掉所有震動，網站沒辦法繞過；使用者說沒震動時，先請他按設定裡的「測試震動」看診斷文字。iPhone 的 Safari 不支援 `navigator.vibrate`，只能用 iOS 18 的開關元件，而且只在點擊或手指放開的當下有效。
+- **寫日記的表單不放照片欄位**（使用者要求精簡），照片是寫完後在那篇日記按「📷 加照片」。
 
 ## 六、已知的限制和還沒做的事
 
@@ -116,9 +119,10 @@
 ## 七、怎麼測試
 
 - 直接用瀏覽器打開 `index.html`，**用測試暗號**（例如 `test-only-123`），不要用真的暗號。
-- 這個專案沒有自動測試。之前的做法是用 Playwright 模擬 iPhone，把 Firebase 的兩個 `<script>` 換成假的記憶體版本（實作 `collection`、`doc`、`set`、`update`、`get`、`delete`、`where`、`orderBy`、`limit`、`onSnapshot`），再用程式操作畫面並檢查結果。有改到資料讀寫時，建議照這個方法測過再推。
+- 每次推送到 GitHub，`.github/workflows/check.yml` 會自動檢查：`app.js` 語法、`questions.json` 格式和題數、三個版本號一致、`app.js` 排版、檔案裡沒有暗號。GitHub 上那筆提交出現紅色叉叉就是沒過，點進去看是哪一項。
+- 功能測試沒有自動化。之前的做法是用 Playwright 模擬手機，把 Firebase 的兩個 `<script>` 換成假的記憶體版本（實作 `collection`、`doc`、`set`、`update`、`get`、`delete`、`where`、`orderBy`、`limit`、`onSnapshot`），再用程式操作畫面並檢查結果。有改到資料讀寫時，建議照這個方法測過再推。
 - 改完檢查：`node --check app.js`、`questions.json` 是合法的 JSON、兩個版本號都加了（見 `GEMINI.md`）。
 
 ## 八、改動紀錄
 
-`git log` 有完整紀錄，每一筆的訊息都用中文寫了改了什麼。目前版本號是 `sw.js` 的 `love-base-v43`、`index.html` 的 `?v=43`。
+`git log` 有完整紀錄，每一筆的訊息都用中文寫了改了什麼。目前的版本號看 `sw.js` 第 2 行。
