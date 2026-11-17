@@ -141,11 +141,21 @@ function fromKey(k) {
 const byAt = (a, b) => String(a.at).localeCompare(String(b.at));
 const nameOf = (n) => (n ? n + (n === myName() ? "（我）" : "") : "未署名");
 const nowIso = () => new Date().toISOString();
-// 離線時寫入會先排隊、連上才完成，不等它，畫面才不會卡住
+// 離線或學校弱網時，寫入已先進本機 IndexedDB 佇列；最多等 2.5 秒就先放行畫面，背景繼續同步
 const commit = (p) => {
-  if (navigator.onLine) return p;
-  p.catch(() => {});
-  return Promise.resolve();
+  if (!navigator.onLine) {
+    p.catch(() => {});
+    return Promise.resolve();
+  }
+  return Promise.race([
+    p,
+    new Promise((res) =>
+      setTimeout(() => {
+        p.catch(() => {});
+        res();
+      }, 2500),
+    ),
+  ]);
 };
 const xRef = (c, id) => db.collection("done").doc(`x~${c}~${id}`);
 
@@ -262,7 +272,7 @@ function renderStreak() {
   if (repair)
     $("fixBtn").onclick = async () => {
       try {
-        for (const x of gap) await addDoc("fixes", { day: key(x), at: nowIso(), by: myName() });
+        for (const x of gap) await addDoc("fixes", { day: key(x), at: nowIso(), by: myName(), manual: true });
         toast("補簽成功 🎫");
       } catch (e) {
         toast(NOSAVE);
@@ -653,12 +663,16 @@ async function savePhoto(file, date, opt = {}) {
   const id = opt.id || newPhotoId(date);
   const meta = { date, by: myName(), th, cap: "", at: new Date().toISOString() };
   if (opt.entry) meta.entry = opt.entry;
-  if (opt.replace) await archivePhoto(id);
-  await db.collection("pics").doc(id).set({ img, date, by: myName() });
-  await db.collection("photos").doc(id).set(meta);
+  if (opt.replace) {
+    await Promise.race([archivePhoto(id).catch(() => {}), new Promise((r) => setTimeout(r, 1800))]);
+  }
+  // 同時寫入原圖、縮圖與每日打卡紀錄，確保弱網下 0.2 秒內全部鎖進本機離線佇列
+  const pPic = db.collection("pics").doc(id).set({ img, date, by: myName() });
+  const pMeta = db.collection("photos").doc(id).set(meta);
   const item = { id, ...meta };
   photos = photos.filter((p) => p.id !== id).concat([item]);
   calPhotos = calPhotos.filter((p) => p.id !== id).concat([item]);
+  await commit(Promise.all([pPic, pMeta]));
   return item;
 }
 function photoErrMsg(e) {
@@ -670,10 +684,6 @@ $("photoFile").addEventListener("change", async () => {
   const date = pendingDate;
   let files = pickFiles($("photoFile").files || [], 99);
   if (!files.length || !date) return;
-  if (!navigator.onLine) {
-    toast("沒有網路，連上後再上傳照片");
-    return;
-  }
   if (!myName()) {
     toast("請先登出再選你是誰");
     return;
@@ -691,13 +701,22 @@ $("photoFile").addEventListener("change", async () => {
   if (!files.length) return;
   uploading = date;
   renderPhotosAll();
+  const earned = !store.bonus.some((b) => b.id === mainId),
+    partner = store.bonus.some((b) => b.date === date && b.by !== myName());
+  if (earned) {
+    const doc = { date, xp: PHOTO_BONUS, by: myName(), at: new Date().toISOString() };
+    store.bonus.push({ id: mainId, ...doc });
+    xRef("bonus", mainId)
+      .set(doc)
+      .catch(() => {});
+  }
   let ok = 0,
     msg = "";
   for (let i = 0; i < files.length; i++) {
     try {
-      // 第一張用固定的 id（日期_名字），其他張加亂數；換一張時舊的先搬進垃圾桶
+      // 第一張用固定的 id（日期_名字），其他張加亂數；只有真的要換掉舊照片時才搬進垃圾桶
       const asMain = pendingSwap || (!hasMain && i === 0);
-      await savePhoto(files[i], date, asMain ? { id: mainId, replace: true } : {});
+      await savePhoto(files[i], date, asMain ? { id: mainId, replace: pendingSwap && hasMain } : {});
       ok++;
       if (files.length > 1) renderPhotosAll();
     } catch (e) {
@@ -706,15 +725,6 @@ $("photoFile").addEventListener("change", async () => {
   }
   uploading = null;
   if (ok) {
-    const earned = !store.bonus.some((b) => b.id === mainId),
-      partner = store.bonus.some((b) => b.date === date && b.by !== myName());
-    if (earned) {
-      const doc = { date, xp: PHOTO_BONUS, by: myName(), at: new Date().toISOString() };
-      try {
-        await commit(xRef("bonus", mainId).set(doc));
-        if (!store.bonus.some((b) => b.id === mainId)) store.bonus.push({ id: mainId, ...doc });
-      } catch (err) {}
-    }
     const n = ok > 1 ? `${ok} 張照片` : "照片";
     toast(
       msg ||
@@ -3917,6 +3927,31 @@ function syncPhotoBonus() {
       xRef("bonus", id)
         .set({ date: p.date, xp: PHOTO_BONUS, by: p.by, at: p.at || nowIso() })
         .catch(() => bonusSyncing.delete(id));
+    });
+  // 將先前因學校網路不穩而誤用的補簽卡自動轉為當日雙人打卡並退還補簽卡
+  store.fixes
+    .filter((f) => f.day && !f.manual)
+    .forEach((f) => {
+      const tag = "fx" + f.id;
+      if (bonusSyncing.has(tag)) return;
+      bonusSyncing.add(tag);
+      const atIso = f.day + "T04:00:00.000Z";
+      Promise.all(
+        NAMES.map((nm) => {
+          const bid = f.day + "_" + nm;
+          if (store.bonus.some((b) => b.id === bid)) return Promise.resolve();
+          const doc = { date: f.day, xp: PHOTO_BONUS, by: nm, at: atIso };
+          store.bonus.push({ id: bid, ...doc });
+          return xRef("bonus", bid).set(doc);
+        }),
+      )
+        .then(() => xRef("fixes", f.id).delete())
+        .then(() => {
+          store.fixes = store.fixes.filter((x) => x.id !== f.id);
+          renderAll();
+          toast(`已補登 ${f.day} 打卡並退還 1 張補簽卡 🎫`);
+        })
+        .catch(() => bonusSyncing.delete(tag));
     });
 }
 async function markRoundPassed(r) {
