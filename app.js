@@ -107,6 +107,23 @@ function toast(msg) {
   clearTimeout(toast.h);
   toast.h = setTimeout(() => (t.hidden = true), 2200);
 }
+function popFloat(el, ic = "💞") {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+  const x0 = r && r.width ? r.left + r.width / 2 : innerWidth / 2;
+  const y0 = r && r.height ? r.top + r.height / 2 : innerHeight * 0.7;
+  for (let i = 0; i < 6; i++) {
+    const s = document.createElement("span");
+    s.className = "float-pop";
+    s.textContent = ic;
+    s.style.left = x0 + (Math.random() * 44 - 22) + "px";
+    s.style.top = y0 + (Math.random() * 16 - 8) + "px";
+    s.style.setProperty("--dx", (Math.random() * 70 - 35).toFixed(1) + "px");
+    s.style.setProperty("--dy", (-55 - Math.random() * 55).toFixed(1) + "px");
+    document.body.append(s);
+    setTimeout(() => s.remove(), 850);
+  }
+}
 
 function dayOf(iso) {
   const d = new Date(iso);
@@ -254,7 +271,9 @@ function renderStreak() {
 }
 
 // 所有 XP 都要兩個人一起達成：日期 -> 誰寫了日記、誰傳了照片、誰當天就完成
+let _dayRecs = null;
 function dayRecords() {
+  if (_dayRecs) return _dayRecs;
   const m = new Map(),
     get = (d) => {
       if (!m.has(d)) m.set(d, { diary: new Set(), photo: new Set(), onTime: new Set() });
@@ -278,6 +297,7 @@ function dayRecords() {
     r.photo.add(b.by);
     if (dayOf(b.at) === b.date) r.onTime.add(b.by);
   });
+  _dayRecs = m;
   return m;
 }
 const whoDid = (r) => new Set([...r.diary, ...r.photo]);
@@ -757,7 +777,7 @@ function lbStep(n) {
 }
 $("lbPrev").onclick = () => lbStep(-1);
 $("lbNext").onclick = () => lbStep(1);
-// 手指左右滑切換
+// 手指左右滑切換、往下滑關閉大圖
 (() => {
   let x0 = null,
     y0 = 0;
@@ -767,6 +787,19 @@ $("lbNext").onclick = () => lbStep(1);
     (e) => {
       x0 = e.touches[0].clientX;
       y0 = e.touches[0].clientY;
+      im.style.transition = "none";
+    },
+    { passive: true },
+  );
+  im.addEventListener(
+    "touchmove",
+    (e) => {
+      if (x0 === null) return;
+      const dx = e.touches[0].clientX - x0,
+        dy = e.touches[0].clientY - y0;
+      if (dy > 10 && Math.abs(dy) > Math.abs(dx) * 1.2) {
+        im.style.transform = `translate3d(0,${(dy * 0.55).toFixed(0)}px,0) scale(${Math.max(0.86, 1 - dy / 900).toFixed(3)})`;
+      }
     },
     { passive: true },
   );
@@ -777,7 +810,10 @@ $("lbNext").onclick = () => lbStep(1);
       const dx = e.changedTouches[0].clientX - x0,
         dy = e.changedTouches[0].clientY - y0;
       x0 = null;
+      im.style.transition = "transform .18s ease";
+      im.style.transform = "";
       if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) lbStep(dx < 0 ? 1 : -1);
+      else if (dy > 65 && Math.abs(dy) > Math.abs(dx) * 1.3) closePhoto();
     },
     { passive: true },
   );
@@ -1527,7 +1563,8 @@ $("ansForm").addEventListener("submit", async (ev) => {
 // 願望分類：存在願望的 cat 欄位，舊願望沒有這個欄位就算「其他」
 const WCATS = { eat: "🍜 想吃", go: "📍 想去", do: "🎯 想做", "": "✨ 其他" };
 let wFilter = "all",
-  wCat = "";
+  wCat = "",
+  wishDoneOpen = false;
 function syncWCat() {
   $("wCatPick")
     .querySelectorAll("button")
@@ -1585,17 +1622,25 @@ function renderWishes() {
   }
   const open = wishes.filter((w) => !w.done).sort((a, b) => byAt(b, a));
   const closed = wishes.filter((w) => w.done).sort((a, b) => String(b.doneDate).localeCompare(String(a.doneDate)));
-  box.innerHTML = [...open, ...closed]
-    .map(
-      (w) =>
-        `<div class="wish ${w.done ? "done" : ""}"><button class="check" type="button" data-id="${esc(w.id)}` +
-        `" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}：${w.done ? "已完成，點一下取消" : "標記完成"}">✓</button>` +
-        `<div class="t"><b>${esc(w.text)}</b><div><button type="button" class="cat" data-cat="${esc(w.id)}` +
-        `" aria-label="分類：${WCATS[w.cat || ""]}，點一下換分類">${WCATS[w.cat || ""]}</button>${esc(w.by || "")}` +
-        ` 許的${w.done ? ` · ${esc(w.doneDate)} 完成` : ""}</div></div>` +
-        `<button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`,
-    )
-    .join("");
+  const renderWishItem = (w) =>
+    `<div class="wish ${w.done ? "done" : ""}"><button class="check" type="button" data-id="${esc(w.id)}` +
+    `" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}：${w.done ? "已完成，點一下取消" : "標記完成"}">✓</button>` +
+    `<div class="t"><b>${esc(w.text)}</b><div><button type="button" class="cat" data-cat="${esc(w.id)}` +
+    `" aria-label="分類：${WCATS[w.cat || ""]}，點一下換分類">${WCATS[w.cat || ""]}</button>${esc(w.by || "")}` +
+    ` 許的${w.done ? ` · ${esc(w.doneDate)} 完成` : ""}</div></div>` +
+    `<button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`;
+  box.innerHTML =
+    open.map(renderWishItem).join("") +
+    (closed.length
+      ? `<details class="month" id="wishDoneBox" ${wishDoneOpen || q || !open.length ? "open" : ""}>` +
+        `<summary>✅ 已完成的願望<span>${closed.length} 個</span></summary>` +
+        `<div class="month-body">${closed.map(renderWishItem).join("")}</div></details>`
+      : "");
+  const doneBox = $("wishDoneBox");
+  if (doneBox)
+    doneBox.addEventListener("toggle", () => {
+      if (!q && open.length) wishDoneOpen = doneBox.open;
+    });
   box.querySelectorAll(".check").forEach((b) => (b.onclick = () => toggleWish(b.dataset.id)));
   box.querySelectorAll("[data-cat]").forEach(
     (b) =>
@@ -2644,7 +2689,7 @@ function renderAway() {
     [store.wishes.filter(fresh), (n) => `🌠 許了 ${n} 個願望`, "wishes"],
     [store.capsules.filter(fresh), (n) => `⏳ 封存了 ${n} 顆膠囊`, "capsule"],
     [
-      store.replies.filter(fresh).filter((r) => r.kind === "text" && entries.find((e) => e.id === r.entry)?.by === me),
+      store.replies.filter(fresh).filter((r) => entries.find((e) => e.id === r.entry)?.by === me),
       (n) => `💬 回應了你的日記（${n}）`,
       "calendar",
     ],
@@ -2718,6 +2763,7 @@ function renderHug() {
     .forEach(
       (b) =>
         (b.onclick = () => {
+          popFloat(b, "💞");
           updDoc("hugs", b.dataset.hugback, { backBy: me, backAt: nowIso() });
           toast("抱回去了 💞");
         }),
@@ -2751,6 +2797,7 @@ bindForm(
   () => {
     $("hugText").value = "";
     hugOpen = false;
+    popFloat($("hugCard"), "🤗");
     renderHug();
     toast("討抱抱送出去了 🤗");
   },
@@ -3307,8 +3354,9 @@ async function uploadQueue(entryId, date, list) {
   return ok;
 }
 
-// 回應日記：留言存成獨立資料，不佔日記本身的欄位
+// 回應日記：留言和表情貼圖都存成獨立資料，不佔日記本身的欄位
 const BF_KEY = "love-base-backfill-skip";
+const REACTS = ["❤️", "😂", "🥺", "🥰", "👏"];
 let replyTo = null;
 const replyFormEl = $("replyForm"),
   replyTextEl = $("replyText");
@@ -3316,6 +3364,7 @@ function entryExtras(e, where, acts = "") {
   const me = myName(),
     rs = store.replies.filter((r) => r.entry === e.id).sort(byAt),
     texts = rs.filter((r) => r.kind === "text"),
+    emos = rs.filter((r) => r.kind === "emo"),
     all = calAllPhotos(),
     first = entries.filter((x) => x.date === e.date && x.by === e.by).sort(byAt)[0]?.id === e.id;
   const own = entryPhotos(e.id, all),
@@ -3328,10 +3377,19 @@ function entryExtras(e, where, acts = "") {
     ? `<button type="button" class="btn ghost" data-addph="${esc(e.id)}" ${diaryUp === e.id ? "disabled" : ""}` +
       `>${diaryUp === e.id ? "上傳中…" : "📷 加照片"}</button>`
     : "";
+  const reactBtns = REACTS.map((em) => {
+    const who = [...new Set(emos.filter((r) => r.text === em).map((r) => r.by).filter(Boolean))],
+      mine = who.includes(me);
+    return (
+      `<button type="button" class="react-btn ${mine ? "on" : ""}" data-react="${esc(e.id)}" data-em="${em}" ` +
+      `aria-pressed="${mine}" title="${who.length ? esc(who.join("、")) : "按表情"}">${em}` +
+      `${who.length ? `<small>${who.map((n) => (n === "寒冰" ? "🧊" : n === "夏夏" ? "🍃" : esc(n))).join("")}</small>` : ""}</button>`
+    );
+  }).join("");
   return (
     `${phs.length ? `<div class="wall-grid">${phs.map((p) => photoBtn(p, "")).join("")}</div>` : ""}` +
     `${texts.length ? `<div class="replies">${texts.map((r) => `<div class="reply ${r.by === me ? "me" : ""}"><b>${esc(r.by)}</b> ${esc(r.text)}` + `${r.by === me ? ` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>` : ""}` + `</div>`).join("")}` + `</div>` : ""}` +
-    `<div class="reply-bar"><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}` +
+    `<div class="reply-bar"><div class="react-bar">${reactBtns}</div><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}` +
     `">💬 回應</button>${addBtn}${acts}</div><div data-replyslot="${where}:${esc(e.id)}"></div>`
   );
 }
@@ -3364,6 +3422,20 @@ async function dropReply(id) {
   }
 }
 document.addEventListener("click", (ev) => {
+  const rc = ev.target.closest("[data-react]");
+  if (rc) {
+    const entry = rc.dataset.react,
+      text = rc.dataset.em,
+      me = myName(),
+      hit = store.replies.find((r) => r.entry === entry && r.kind === "emo" && r.text === text && r.by === me);
+    if (hit) {
+      dropReply(hit.id);
+    } else {
+      popFloat(rc, text);
+      addDoc("replies", { entry, kind: "emo", text, by: me, at: nowIso() }).catch(() => toast(NOSAVE));
+    }
+    return;
+  }
   const r = ev.target.closest("[data-reply]");
   if (r) {
     if (replyTo && replyTo.entry === r.dataset.reply && replyTo.where === r.dataset.where) {
@@ -3851,6 +3923,7 @@ function renderOpen() {
   renderBook();
 }
 function renderAll() {
+  _dayRecs = null;
   renderHUD();
   renderStreak();
   renderQuests();

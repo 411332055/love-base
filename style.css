@@ -275,6 +275,8 @@ details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:
 .citem.off span{opacity:.5}
 
 /* 首頁只留今天的內容，其他區塊收成一行，一次只展開一個 */
+@keyframes secIn{from{opacity:0;transform:translate3d(0,6px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+.wrap>section.current{animation:secIn .18s ease-out}
 .wrap>section:not(.current){display:none}
 :root[data-view]:not([data-view="today"]) .hud{display:none}
 .subnav{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
@@ -292,8 +294,14 @@ details.month summary span{margin-left:8px;font-size:13px;font-weight:500;color:
 .reply{background:var(--sunk);border:1px solid var(--line);box-shadow:var(--glass-rim);border-radius:12px;padding:6px 10px;font-size:14px;overflow-wrap:anywhere;white-space:pre-wrap}
 .reply.me{background:var(--pink-soft)}
 .reply-del{border:0;background:none;color:var(--muted);font-size:12px;padding:0 2px}
-.reply-bar{display:flex;gap:8px}
+.reply-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .reply-bar .btn{font-size:13px;padding:4px 12px}
+.react-bar{display:inline-flex;gap:4px;flex-wrap:wrap}
+.react-btn{border:1px solid var(--line);background:var(--sunk);color:var(--fg);border-radius:99px;padding:3px 8px;font-size:14px;line-height:1.2;display:inline-flex;align-items:center;gap:2px;box-shadow:var(--glass-rim)}
+.react-btn small{font-size:11px}
+.react-btn.on{background:var(--pink-soft);border-color:color-mix(in srgb,var(--pink) 55%,var(--line));box-shadow:var(--glass-rim),0 2px 8px -2px color-mix(in srgb,var(--pink) 35%,transparent)}
+@keyframes floatPop{0%{opacity:1;transform:translate3d(0,0,0) scale(.7)}40%{opacity:1;transform:translate3d(calc(var(--dx) * .5),calc(var(--dy) * .5),0) scale(1.2)}100%{opacity:0;transform:translate3d(var(--dx),var(--dy),0) scale(.9)}}
+.float-pop{position:fixed;z-index:60;pointer-events:none;font-size:22px;line-height:1;will-change:transform,opacity;animation:floatPop .82s cubic-bezier(.2,.8,.3,1) forwards}
 .entry .wall-grid{margin-top:2px}
 .book{display:flex;flex-direction:column;gap:12px}
 .book-cover{background:radial-gradient(circle at 85% 15%,rgba(255,105,160,.32),transparent 55%),radial-gradient(circle at 15% 85%,rgba(255,198,92,.28),transparent 55%),var(--glass-bg);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);border:1px solid var(--line);box-shadow:var(--card-shadow);color:var(--fg);border-radius:var(--r);padding:28px 20px;text-align:center;display:flex;flex-direction:column;gap:4px}
