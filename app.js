@@ -107,7 +107,13 @@ function toast(msg) {
   clearTimeout(toast.h);
   toast.h = setTimeout(() => (t.hidden = true), 2200);
 }
+function haptic(ms = 8) {
+  try {
+    if (navigator.vibrate) navigator.vibrate(ms);
+  } catch (e) {}
+}
 function popFloat(el, ic = "💞") {
+  haptic(10);
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
   const x0 = r && r.width ? r.left + r.width / 2 : innerWidth / 2;
@@ -724,6 +730,7 @@ $("photoFile").addEventListener("change", async () => {
     }
   }
   uploading = null;
+  updateSyncStatus();
   if (ok) {
     const n = ok > 1 ? `${ok} 張照片` : "照片";
     toast(
@@ -968,7 +975,10 @@ function subPhotos() {
     .orderBy("date", "desc")
     .limit(photoLimit)
     .onSnapshot(
+      { includeMetadataChanges: true },
       (s) => {
+        pendingSync.photos = !!s.metadata?.hasPendingWrites;
+        updateSyncStatus();
         photos = s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => !p.trashed);
         photoErr = "";
         renderPhotosAll();
@@ -1192,6 +1202,7 @@ let heartDragged = false,
     ev.preventDefault();
     const v = +b.dataset.v;
     happy = happy === v ? 0 : v;
+    haptic(8);
     renderHearts();
     saveDraft();
   });
@@ -1212,6 +1223,7 @@ let heartDragged = false,
     const v = pick(ev.clientX);
     if (v !== happy) {
       happy = v;
+      haptic(6);
       renderHearts();
     }
   });
@@ -1916,11 +1928,16 @@ function renderMonth() {
   const m = pick.value,
     es = entries.filter((e) => String(e.date).startsWith(m)),
     rated = es.filter((e) => e.happy);
+  loadCalPhotos(m);
   const avg = rated.length ? (rated.reduce((a, e) => a + +e.happy, 0) / rated.length).toFixed(1) : "—";
   const tiles = [
     ["日記", es.length + " 篇"],
+    ["照片", calAllPhotos().filter((p) => String(p.date).startsWith(m)).length + " 張"],
     ["一起完成", togetherDays().filter((k) => k.startsWith(m)).length + " 天"],
+    ["抽題過關", store.rounds.filter((r) => roundDay(r).startsWith(m) && pairOf(r.id).length >= need()).length + " 題"],
     ["達成願望", store.wishes.filter((w) => w.done && String(w.doneDate).startsWith(m)).length + " 個"],
+    ["抱抱", store.hugs.filter((h) => h.backAt && dayOf(h.backAt).startsWith(m)).length + " 次"],
+    ["回應與貼圖", store.replies.filter((r) => es.some((e) => e.id === r.entry)).length + " 則"],
     ["平均幸福", avg],
   ];
   $("mStats").innerHTML = tiles.map(([a, b]) => `<div class="stat"><span>${a}</span><b>${b}</b></div>`).join("");
@@ -3128,6 +3145,7 @@ function activateCat(cid) {
   const secs = catSecs(c);
   if (!secs.length) return;
   if (CATS.find((x) => x.secs.includes(view)) === c) return;
+  haptic(8);
   const id = secs.includes(lastSub[c.id]) ? lastSub[c.id] : secs[0];
   openFor(id);
   history.replaceState(null, "", "#" + id);
@@ -3182,6 +3200,7 @@ $("subNav").addEventListener(
     sub.style.setProperty("--sub-i", pos.toFixed(3));
     const id = secs[idx];
     if (id && id !== view) {
+      haptic(8);
       setView(id);
       history.replaceState(null, "", "#" + id);
     }
@@ -3870,15 +3889,46 @@ function renderBook() {
 $("bookYear").onchange = renderBook;
 $("bookPrint").onclick = () => window.print();
 
-// 離線
-const OFFLINE_TEXT = "離線中 · 看的是上次的資料";
-function showOffline() {
-  if (db && !navigator.onLine) $("status").textContent = OFFLINE_TEXT;
+// 離線與雲端同步狀態指示
+const OFFLINE_TEXT = "離線中 · 連網後會自動同步";
+const pendingSync = { done: false, diary: false, photos: false };
+function updateSyncStatus() {
+  if (!db) return;
+  if (!navigator.onLine) {
+    $("status").textContent = OFFLINE_TEXT;
+    return;
+  }
+  if (pendingSync.done || pendingSync.diary || pendingSync.photos || uploading || diaryUp) {
+    $("status").textContent = "⏳ 正在傳上雲端…";
+    return;
+  }
+  if (dataReady) $("status").textContent = "● 兩人同步中 ✓";
 }
-window.addEventListener("offline", showOffline);
-window.addEventListener("online", () => {
-  if (db) $("status").textContent = dataReady ? "● 兩人同步中" : "連線中…";
+function showOffline() {
+  updateSyncStatus();
+}
+window.addEventListener("offline", updateSyncStatus);
+window.addEventListener("online", updateSyncStatus);
+
+// 跨午夜 00:00 或從手機背景切回時自動換日
+let lastDayKey = key(today());
+function checkRollover() {
+  const nk = key(today());
+  if (nk === lastDayKey) return;
+  const oldKey = lastDayKey;
+  lastDayKey = nk;
+  if (!editId && $("dDate").value === oldKey) $("dDate").value = nk;
+  if (calDay === oldKey) {
+    calDay = nk;
+    calMonth = nk.slice(0, 7);
+  }
+  renderAll();
+}
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) checkRollover();
 });
+window.addEventListener("focus", checkRollover);
+setInterval(checkRollover, 30000);
 if ("serviceWorker" in navigator && location.protocol.startsWith("http"))
   navigator.serviceWorker.register("sw.js").catch(() => {});
 
@@ -4239,8 +4289,8 @@ $("logout").onclick = () => {
   const ready = () => {
     if (got.done && got.diary) {
       clearTimeout(timer);
-      $("status").textContent = "● 兩人同步中";
       dataReady = true;
+      updateSyncStatus();
       renderToday();
       purgeExpired();
       syncPhotoBonus();
@@ -4251,6 +4301,8 @@ $("logout").onclick = () => {
   db.collection("done").onSnapshot(
     { includeMetadataChanges: true },
     (s) => {
+      pendingSync.done = !!s.metadata?.hasPendingWrites;
+      updateSyncStatus();
       done = {};
       Object.keys(store).forEach((c) => (store[c] = []));
       ["wishes", "capsules", "custom"].forEach((c) => (trash[c] = []));
@@ -4278,6 +4330,8 @@ $("logout").onclick = () => {
   db.collection("diary").onSnapshot(
     { includeMetadataChanges: true },
     (s) => {
+      pendingSync.diary = !!s.metadata?.hasPendingWrites;
+      updateSyncStatus();
       const all = s.docs.map((d) => ({ id: d.id, ...d.data() }));
       entries = all.filter((e) => !e.trashed);
       trash.diary = all.filter((e) => e.trashed);
