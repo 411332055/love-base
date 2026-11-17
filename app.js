@@ -3069,18 +3069,18 @@ $("tabBar").addEventListener(
   function step() {
     raf = 0;
     if (document.hidden) return;
-    cx += (tx - cx) * 0.14;
-    cy += (ty - cy) * 0.14;
+    cx += (tx - cx) * 0.18;
+    cy += (ty - cy) * 0.18;
     root.style.setProperty("--tx", cx.toFixed(3));
     root.style.setProperty("--ty", cy.toFixed(3));
-    root.style.setProperty("--gx", (50 - cx * 38).toFixed(1) + "%");
-    root.style.setProperty("--gy", (28 - cy * 28).toFixed(1) + "%");
-    root.style.setProperty("--ga", (135 + cx * 28 - cy * 18).toFixed(1) + "deg");
-    root.style.setProperty("--rim-x", (1 - cx * 2.2).toFixed(2) + "px");
-    root.style.setProperty("--rim-y", (1.5 - cy * 2.2).toFixed(2) + "px");
-    root.style.setProperty("--sh-x", (cx * -9).toFixed(1) + "px");
-    root.style.setProperty("--sh-y", (14 - cy * 7).toFixed(1) + "px");
-    if (Math.hypot(tx - cx, ty - cy) > 0.003) raf = requestAnimationFrame(step);
+    root.style.setProperty("--gx", (50 - cx * 44).toFixed(1) + "%");
+    root.style.setProperty("--gy", (32 - cy * 34).toFixed(1) + "%");
+    root.style.setProperty("--ga", (135 + cx * 42 - cy * 28).toFixed(1) + "deg");
+    root.style.setProperty("--rim-x", (cx * -2.8).toFixed(2) + "px");
+    root.style.setProperty("--rim-y", (cy * -2.8).toFixed(2) + "px");
+    root.style.setProperty("--sh-x", (cx * -14).toFixed(1) + "px");
+    root.style.setProperty("--sh-y", (14 - cy * 10).toFixed(1) + "px");
+    if (Math.hypot(tx - cx, ty - cy) > 0.002) raf = requestAnimationFrame(step);
   }
   function kick() {
     if (!raf && !document.hidden) raf = requestAnimationFrame(step);
@@ -3094,11 +3094,13 @@ $("tabBar").addEventListener(
       baseX = g;
       baseY = b;
     } else {
-      baseX += (g - baseX) * 0.015;
-      baseY += (b - baseY) * 0.015;
+      if (g - baseX > 15) baseX = g - 15;
+      else if (g - baseX < -15) baseX = g + 15;
+      if (b - baseY > 15) baseY = b - 15;
+      else if (b - baseY < -15) baseY = b + 15;
     }
-    tx = clamp((g - baseX) / 20);
-    ty = clamp((b - baseY) / 20);
+    tx = clamp((g - baseX) / 12);
+    ty = clamp((b - baseY) / 12);
     kick();
   }
   if ("DeviceOrientationEvent" in window) {

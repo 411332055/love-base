@@ -1,15 +1,15 @@
 /* Layout: one column "save file" — HUD (level + XP bar) on top, then quest board, ladder, diary, draw. */
 :root{
-  --bg:#f7eef4; --surface:rgba(255,255,255,.58); --sunk:rgba(255,255,255,.42); --line:rgba(255,255,255,.78);
+  --bg:#f6eaf1; --surface:rgba(255,255,255,.58); --sunk:rgba(255,255,255,.42); --line:rgba(255,255,255,.88);
   --fg:#2a1b25; --muted:#745c6a;
   --pink:#e2457a; --pink-soft:rgba(253,218,232,.72); --gold:#c08a12; --gold-soft:rgba(251,235,195,.72); --ink:#3a1830;
   --ok:#2f8a5b; --ok-soft:rgba(215,242,226,.72);
-  --tx:0; --ty:0; --gx:22%; --gy:18%; --ga:135deg; --rim-x:1px; --rim-y:1.5px; --sh-x:0px; --sh-y:14px;
-  --glass-glare:radial-gradient(circle at var(--gx) var(--gy),rgba(255,255,255,.55) 0%,rgba(255,255,255,.15) 36%,transparent 68%);
-  --glass-bg:var(--glass-glare),linear-gradient(var(--ga),rgba(255,255,255,.78) 0%,rgba(255,255,255,.42) 100%);
-  --glass-rim:inset var(--rim-x) var(--rim-y) 1.5px rgba(255,255,255,.94),inset calc(var(--rim-x) * -.8) calc(var(--rim-y) * -.8) 1.5px rgba(226,69,122,.16);
-  --card-shadow:var(--glass-rim),var(--sh-x) var(--sh-y) 34px -8px rgba(130,42,82,.15),0 4px 10px -2px rgba(130,42,82,.07);
-  --glass-blur:blur(22px) saturate(185%);
+  --tx:0; --ty:0; --gx:22%; --gy:18%; --ga:135deg; --rim-x:1.5px; --rim-y:2px; --sh-x:0px; --sh-y:14px;
+  --glass-glare:radial-gradient(circle at var(--gx) var(--gy),rgba(255,255,255,.96) 0%,rgba(255,115,172,.28) 28%,rgba(255,200,95,.2) 48%,transparent 72%);
+  --glass-bg:var(--glass-glare),linear-gradient(var(--ga),rgba(255,255,255,.86) 0%,rgba(244,212,230,.38) 100%);
+  --glass-rim:inset var(--rim-x) var(--rim-y) 2px rgba(255,255,255,1),inset calc(var(--rim-x) * -.9) calc(var(--rim-y) * -.9) 2px rgba(226,69,122,.38);
+  --card-shadow:var(--glass-rim),var(--sh-x) var(--sh-y) 30px -4px rgba(145,35,85,.24),calc(var(--sh-x) * .45) calc(var(--sh-y) * .45) 10px -2px rgba(226,69,122,.16);
+  --glass-blur:blur(22px) saturate(190%);
   --f-display:"Bagel Fat One","PingFang TC","Noto Sans CJK TC","Microsoft JhengHei",system-ui,sans-serif;
   --f-body:"PingFang TC","Noto Sans CJK TC","Microsoft JhengHei",system-ui,sans-serif;
   --r:20px;
@@ -19,25 +19,25 @@
   --fg:#f6e9ef; --muted:#bfa5b4;
   --pink:#ff6f9c; --pink-soft:rgba(92,34,58,.65); --gold:#f2c14e; --gold-soft:rgba(76,56,18,.65); --ink:#f6e9ef;
   --ok:#6fd39d; --ok-soft:rgba(24,66,46,.65);
-  --glass-glare:radial-gradient(circle at var(--gx) var(--gy),rgba(255,215,235,.22) 0%,rgba(255,140,190,.07) 36%,transparent 68%);
-  --glass-bg:var(--glass-glare),linear-gradient(var(--ga),rgba(64,38,56,.68) 0%,rgba(32,18,29,.42) 100%);
-  --glass-rim:inset var(--rim-x) var(--rim-y) 1.5px rgba(255,255,255,.32),inset calc(var(--rim-x) * -.8) calc(var(--rim-y) * -.8) 1.5px rgba(255,111,156,.22);
-  --card-shadow:var(--glass-rim),var(--sh-x) var(--sh-y) 36px -8px rgba(0,0,0,.55); color-scheme:dark}}
+  --glass-glare:radial-gradient(circle at var(--gx) var(--gy),rgba(255,225,240,.32) 0%,rgba(255,120,175,.14) 34%,transparent 68%);
+  --glass-bg:var(--glass-glare),linear-gradient(var(--ga),rgba(68,40,60,.72) 0%,rgba(28,15,26,.42) 100%);
+  --glass-rim:inset var(--rim-x) var(--rim-y) 1.8px rgba(255,255,255,.42),inset calc(var(--rim-x) * -.85) calc(var(--rim-y) * -.85) 1.8px rgba(255,111,156,.32);
+  --card-shadow:var(--glass-rim),var(--sh-x) var(--sh-y) 36px -6px rgba(0,0,0,.62); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#140c14; --surface:rgba(44,28,40,.54); --sunk:rgba(26,15,24,.52); --line:rgba(255,255,255,.16);
   --fg:#f6e9ef; --muted:#bfa5b4;
   --pink:#ff6f9c; --pink-soft:rgba(92,34,58,.65); --gold:#f2c14e; --gold-soft:rgba(76,56,18,.65); --ink:#f6e9ef;
   --ok:#6fd39d; --ok-soft:rgba(24,66,46,.65);
-  --glass-glare:radial-gradient(circle at var(--gx) var(--gy),rgba(255,215,235,.22) 0%,rgba(255,140,190,.07) 36%,transparent 68%);
-  --glass-bg:var(--glass-glare),linear-gradient(var(--ga),rgba(64,38,56,.68) 0%,rgba(32,18,29,.42) 100%);
-  --glass-rim:inset var(--rim-x) var(--rim-y) 1.5px rgba(255,255,255,.32),inset calc(var(--rim-x) * -.8) calc(var(--rim-y) * -.8) 1.5px rgba(255,111,156,.22);
-  --card-shadow:var(--glass-rim),var(--sh-x) var(--sh-y) 36px -8px rgba(0,0,0,.55); color-scheme:dark}
+  --glass-glare:radial-gradient(circle at var(--gx) var(--gy),rgba(255,225,240,.32) 0%,rgba(255,120,175,.14) 34%,transparent 68%);
+  --glass-bg:var(--glass-glare),linear-gradient(var(--ga),rgba(68,40,60,.72) 0%,rgba(28,15,26,.42) 100%);
+  --glass-rim:inset var(--rim-x) var(--rim-y) 1.8px rgba(255,255,255,.42),inset calc(var(--rim-x) * -.85) calc(var(--rim-y) * -.85) 1.8px rgba(255,111,156,.32);
+  --card-shadow:var(--glass-rim),var(--sh-x) var(--sh-y) 36px -6px rgba(0,0,0,.62); color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 body{margin:0}
-body{background-color:var(--bg);background-image:radial-gradient(circle at calc(12% + var(--tx) * 6%) calc(14% + var(--ty) * 6%),rgba(255,110,166,.38) 0%,transparent 44%),radial-gradient(circle at calc(88% - var(--tx) * 6%) calc(16% + var(--ty) * 5%),rgba(255,190,105,.34) 0%,transparent 45%),radial-gradient(circle at calc(82% + var(--tx) * 5%) calc(78% - var(--ty) * 6%),rgba(192,140,255,.32) 0%,transparent 48%),radial-gradient(circle at calc(16% - var(--tx) * 5%) calc(84% - var(--ty) * 5%),rgba(115,222,196,.26) 0%,transparent 45%);background-attachment:fixed;color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.65}
-:root[data-theme="dark"] body{background-image:radial-gradient(circle at calc(12% + var(--tx) * 6%) calc(14% + var(--ty) * 6%),rgba(255,85,150,.24) 0%,transparent 45%),radial-gradient(circle at calc(88% - var(--tx) * 6%) calc(18% + var(--ty) * 5%),rgba(242,175,65,.18) 0%,transparent 45%),radial-gradient(circle at calc(80% + var(--tx) * 5%) calc(80% - var(--ty) * 6%),rgba(155,95,235,.22) 0%,transparent 48%),radial-gradient(circle at calc(18% - var(--tx) * 5%) calc(82% - var(--ty) * 5%),rgba(70,185,155,.16) 0%,transparent 45%)}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) body{background-image:radial-gradient(circle at calc(12% + var(--tx) * 6%) calc(14% + var(--ty) * 6%),rgba(255,85,150,.24) 0%,transparent 45%),radial-gradient(circle at calc(88% - var(--tx) * 6%) calc(18% + var(--ty) * 5%),rgba(242,175,65,.18) 0%,transparent 45%),radial-gradient(circle at calc(80% + var(--tx) * 5%) calc(80% - var(--ty) * 6%),rgba(155,95,235,.22) 0%,transparent 48%),radial-gradient(circle at calc(18% - var(--tx) * 5%) calc(82% - var(--ty) * 5%),rgba(70,185,155,.16) 0%,transparent 45%)}}
+body{background-color:var(--bg);background-image:radial-gradient(circle at calc(12% + var(--tx) * 10%) calc(14% + var(--ty) * 10%),rgba(255,95,160,.45) 0%,transparent 45%),radial-gradient(circle at calc(88% - var(--tx) * 10%) calc(16% + var(--ty) * 8%),rgba(255,182,85,.42) 0%,transparent 46%),radial-gradient(circle at calc(82% + var(--tx) * 8%) calc(78% - var(--ty) * 10%),rgba(185,125,255,.38) 0%,transparent 48%),radial-gradient(circle at calc(16% - var(--tx) * 8%) calc(84% - var(--ty) * 8%),rgba(95,218,188,.32) 0%,transparent 46%);background-attachment:fixed;color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.65}
+:root[data-theme="dark"] body{background-image:radial-gradient(circle at calc(12% + var(--tx) * 10%) calc(14% + var(--ty) * 10%),rgba(255,85,150,.28) 0%,transparent 45%),radial-gradient(circle at calc(88% - var(--tx) * 10%) calc(18% + var(--ty) * 8%),rgba(242,175,65,.22) 0%,transparent 45%),radial-gradient(circle at calc(80% + var(--tx) * 8%) calc(80% - var(--ty) * 10%),rgba(155,95,235,.25) 0%,transparent 48%),radial-gradient(circle at calc(18% - var(--tx) * 8%) calc(82% - var(--ty) * 8%),rgba(70,185,155,.18) 0%,transparent 45%)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) body{background-image:radial-gradient(circle at calc(12% + var(--tx) * 10%) calc(14% + var(--ty) * 10%),rgba(255,85,150,.28) 0%,transparent 45%),radial-gradient(circle at calc(88% - var(--tx) * 10%) calc(18% + var(--ty) * 8%),rgba(242,175,65,.22) 0%,transparent 45%),radial-gradient(circle at calc(80% + var(--tx) * 8%) calc(80% - var(--ty) * 10%),rgba(155,95,235,.25) 0%,transparent 48%),radial-gradient(circle at calc(18% - var(--tx) * 8%) calc(82% - var(--ty) * 8%),rgba(70,185,155,.18) 0%,transparent 45%)}}
 .wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 64px;display:flex;flex-direction:column;gap:14px}
 h1,h2,h3{margin:0;text-wrap:balance}
 h2{font-size:20px;font-weight:900;display:flex;align-items:center;gap:8px}
@@ -49,7 +49,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .num{font-family:var(--f-display);font-variant-numeric:tabular-nums;letter-spacing:.01em}
 
 /* HUD: Liquid Glass Crystal Card */
-.hud{background:radial-gradient(circle at calc(88% + var(--tx) * 12%) calc(12% + var(--ty) * 12%),rgba(255,105,160,.36),transparent 52%),radial-gradient(circle at calc(12% - var(--tx) * 12%) calc(90% - var(--ty) * 12%),rgba(255,198,92,.32),transparent 52%),var(--glass-bg);color:var(--fg);border:1px solid var(--line);border-radius:24px;padding:22px 20px 20px;display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden;-webkit-backdrop-filter:blur(26px) saturate(190%);backdrop-filter:blur(26px) saturate(190%);box-shadow:var(--card-shadow)}
+.hud{background:radial-gradient(circle at calc(85% + var(--tx) * 18%) calc(15% + var(--ty) * 18%),rgba(255,95,155,.42),transparent 54%),radial-gradient(circle at calc(15% - var(--tx) * 18%) calc(88% - var(--ty) * 18%),rgba(255,192,80,.38),transparent 54%),var(--glass-bg);color:var(--fg);border:1px solid var(--line);border-radius:24px;padding:22px 20px 20px;display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden;-webkit-backdrop-filter:blur(26px) saturate(190%);backdrop-filter:blur(26px) saturate(190%);box-shadow:var(--card-shadow)}
 .hud h1{font-size:clamp(24px,6vw,32px);font-weight:900;line-height:1.25}
 .lvl{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .lvl .title{font-size:18px;font-weight:700}
