@@ -14,7 +14,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1117">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap">
-<link rel="stylesheet" href="style.css?v=17">
+<link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
 
@@ -27,7 +27,7 @@
   <nav id="sideNav" aria-label="主選單" style="display:flex;flex-direction:column;gap:2px">
     <a href="#today" data-c="today" title="今天"><span class="ic" aria-hidden="true">🏠</span><span class="lb">今天</span></a>
     <a href="#quests" data-c="diary" title="日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">日記</span></a>
-    <a href="#wishes" data-c="play" title="互動"><span class="ic" aria-hidden="true">🎲</span><span class="lb">互動</span></a>
+    <a href="#draw" data-c="play" title="互動"><span class="ic" aria-hidden="true">🎲</span><span class="lb">互動</span></a>
     <a href="#calendar" data-c="memory" title="回憶"><span class="ic" aria-hidden="true">🕰️</span><span class="lb">回憶</span></a>
     <a href="#ladder" data-c="more" title="更多"><span class="ic" aria-hidden="true">⚙️</span><span class="lb">更多</span></a>
   </nav>
@@ -35,7 +35,7 @@
 <nav class="tabbar" id="tabBar" aria-label="主選單">
     <a href="#today" data-c="today" title="今天"><span class="ic" aria-hidden="true">🏠</span><span class="lb">今天</span></a>
     <a href="#quests" data-c="diary" title="日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">日記</span></a>
-    <a href="#wishes" data-c="play" title="互動"><span class="ic" aria-hidden="true">🎲</span><span class="lb">互動</span></a>
+    <a href="#draw" data-c="play" title="互動"><span class="ic" aria-hidden="true">🎲</span><span class="lb">互動</span></a>
     <a href="#calendar" data-c="memory" title="回憶"><span class="ic" aria-hidden="true">🕰️</span><span class="lb">回憶</span></a>
     <a href="#ladder" data-c="more" title="更多"><span class="ic" aria-hidden="true">⚙️</span><span class="lb">更多</span></a>
 </nav>
@@ -97,7 +97,10 @@
   <div class="diary-block" id="diary">
       <p class="sub" style="margin:0">兩個人都傳今天的照片 +10 XP；日記想寫的時候隨時寫。</p>
       <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
-      <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填）" aria-label="照片說明">
+      <form class="wishform" id="photoCapForm" autocomplete="off" hidden>
+        <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填）" aria-label="照片說明">
+        <button class="btn" type="submit">存</button>
+      </form>
       <div class="entries" id="diaryToday"></div>
       <button class="btn ghost" type="button" id="dNew" hidden style="align-self:flex-start"></button>
       <form class="diary" id="diaryForm" autocomplete="off">
@@ -174,7 +177,7 @@
   </section>
 
   <section id="draw" class="fold">
-    <div><h2>🎲 今日隨機抽題</h2><p class="sub">每天輪流抽一題，每個月換一套主題題庫。兩個人都答完才會揭曉（+5 XP），答案會留在過關紀錄。</p></div>
+    <div><h2>🎲 今日隨機抽題</h2><p class="sub">每天輪流抽一題，每個月換一套主題題庫。兩個人都答完才會揭曉（+10 XP），答案會留在過關紀錄。</p></div>
     <div class="draw">
       <div class="card" id="qCard">按下面的按鈕抽一題</div>
       <div class="hint" id="drawWho" hidden></div>
@@ -358,6 +361,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=17"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>

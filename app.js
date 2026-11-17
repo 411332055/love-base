@@ -49,7 +49,7 @@ const LOVE_START = new Date(2026, 10, 4);
 const DIARY_XP = 10,
   DIARY_XP_END = "2026-11-17",
   PHOTO_BONUS = 10,
-  DRAW_XP = 5,
+  DRAW_XP = 10,
   STREAK_BONUS = 10,
   STREAK_STEP = 7;
 const NOSAVE = "沒存到，請再試一次";
@@ -228,11 +228,19 @@ function renderStreak() {
     d = addDays(d, -1);
   }
   const repair = gap.length > 0 && a.has(key(d)),
-    md = (x) => `${x.getMonth() + 1}/${x.getDate()}`;
+    md = (x) => `${x.getMonth() + 1}/${x.getDate()}`,
+    tk = key(t),
+    todayWho = new Set([
+      ...(dayRecords().get(tk)?.onTime || []),
+      ...photosOn(tk)
+        .map((p) => p.by)
+        .filter(Boolean),
+    ]);
   $("streak").innerHTML =
     `<span>🔥 連續<span class="num">${n}</span>天</span><span class="muted">再 ${STREAK_STEP - (n % STREAK_STEP)}` +
     ` 天 +${STREAK_BONUS} XP</span><span>🎫 補簽卡 ${Math.max(0, cards)}` +
-    ` 張</span>${repair ? `<button class="btn" type="button" id="fixBtn">補上 ${gap.length > 1 ? `${md(gap[gap.length - 1])}～${md(gap[0])}（用 ${gap.length} 張）` : md(c)}` + `</button>` : ""}` +
+    ` 張</span><span class="muted">今日打卡：${NAMES.map((nm) => `${nm === "寒冰" ? "🧊" : "☀️"} ${nm} ${todayWho.has(nm) ? "✓" : "還沒"}`).join(" · ")}</span>` +
+    `${repair ? `<button class="btn" type="button" id="fixBtn">補上 ${gap.length > 1 ? `${md(gap[gap.length - 1])}～${md(gap[0])}（用 ${gap.length} 張）` : md(c)}` + `</button>` : ""}` +
     ``;
   if (repair)
     $("fixBtn").onclick = async () => {
@@ -469,7 +477,7 @@ function renderTodayPhotos() {
   const t = today(),
     k = key(t),
     box = $("todayPhotos");
-  $("photoCap").hidden = !db || !!photoErr || !myPhoto(k) || !capEditing;
+  $("photoCapForm").hidden = !db || !!photoErr || !myPhoto(k) || !capEditing;
   if (!db) {
     box.innerHTML = '<div class="ph-note">📸 要連上伺服器才能上傳照片。</div>';
     return;
@@ -503,11 +511,11 @@ function renderTodayPhotos() {
   box.innerHTML = h;
   if (mine)
     $("capEdit").onclick = () => {
-      capEditing = true;
+      capEditing = !capEditing;
       const c = $("photoCap");
       c.value = mine.cap || "";
-      c.hidden = false;
-      c.focus();
+      $("photoCapForm").hidden = !capEditing;
+      if (capEditing) c.focus();
     };
 }
 function renderWall() {
@@ -1347,6 +1355,7 @@ function renderDraw() {
   }
   c.textContent = r.q;
   if (lastRound && r.id !== lastRound) {
+    ansEditing = false;
     c.classList.remove("flip");
     void c.offsetWidth;
     c.classList.add("flip");
@@ -1359,10 +1368,29 @@ function renderDraw() {
     `🎲 ${r.by ? nameOf(r.by) : "有人"} 在 ${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 抽的`;
   const ans = pairOf(r.id),
     mine = ans.find((a) => a.by === myName()),
-    over = ans.length >= need();
-  $("ansForm").hidden = !!mine || over;
-  $("reveal").hidden = !over;
-  if (over) $("reveal").innerHTML = ans.map((a) => `<div><b>${esc(nameOf(a.by))}</b>${esc(a.text)}</div>`).join("");
+    over = ans.length >= need(),
+    shownAns = over ? ans : mine ? [mine] : [];
+  $("ansForm").hidden = !!mine && !ansEditing;
+  $("ansSave").textContent = mine ? "儲存修改" : "送出答案";
+  $("reveal").hidden = !shownAns.length;
+  if (shownAns.length) {
+    $("reveal").innerHTML = shownAns
+      .map(
+        (a) =>
+          `<div><b>${esc(nameOf(a.by))}</b>${esc(a.text)}` +
+          `${a.by === myName() ? ` <button type="button" class="reply-del" id="ansEditBtn">${ansEditing ? "取消" : "修改"}</button>` : ""}</div>`,
+      )
+      .join("");
+    if (mine)
+      $("ansEditBtn").onclick = () => {
+        ansEditing = !ansEditing;
+        renderDraw();
+        if (ansEditing) {
+          $("ansText").value = mine.text;
+          $("ansText").focus();
+        }
+      };
+  }
   const st = over
     ? `過關！+${DRAW_XP} XP · 答案收進過關紀錄了`
     : mine
@@ -1450,28 +1478,37 @@ function bindForm(form, btn, build, after) {
     if (ev.key === "Enter" && (ev.isComposing || ev.keyCode === 229)) ev.preventDefault();
   }),
 );
-let ansRound = null;
-bindForm(
-  "ansForm",
-  "ansSave",
-  () => {
-    const r = shownRound(),
-      text = $("ansText").value.trim();
-    ansRound = r;
-    return r && text && { c: "answers", doc: { round: r.id, text, by: myName(), at: nowIso() } };
-  },
-  async () => {
-    $("ansText").value = "";
-    const r = ansRound;
-    if (!r) return;
-    if (pairOf(r.id).length >= need()) {
-      await markRoundPassed(r);
-      toast(`過關！+${DRAW_XP} XP 🎲`);
+let ansEditing = false;
+$("ansForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const r = shownRound(),
+    text = $("ansText").value.trim();
+  if (!r || !text) return;
+  const mine = pairOf(r.id).find((a) => a.by === myName());
+  $("ansSave").disabled = true;
+  try {
+    if (mine) {
+      await updDoc("answers", mine.id, { text });
+      ansEditing = false;
+      $("ansText").value = "";
+      renderAll();
+      toast("答案改好了 ✏️");
     } else {
-      toast(`答案送出了 🎲 等對方回答就 +${DRAW_XP} XP`);
+      await addDoc("answers", { round: r.id, text, by: myName(), at: nowIso() });
+      ansEditing = false;
+      $("ansText").value = "";
+      if (pairOf(r.id).length >= need()) {
+        await markRoundPassed(r);
+        toast(`過關！+${DRAW_XP} XP 🎲`);
+      } else {
+        toast(`答案送出了 🎲 等對方回答就 +${DRAW_XP} XP`);
+      }
     }
-  },
-);
+  } catch (e) {
+    toast(NOSAVE);
+  }
+  $("ansSave").disabled = false;
+});
 
 // 願望清單
 // 願望分類：存在願望的 cat 欄位，舊願望沒有這個欄位就算「其他」
@@ -2727,13 +2764,13 @@ const LAYOUT_KEY = "love-base-layout";
 const CATS = [
   { id: "today", secs: ["today"] },
   { id: "diary", secs: ["quests"] },
-  { id: "play", secs: ["wishes", "draw"] },
+  { id: "play", secs: ["draw", "wishes"] },
   { id: "memory", secs: ["calendar", "photos", "memories", "capsule", "book"] },
   { id: "more", secs: ["ladder", "rules", "tools"] },
 ];
 const SEC_META = {
-  wishes: ["願望", "🌠"],
   draw: ["抽題", "🎲"],
+  wishes: ["願望", "🌠"],
   calendar: ["月曆", "📅"],
   photos: ["照片", "📷"],
   memories: ["回顧", "🕰️"],
@@ -2959,7 +2996,7 @@ function renderDiaryToday() {
           `${entryExtras(e, "today", !e.by || e.by === me ? `<div class="acts"><button class="btn ghost" type="button" data-editday="${esc(e.id)}">✏️ 編輯</button></div>` : "")}` +
           `</article>`,
       )
-      .join("") + (db && !theirs ? '<p class="sub" style="margin:0">對方今天還沒寫。</p>' : "");
+      .join("");
   attachReply("today");
   box.querySelectorAll("[data-editday]").forEach((b) => (b.onclick = () => startEdit(b.dataset.editday)));
   $("dBackfill").hidden = true;
@@ -3469,13 +3506,8 @@ $("hugClose").onclick = () => {
   hugOpen = false;
   renderHug();
 };
-$("photoCap").addEventListener("keydown", (ev) => {
-  if (ev.key === "Enter" && !ev.isComposing && ev.keyCode !== 229) {
-    ev.preventDefault();
-    ev.target.blur();
-  }
-});
-$("photoCap").addEventListener("blur", async () => {
+$("photoCapForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
   capEditing = false;
   const m = myPhoto(key(today())),
     v = $("photoCap").value.trim();
@@ -3484,6 +3516,7 @@ $("photoCap").addEventListener("blur", async () => {
     m.cap = v;
     try {
       await commit(db.collection("photos").doc(m.id).update({ cap: v }));
+      toast("寫好了 ✏️");
     } catch (e) {
       m.cap = old;
       toast(NOSAVE);
