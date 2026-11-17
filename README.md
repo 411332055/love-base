@@ -53,6 +53,7 @@ XP 是兩個人共用的一個總分，所有加分都要兩個人一起達成�
 | `firestore.rules` | Firebase 資料庫的安全規則 |
 | `questions.json` | 每個月的抽題題庫（主題和題目） |
 | `GEMINI.md` | 給 Gemini 等 AI 助手的修改須知，請它改網站前先讀 |
+| `HANDOFF.md` | 專案交接文件：資料結構、程式位置、做過的決定、還沒做的事 |
 
 ## 維護
 
