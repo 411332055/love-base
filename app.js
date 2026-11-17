@@ -582,6 +582,7 @@ function renderWall() {
   $("wallMore").hidden = photos.length < photoLimit;
 }
 function renderPhotosAll() {
+  _dayRecs = null;
   renderQuests();
   renderToday();
   renderDiaryToday();
@@ -2877,7 +2878,7 @@ function renderTodo() {
     ``;
 }
 function syncNotices() {
-  $("notices").hidden = ["bkNudge", "awayCard", "dBackfill"].every((id) => $(id).hidden);
+  $("notices").hidden = ["bkNudge", "awayCard"].every((id) => $(id).hidden);
 }
 function renderToday() {
   renderBackupNudge();
@@ -3313,7 +3314,6 @@ function renderDiaryToday() {
       .join("");
   attachReply("today");
   box.querySelectorAll("[data-editday]").forEach((b) => (b.onclick = () => startEdit(b.dataset.editday)));
-  $("dBackfill").hidden = true;
   syncNotices();
 }
 $("diaryMore").addEventListener("toggle", () => {
@@ -3441,7 +3441,6 @@ async function uploadQueue(entryId, date, list) {
 }
 
 // 回應日記：留言和表情貼圖都存成獨立資料，不佔日記本身的欄位
-const BF_KEY = "love-base-backfill-skip";
 const REACTS = ["❤️", "😂", "🥺", "🥰", "👏"];
 let replyTo = null;
 const replyFormEl = $("replyForm"),

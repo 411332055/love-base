@@ -52,7 +52,7 @@
 | `answers` | 抽題的回答 | `round`、`text`、`by`、`at` |
 | `custom` | 自訂題目 | `kind:"q"`、`text`、`by`、`at` |
 | `capsules` | 時光膠囊 | `text`、`openDate`、`by`、`at` |
-| `replies` | 日記的回應 | `entry`、`kind`、`text`、`by`、`at` |
+| `replies` | 日記的回應（文字留言與表情貼圖） | `entry`、`kind`（`"text"` 或 `"emo"`）、`text`、`by`、`at` |
 | `hugs` | 討抱抱 | `text`、`by`、`at` |
 | `reviews` | 星期日的這週回顧 | id 是 `日期_名字` |
 | `wrote` | 「這天這個人寫過日記」的永久紀錄 | id `日期_名字`，`date`、`by`、`at` |
@@ -83,10 +83,10 @@
 | 照片大圖（左右滑、存到手機、寫一句話） | `openPhoto`、`lbStep`、`closePhoto` |
 | 寫日記、編輯、草稿 | `renderDiaryToday`、`startEdit`、`endEdit`、`saveDraft`、`restoreDraft` |
 | 全部日記、搜尋 | `renderEntries`（只畫打開的月份，搜尋一次顯示 30 篇） |
-| 日記回應 | `entryExtras`、`attachReply` |
+| 日記回應与表情貼圖 | `entryExtras`、`attachReply`、`REACTS`、`popFloat` |
 | 抽題 | `monthBank`、`turnOf`、`todayRound`、`shownRound`、`drawQ`、`renderDraw`、`renderLog` |
 | 願望 | `renderWishes`、`toggleWish`，分類 `WCATS` |
-| 月曆、回顧、時光膠囊、回憶書 | `renderCalendar`、`renderCalDetail`、`renderMemories`、`renderCapsules`、`renderBook` |
+| 月曆、回顧、那年今天、時光膠囊、回憶書 | `renderCalendar`、`renderCalDetail`、`onThisDayHits`、`renderOnThisDay`、`renderTodayFlashback`、`renderMemories`、`renderCapsules`、`renderBook` |
 | 星期日這週回顧 | `renderWeekRecap` |
 | 垃圾桶 | `renderTrash`、`restoreItem`、`archivePhoto`、`restoreReplaced`、`hardDelete`、`purgeExpired` |
 | 備份、補回、更換暗號 | `exportBackup`、`backupHtml`、`prepRestore`、`applyRestore`、`moveRoomBtn` |
@@ -108,10 +108,9 @@
 
 ## 六、已知的限制和還沒做的事
 
-- **暗號偏短**：目前的暗號強度不夠。建議做「換暗號並把資料搬到新路徑」的功能，這是最該優先做的。搬移時四個集合都要搬，`done` 的 id 要原樣保留。
 - **沒有通知**：對方寫了日記要自己打開才知道。做推播要加 Firebase Cloud Messaging，iPhone 要先加到主畫面才收得到。
 - `diary` 和 `done` 每次都整包載入。靠 Firestore 的離線快取所以不慢，幾年後資料很多時可能要分批。
-- 還沒做但討論過的點子：回應可以按表情、那年今天、月底總結。
+- 還沒做但討論過的點子：月底總結。
 - 名字 `寒冰`、`夏夏` 是寫死的（`NAMES`），不支援第三個人。
 
 ## 七、怎麼測試
@@ -122,4 +121,4 @@
 
 ## 八、改動紀錄
 
-`git log` 有完整紀錄，每一筆的訊息都用中文寫了改了什麼。目前版本號是 `sw.js` 的 `love-base-v22`、`index.html` 的 `?v=22`。
+`git log` 有完整紀錄，每一筆的訊息都用中文寫了改了什麼。目前版本號是 `sw.js` 的 `love-base-v35`、`index.html` 的 `?v=35`。
