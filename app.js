@@ -3050,6 +3050,15 @@ function bindSeg(id, store_, get, apply) {
   paint();
 }
 const R = document.documentElement;
+function syncThemeMeta() {
+  const t = R.dataset.theme,
+    dark = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches),
+    c = dark ? "#140c14" : "#f6eaf1";
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+    m.removeAttribute("media");
+    m.content = c;
+  });
+}
 bindSeg(
   "segTheme",
   "love-base-theme",
@@ -3057,8 +3066,11 @@ bindSeg(
   (v) => {
     if (v === "system") delete R.dataset.theme;
     else R.dataset.theme = v;
+    syncThemeMeta();
   },
 );
+syncThemeMeta();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncThemeMeta);
 bindSeg(
   "segFont",
   "love-base-font",
