@@ -14,7 +14,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1117">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap">
-<link rel="stylesheet" href="style.css?v=19">
+<link rel="stylesheet" href="style.css?v=20">
 </head>
 <body>
 
@@ -110,8 +110,8 @@
         <label class="full">🍜 午餐／晚餐吃了什麼<input id="dFood" maxlength="100" placeholder="例：午餐咖哩飯、晚餐火鍋"></label>
         <label hidden>🤪 今天最好笑的事情<textarea id="dFunny" maxlength="200" rows="1"></textarea></label>
         <div class="full field">
-          <div class="row between"><label for="dSay">💞 今天發生了什麼／想對你說的話</label><button class="btn ghost small" type="button" id="dPromptBtn">💡 換個靈感</button></div>
-          <textarea id="dSay" maxlength="1000" rows="3" placeholder="想寫什麼都可以，也可以按右上的「💡 換個靈感」"></textarea>
+          <div class="row between" style="flex-wrap:nowrap"><label for="dSay">💞 今天想記下的事</label><button class="btn ghost small" type="button" id="dPromptBtn">💡 靈感</button></div>
+          <textarea id="dSay" maxlength="1000" rows="3" placeholder="寫下今天發生的事，或按右上「💡 靈感」"></textarea>
         </div>
         <div class="full field"><span id="heartsLbl">⭐ 今天的幸福指數（1～10）</span>
           <div class="hearts" id="hearts" role="radiogroup" aria-labelledby="heartsLbl"></div>
@@ -361,6 +361,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=19"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>

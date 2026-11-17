@@ -1139,7 +1139,8 @@ function renderHearts() {
 // 填寫時框框自動變高
 function grow(t) {
   t.style.height = "auto";
-  t.style.height = t.scrollHeight + 2 + "px";
+  if (t.scrollHeight > 0) t.style.height = t.scrollHeight + 2 + "px";
+  else t.style.height = "";
 }
 function growAll() {
   document.querySelectorAll("#diaryForm textarea").forEach(grow);
@@ -3655,6 +3656,7 @@ $("reviewForm").addEventListener("submit", async (ev) => {
 // 收合中的區塊不重畫，展開時才更新
 function renderOpen() {
   const open = (id) => $(id).classList.contains("open");
+  if (open("quests")) growAll();
   if ($("diaryMore").open) renderEntries();
   if (open("photos")) renderWall();
   if (open("calendar")) renderCalendar();
