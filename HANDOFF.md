@@ -58,7 +58,6 @@
 | `wrote` | 「這天這個人寫過日記」的永久紀錄 | id `日期_名字`，`date`、`by`、`at` |
 | `bonus` | 「這天這個人傳過照片」的永久紀錄 | id `日期_名字`，`date`、`xp`、`by`、`at` |
 | `passed` | 「這題抽題過關」的永久紀錄 | id 是題目 id，`day`、`xp`、`by`、`at` |
-| `coupons` | 升等獎勵兌換券 | id 是稱號 XP 門檻，`text`、`done`、`doneDate`、`by`、`at` |
 | `fixes` | 補簽卡用掉的紀錄 | `day`、`by`、`at` |
 | `birthdays` | 生日 | id 是名字，`m`、`d` |
 | `backups` | 做過備份的紀錄 | `full`、`by`、`at` |
@@ -77,7 +76,7 @@
 
 | 功能 | 函式 |
 |---|---|
-| XP、稱號、戀愛兌換券、連續天數、補簽卡 | `dayRecords`、`totalXP`、`streakBonus`、`renderStreak`、`renderHUD`、`renderCoupons`、`saveCoupon`，常數 `TITLES`、`DIARY_XP`、`DIARY_XP_END`、`PHOTO_BONUS`、`DRAW_XP`、`STREAK_STEP` |
+| XP、稱號、連續天數、補簽卡 | `dayRecords`、`totalXP`、`streakBonus`、`renderStreak`、`renderHUD`，常數 `TITLES`、`DIARY_XP`、`DIARY_XP_END`、`PHOTO_BONUS`、`DRAW_XP`、`STREAK_STEP` |
 | 紀念日、生日倒數 | `renderAnniv`、`renderBdays`、`saveBday`，交往日 `LOVE_START` |
 | 每日照片、照片牆 | `renderTodayPhotos`、`renderWall`、`myPhotos`、`subPhotos` |
 | 照片上傳、壓縮 | `savePhoto`、`shrink`、`loadImg`、`uploadQueue`（日記照片排隊上傳） |
@@ -123,4 +122,4 @@
 
 ## 八、改動紀錄
 
-`git log` 有完整紀錄，每一筆的訊息都用中文寫了改了什麼。目前版本號是 `sw.js` 的 `love-base-v16`、`index.html` 的 `?v=16`。
+`git log` 有完整紀錄，每一筆的訊息都用中文寫了改了什麼。目前版本號是 `sw.js` 的 `love-base-v17`、`index.html` 的 `?v=17`。

@@ -64,7 +64,6 @@ const store = {
   rounds: [],
   answers: [],
   passed: [],
-  coupons: [],
   capsules: [],
   custom: [],
   fixes: [],
@@ -402,88 +401,6 @@ function renderHUD() {
     .map((t) => rung(t))
     .join("");
   $("ladderN").textContent = `${TITLES.length - 1} 個`;
-  renderCoupons(xp);
-}
-let couponEditing = null;
-async function saveCoupon(id, patch, msg) {
-  const k = String(id),
-    cur = store.coupons.find((x) => String(x.id) === k) || { text: "", done: false, doneDate: null };
-  const doc = {
-    text: patch.text !== undefined ? patch.text : cur.text || "",
-    done: patch.done !== undefined ? patch.done : !!cur.done,
-    doneDate: patch.doneDate !== undefined ? patch.doneDate : cur.doneDate || null,
-    by: myName(),
-    at: nowIso(),
-  };
-  store.coupons = store.coupons.filter((x) => String(x.id) !== k).concat([{ id: k, ...doc }]);
-  couponEditing = null;
-  renderCoupons(totalXP());
-  try {
-    if (db) await commit(xRef("coupons", k).set(doc));
-    else saveLocal();
-    if (msg) toast(msg);
-  } catch (e) {
-    toast(NOSAVE);
-  }
-}
-function renderCoupons(xp) {
-  const box = $("couponList");
-  if (!box || box.contains(document.activeElement)) return;
-  const unlocked = TITLES.filter(([n]) => xp >= n)
-    .slice()
-    .reverse();
-  if (!unlocked.length) {
-    box.innerHTML = '<div class="empty">累積滿 50 XP 解鎖第一個稱號，就會拿到第一張戀愛兌換券！</div>';
-    return;
-  }
-  box.innerHTML = unlocked
-    .map(([n, name]) => {
-      const k = String(n),
-        c = store.coupons.find((x) => String(x.id) === k) || {},
-        editing = couponEditing === k;
-      return (
-        `<div class="wish ${c.done ? "done" : ""}"><button class="check" type="button" data-cpcheck="${k}"` +
-        ` aria-pressed="${!!c.done}" aria-label="${esc(name)}兌換券：${c.done ? "已兌換，點一下取消" : "標記已兌換"}">✓</button>` +
-        `<div class="t"><b>🎟️ ${esc(name)}（${n} XP）</b>` +
-        `<div>${c.text ? `🎁 ${esc(c.text)}` : '<span class="sub">還沒寫要換什麼獎勵</span>'}` +
-        `${c.done && c.doneDate ? ` · ${esc(c.doneDate)} 已兌換` : ""}</div>` +
-        `${
-          editing
-            ? `<form class="wishform" data-cpform="${k}" autocomplete="off" style="margin-top:6px">` +
-              `<input maxlength="80" value="${esc(c.text || "")}" placeholder="例：指定抱抱一次、請喝飲料" aria-label="兌換獎勵內容">` +
-              `<button class="btn" type="submit">儲存</button></form>`
-            : ""
-        }</div>` +
-        `<button class="btn ghost del" type="button" data-cpedit="${k}">${editing ? "取消" : c.text ? "修改" : "✏️ 寫獎勵"}</button></div>`
-      );
-    })
-    .join("");
-  box.querySelectorAll("[data-cpcheck]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        const k = b.dataset.cpcheck,
-          c = store.coupons.find((x) => String(x.id) === k),
-          on = !c?.done;
-        saveCoupon(k, { done: on, doneDate: on ? key(today()) : null }, on ? "兌換券已使用 🎟️" : "");
-      }),
-  );
-  box.querySelectorAll("[data-cpedit]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        const k = b.dataset.cpedit;
-        couponEditing = couponEditing === k ? null : k;
-        renderCoupons(totalXP());
-        box.querySelector(`[data-cpform="${k}"] input`)?.focus();
-      }),
-  );
-  box.querySelectorAll("[data-cpform]").forEach((f) =>
-    f.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      const k = f.dataset.cpform,
-        text = f.querySelector("input").value.trim();
-      saveCoupon(k, { text }, "獎勵寫好了 🎁");
-    }),
-  );
 }
 
 function renderQuests() {
