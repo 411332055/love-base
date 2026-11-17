@@ -3053,6 +3053,91 @@ $("tabBar").addEventListener(
   );
 })();
 
+// 隨手機傾斜或手指／滑鼠移動，動態改變 Liquid Glass 的反光、高光邊框與陰影角度
+(() => {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const root = document.documentElement;
+  let tx = 0,
+    ty = 0,
+    cx = 0,
+    cy = 0,
+    raf = 0,
+    baseX = null,
+    baseY = null,
+    hasGyro = false;
+  const clamp = (v) => Math.max(-1, Math.min(1, v));
+  function step() {
+    raf = 0;
+    if (document.hidden) return;
+    cx += (tx - cx) * 0.14;
+    cy += (ty - cy) * 0.14;
+    root.style.setProperty("--tx", cx.toFixed(3));
+    root.style.setProperty("--ty", cy.toFixed(3));
+    root.style.setProperty("--gx", (50 - cx * 38).toFixed(1) + "%");
+    root.style.setProperty("--gy", (28 - cy * 28).toFixed(1) + "%");
+    root.style.setProperty("--ga", (135 + cx * 28 - cy * 18).toFixed(1) + "deg");
+    root.style.setProperty("--rim-x", (1 - cx * 2.2).toFixed(2) + "px");
+    root.style.setProperty("--rim-y", (1.5 - cy * 2.2).toFixed(2) + "px");
+    root.style.setProperty("--sh-x", (cx * -9).toFixed(1) + "px");
+    root.style.setProperty("--sh-y", (14 - cy * 7).toFixed(1) + "px");
+    if (Math.hypot(tx - cx, ty - cy) > 0.003) raf = requestAnimationFrame(step);
+  }
+  function kick() {
+    if (!raf && !document.hidden) raf = requestAnimationFrame(step);
+  }
+  function onOrient(ev) {
+    if (ev.gamma === null || ev.beta === null) return;
+    hasGyro = true;
+    const g = ev.gamma,
+      b = ev.beta;
+    if (baseX === null) {
+      baseX = g;
+      baseY = b;
+    } else {
+      baseX += (g - baseX) * 0.015;
+      baseY += (b - baseY) * 0.015;
+    }
+    tx = clamp((g - baseX) / 20);
+    ty = clamp((b - baseY) / 20);
+    kick();
+  }
+  if ("DeviceOrientationEvent" in window) {
+    if (typeof DeviceOrientationEvent.requestPermission === "function") {
+      const ask = () => {
+        DeviceOrientationEvent.requestPermission()
+          .then((st) => {
+            if (st === "granted") window.addEventListener("deviceorientation", onOrient, { passive: true });
+          })
+          .catch(() => {});
+      };
+      document.addEventListener("touchend", ask, { once: true, passive: true });
+      document.addEventListener("click", ask, { once: true, passive: true });
+    } else {
+      window.addEventListener("deviceorientation", onOrient, { passive: true });
+    }
+  }
+  window.addEventListener(
+    "pointermove",
+    (ev) => {
+      if (hasGyro && ev.pointerType === "touch") return;
+      tx = clamp((ev.clientX / innerWidth) * 2 - 1);
+      ty = clamp((ev.clientY / innerHeight) * 2 - 1);
+      kick();
+    },
+    { passive: true },
+  );
+  window.addEventListener(
+    "touchmove",
+    (ev) => {
+      if (hasGyro || !ev.touches[0]) return;
+      tx = clamp((ev.touches[0].clientX / innerWidth) * 2 - 1);
+      ty = clamp((ev.touches[0].clientY / innerHeight) * 2 - 1);
+      kick();
+    },
+    { passive: true },
+  );
+})();
+
 // 今天的日記放在最前面；自己今天寫過就先收起表單，有草稿或正在編輯時一定打開
 let diaryFormOpen = false;
 function renderDiaryToday() {
