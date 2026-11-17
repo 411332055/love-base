@@ -1402,7 +1402,6 @@ function renderDraw() {
         : "";
   $("ansHint").textContent = [st, turnLine].filter(Boolean).join(" · ");
 }
-let logEditId = null;
 function renderLog() {
   const all = store.rounds
     .filter((r) => pairOf(r.id).length >= need())
@@ -1424,64 +1423,17 @@ function renderLog() {
     $("logList").innerHTML = `<div class="empty">找不到「${esc(q)}」的過關紀錄。</div>`;
     return;
   }
-  const box = $("logList");
-  box.innerHTML = list.length
+  $("logList").innerHTML = list.length
     ? list
-        .map((r) => {
-          const pairs = pairOf(r.id),
-            mine = pairs.find((a) => a.by === myName()),
-            editing = logEditId === r.id;
-          return (
+        .map(
+          (r) =>
             `<article class="entry"><header><b>${esc(r.q)}</b><span>${esc(roundDay(r))}</span></header>` +
-            `<dl>${pairs.map((a) => `<dt>${esc(nameOf(a.by))}</dt><dd>${esc(a.text)}</dd>`).join("")}</dl>` +
-            `${
-              mine
-                ? `<div class="acts"><button type="button" class="btn ghost small ans-edit" data-logedit="${esc(r.id)}">` +
-                  `${editing ? "✕ 取消修改" : "✏️ 修改答案"}</button></div>` +
-                  `${
-                    editing
-                      ? `<form class="ans" data-logform="${esc(r.id)}" autocomplete="off">` +
-                        `<textarea maxlength="300" rows="2" required aria-label="修改答案">${esc(mine.text)}</textarea>` +
-                        `<button class="btn" type="submit">儲存修改</button></form>`
-                      : ""
-                  }`
-                : ""
-            }</article>`
-          );
-        })
+            `<dl>${pairOf(r.id)
+              .map((a) => `<dt>${esc(nameOf(a.by))}</dt><dd>${esc(a.text)}</dd>`)
+              .join("")}</dl></article>`,
+        )
         .join("")
     : '<div class="empty">還沒有過關的題目。</div>';
-  box.querySelectorAll("[data-logedit]").forEach((b) => {
-    b.onclick = () => {
-      logEditId = logEditId === b.dataset.logedit ? null : b.dataset.logedit;
-      renderLog();
-      if (logEditId) {
-        const ta = box.querySelector(`[data-logform="${logEditId}"] textarea`);
-        if (ta) ta.focus();
-      }
-    };
-  });
-  box.querySelectorAll("[data-logform]").forEach((f) => {
-    f.onsubmit = async (ev) => {
-      ev.preventDefault();
-      const rid = f.dataset.logform,
-        ta = f.querySelector("textarea"),
-        btn = f.querySelector("button"),
-        text = ta.value.trim(),
-        mine = pairOf(rid).find((a) => a.by === myName());
-      if (!mine || !text) return;
-      btn.disabled = true;
-      try {
-        await updDoc("answers", mine.id, { text });
-        logEditId = null;
-        renderAll();
-        toast("答案改好了 ✏️");
-      } catch (e) {
-        toast(NOSAVE);
-      }
-      btn.disabled = false;
-    };
-  });
 }
 async function drawQ() {
   if (!myTurn()) return;
