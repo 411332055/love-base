@@ -239,7 +239,7 @@ function renderStreak() {
   $("streak").innerHTML =
     `<span>🔥 連續<span class="num">${n}</span>天</span><span class="muted">再 ${STREAK_STEP - (n % STREAK_STEP)}` +
     ` 天 +${STREAK_BONUS} XP</span><span>🎫 補簽卡 ${Math.max(0, cards)}` +
-    ` 張</span><span class="muted">今日打卡：${NAMES.map((nm) => `${nm === "寒冰" ? "🧊" : "☀️"} ${nm} ${todayWho.has(nm) ? "✓" : "還沒"}`).join(" · ")}</span>` +
+    ` 張</span><span class="muted">今日打卡：${NAMES.map((nm) => `${nm === "寒冰" ? "🧊" : "🍃"} ${nm} ${todayWho.has(nm) ? "✓" : "還沒"}`).join(" · ")}</span>` +
     `${repair ? `<button class="btn" type="button" id="fixBtn">補上 ${gap.length > 1 ? `${md(gap[gap.length - 1])}～${md(gap[0])}（用 ${gap.length} 張）` : md(c)}` + `</button>` : ""}` +
     ``;
   if (repair)
@@ -897,8 +897,9 @@ function myName() {
 let who = "all";
 function byChip(n) {
   if (!n) return '<span class="by">未署名</span>';
-  const me = n === myName();
-  return `<span class="by ${me ? "me" : "them"}">✍️ ${esc(n)}${me ? "（我）" : ""}</span>`;
+  const me = n === myName(),
+    ic = n === "寒冰" ? "🧊" : n === "夏夏" ? "🍃" : "✍️";
+  return `<span class="by ${me ? "me" : "them"}">${ic} ${esc(n)}${me ? "（我）" : ""}</span>`;
 }
 
 let monthOpen = {}; // 月份 -> 使用者手動開合的狀態
