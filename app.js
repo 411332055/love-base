@@ -2613,7 +2613,6 @@ function renderTodo() {
   if (store.hugs.some((h) => h.by && h.by !== me && !h.backAt)) items.push([false, "🤗 抱抱對方", "hugCard"]);
   if (dow(t) === 6) items.push([store.reviews.some((r) => r.date === tk && r.by === me), "📝 寫這週回顧", "todayBox"]);
   if (db) items.push([!!myPhoto(tk), "📷 上傳我的照片", "diary"]);
-  items.push([store.wishes.some((w) => w.by === me && dayOf(w.at) === tk), "🌠 許個願", "wishes"]);
   const r = shownRound(),
     ans = r ? pairOf(r.id) : [],
     answered = ans.some((a) => a.by === me),
