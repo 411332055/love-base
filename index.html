@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=42">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=43">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -14,7 +14,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#140c14">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap">
-<link rel="stylesheet" href="style.css?v=42">
+<link rel="stylesheet" href="style.css?v=43">
 </head>
 <body>
 
@@ -255,6 +255,7 @@
         <div class="field">顏色<div class="filter" id="segTheme" role="group" aria-label="顏色"><button type="button" data-v="system">跟著系統</button><button type="button" data-v="light">淺色</button><button type="button" data-v="dark">深色</button></div></div>
         <div class="field">字體大小<div class="filter" id="segFont" role="group" aria-label="字體大小"><button type="button" data-v="s">小</button><button type="button" data-v="m">標準</button><button type="button" data-v="l">大</button><button type="button" data-v="xl">特大</button></div></div>
         <div class="field">滑動與點擊震動回饋（iPhone 需要 iOS 18 以上）<div class="filter" id="segHaptic" role="group" aria-label="震動回饋"><button type="button" data-v="on">開啟</button><button type="button" data-v="off">關閉</button></div></div>
+        <div class="field">震動強度（只有 Android 有差別）<div class="filter" id="segHapticLv" role="group" aria-label="震動強度"><button type="button" data-v="light">輕</button><button type="button" data-v="mid">中</button><button type="button" data-v="strong">強</button></div></div>
         <div class="row"><button class="btn ghost" type="button" id="hapticTest">📳 測試震動</button><span class="sub" id="hapticInfo"></span></div>
         <div class="field">區塊順序與顯示（在同一個分類裡排序）</div>
         <div class="log" id="layoutList" style="margin-top:0"></div>
@@ -340,7 +341,7 @@
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=42" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=43" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -366,6 +367,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=42"></script>
+<script src="app.js?v=43"></script>
 </body>
 </html>

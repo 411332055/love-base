@@ -107,7 +107,15 @@ function toast(msg) {
   clearTimeout(toast.h);
   toast.h = setTimeout(() => (t.hidden = true), 2200);
 }
-const HAPTIC_KEY = "love-base-haptic";
+const HAPTIC_KEY = "love-base-haptic",
+  HAPTIC_LV_KEY = "love-base-haptic-level";
+// 震動強度：網頁只能控制震多久，所以「強」就是震久一點（Android 才有效，iPhone 固定一種強度）
+const HAPTIC_LV = { light: [1, 20], mid: [2, 40], strong: [3.5, 70] };
+let hapticLv = "mid";
+try {
+  const v = localStorage.getItem(HAPTIC_LV_KEY);
+  if (HAPTIC_LV[v]) hapticLv = v;
+} catch (e) {}
 let hapticOn = true,
   booted = false;
 try {
@@ -141,7 +149,8 @@ function haptic(ms = 22) {
   if (now - lastHaptic < 40) return;
   lastHaptic = now;
   try {
-    if (navigator.vibrate) navigator.vibrate(Math.max(ms, 35));
+    const [k, min] = HAPTIC_LV[hapticLv];
+    if (navigator.vibrate) navigator.vibrate(Math.round(Math.max(ms * k, min)));
     else iosHaptic();
   } catch (e) {}
 }
@@ -3139,8 +3148,19 @@ $("hapticTest").onclick = () => {
   } catch (e) {
     res = "發生錯誤";
   }
-  $("hapticInfo").textContent = `${res} · 震動開關：${hapticOn ? "開" : "關"} · 版本 v${ver ? ver[1] : "?"}`;
+  $("hapticInfo").textContent =
+    `${res} · 震動開關：${hapticOn ? "開" : "關"} · 強度：${{ light: "輕", mid: "中", strong: "強" }[hapticLv]} · 版本 v${ver ? ver[1] : "?"}`;
 };
+bindSeg(
+  "segHapticLv",
+  HAPTIC_LV_KEY,
+  () => hapticLv,
+  (v) => {
+    hapticLv = HAPTIC_LV[v] ? v : "mid";
+    lastHaptic = 0;
+    haptic(20);
+  },
+);
 bindSeg(
   "segHaptic",
   HAPTIC_KEY,
