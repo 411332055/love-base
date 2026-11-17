@@ -2946,6 +2946,8 @@ function renderNav() {
   sub.querySelectorAll("a[data-sub]").forEach((a) => {
     a.setAttribute("aria-current", a.dataset.sub === view);
   });
+  sub.style.setProperty("--sub-n", secs.length || 1);
+  if (!sub.classList.contains("dragging")) sub.style.setProperty("--sub-i", Math.max(0, secs.indexOf(view)));
   document.querySelectorAll("[data-c]").forEach((a) => {
     const c = CATS.find((x) => x.id === a.dataset.c);
     a.hidden = !catSecs(c).length;
@@ -3145,19 +3147,37 @@ $("subNav").addEventListener(
   (ev) => {
     const t = ev.touches[0];
     if (!t) return;
-    for (const a of $("subNav").querySelectorAll("a[data-sub]")) {
-      const r = a.getBoundingClientRect();
-      if (t.clientX >= r.left && t.clientX <= r.right) {
-        const id = a.dataset.sub;
-        if (id && id !== view) {
-          openFor(id);
-          history.replaceState(null, "", "#" + id);
-        }
-        break;
-      }
+    ev.preventDefault();
+    const sub = $("subNav"),
+      r = sub.getBoundingClientRect(),
+      cur = CATS.find((c) => c.secs.includes(view)),
+      secs = catSecs(cur),
+      n = secs.length || 1,
+      w = (r.width - 8) / n,
+      pos = Math.max(0, Math.min(n - 1, (t.clientX - r.left - 4 - w / 2) / w)),
+      idx = Math.max(0, Math.min(n - 1, Math.floor((t.clientX - r.left - 4) / w)));
+    sub.classList.add("dragging");
+    sub.style.setProperty("--sub-i", pos.toFixed(3));
+    const id = secs[idx];
+    if (id && id !== view) {
+      setView(id);
+      history.replaceState(null, "", "#" + id);
     }
   },
-  { passive: true },
+  { passive: false },
+);
+["touchend", "touchcancel"].forEach((evName) =>
+  $("subNav").addEventListener(
+    evName,
+    () => {
+      const sub = $("subNav");
+      if (sub.classList.contains("dragging")) {
+        sub.classList.remove("dragging");
+        renderNav();
+      }
+    },
+    { passive: true },
+  ),
 );
 (() => {
   let sx = null,
