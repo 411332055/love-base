@@ -498,8 +498,8 @@ function myPhoto(d) {
 }
 function photoBtn(p, cls) {
   return (
-    `<button type="button" class="${cls}" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片"><img src="${p.th}` +
-    `" alt="" loading="lazy"><span class="nm">${esc(p.by)}${p.by === myName() ? "（我）" : ""}</span></button>`
+    `<button type="button" class="${cls}" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片${p.cap ? "：" + esc(p.cap) : ""}"><img src="${p.th}` +
+    `" alt="" loading="lazy"><span class="nm">${esc(p.by)}${p.by === myName() ? "（我）" : ""}${p.cap ? " 💬" : ""}</span></button>`
   );
 }
 function renderTodayPhotos() {
@@ -2009,7 +2009,11 @@ $("gachaBtn").onclick = () => {
   const cand = pool.length > 1 ? pool.filter((x) => x.k !== lastGachaKey) : pool;
   const pick = cand[Math.floor(Math.random() * cand.length)];
   lastGachaKey = pick.k;
-  $("gachaBox").innerHTML = pick.html;
+  const gBox = $("gachaBox");
+  gBox.innerHTML = pick.html;
+  gBox.classList.remove("gacha-pop");
+  void gBox.offsetWidth;
+  gBox.classList.add("gacha-pop");
   $("gachaBtn").textContent = "🎲 再抽一個";
 };
 
@@ -2944,7 +2948,7 @@ function renderNav() {
   const visCats = CATS.filter((x) => catSecs(x).length),
     tb = $("tabBar");
   tb.style.setProperty("--tab-n", visCats.length || 1);
-  tb.style.setProperty("--tab-i", Math.max(0, visCats.indexOf(cur)));
+  if (!tb.classList.contains("dragging")) tb.style.setProperty("--tab-i", Math.max(0, visCats.indexOf(cur)));
 }
 function applyLayout() {
   layout.order.forEach((id) => {
@@ -3103,9 +3107,47 @@ $("tabBar").addEventListener(
   (ev) => {
     const t = ev.touches[0];
     if (!t) return;
+    const tb = $("tabBar"),
+      r = tb.getBoundingClientRect(),
+      visCats = CATS.filter((x) => catSecs(x).length),
+      n = visCats.length || 1,
+      w = (r.width - 10) / n,
+      pos = Math.max(0, Math.min(n - 1, (t.clientX - r.left - 5 - w / 2) / w));
+    tb.classList.add("dragging");
+    tb.style.setProperty("--tab-i", pos.toFixed(3));
     const el = document.elementFromPoint(t.clientX, t.clientY),
       a = el && el.closest("#tabBar a[data-c]");
     if (a) activateCat(a.dataset.c);
+  },
+  { passive: true },
+);
+["touchend", "touchcancel"].forEach((evName) =>
+  $("tabBar").addEventListener(
+    evName,
+    () => {
+      const tb = $("tabBar");
+      if (tb.classList.contains("dragging")) {
+        tb.classList.remove("dragging");
+        renderNav();
+      }
+    },
+    { passive: true },
+  ),
+);
+$("subNav").addEventListener(
+  "touchmove",
+  (ev) => {
+    const t = ev.touches[0];
+    if (!t) return;
+    const el = document.elementFromPoint(t.clientX, t.clientY),
+      a = el && el.closest('#subNav a[href^="#"]');
+    if (a) {
+      const id = a.getAttribute("href").slice(1);
+      if (id && id !== view) {
+        openFor(id);
+        history.replaceState(null, "", "#" + id);
+      }
+    }
   },
   { passive: true },
 );
