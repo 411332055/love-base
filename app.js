@@ -1160,7 +1160,7 @@ $("diaryForm").addEventListener("submit", async (ev) => {
     by: myName(),
   };
   if (!e.mood && !e.food && !e.funny && !e.say && !e.s1 && !e.s2 && !queued.length) {
-    $("dMsg").textContent = "至少寫一格或放一張照片再存喔";
+    $("dMsg").textContent = "至少寫一格再存喔";
     return;
   }
   $("dSave").disabled = true;
@@ -2910,7 +2910,7 @@ function entryPhotos(id, all) {
 }
 function renderQueue() {
   const box = $("dPhotos");
-  $("dPhotoBox").hidden = !db || !!photoErr;
+  $("dPhotoBox").hidden = true;
   const have = editId ? entryPhotos(editId).length : 0,
     room = DIARY_PH_MAX - have - dQueue.length;
   box.innerHTML =
