@@ -14,7 +14,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1117">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap">
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 
@@ -104,7 +104,7 @@
         <div class="full editbar" id="editBar" hidden><span id="editText">✏️ 正在編輯</span><button class="btn ghost" type="button" id="editCancel">取消編輯</button></div>
         <label>📅 日期<input type="date" id="dDate" required></label>
         <label>⛅ 今天的心情<input id="dMood" maxlength="60" placeholder="例：有點累但很開心"></label>
-        <label hidden>🍜 今天吃了什麼<input id="dFood" maxlength="80"></label>
+        <label class="full">🍜 午餐／晚餐吃了什麼<input id="dFood" maxlength="100" placeholder="例：午餐咖哩飯、晚餐火鍋"></label>
         <label hidden>🤪 今天最好笑的事情<textarea id="dFunny" maxlength="200" rows="1"></textarea></label>
         <label class="full">💞 今天發生了什麼／想對你說的話<textarea id="dSay" maxlength="1000" rows="3"></textarea></label>
         <div class="full field"><span id="heartsLbl">⭐ 今天的幸福指數（1～10）</span>
@@ -343,6 +343,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=14"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>
