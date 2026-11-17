@@ -64,6 +64,7 @@ const store = {
   rounds: [],
   answers: [],
   passed: [],
+  coupons: [],
   capsules: [],
   custom: [],
   fixes: [],
@@ -401,6 +402,88 @@ function renderHUD() {
     .map((t) => rung(t))
     .join("");
   $("ladderN").textContent = `${TITLES.length - 1} 個`;
+  renderCoupons(xp);
+}
+let couponEditing = null;
+async function saveCoupon(id, patch, msg) {
+  const k = String(id),
+    cur = store.coupons.find((x) => String(x.id) === k) || { text: "", done: false, doneDate: null };
+  const doc = {
+    text: patch.text !== undefined ? patch.text : cur.text || "",
+    done: patch.done !== undefined ? patch.done : !!cur.done,
+    doneDate: patch.doneDate !== undefined ? patch.doneDate : cur.doneDate || null,
+    by: myName(),
+    at: nowIso(),
+  };
+  store.coupons = store.coupons.filter((x) => String(x.id) !== k).concat([{ id: k, ...doc }]);
+  couponEditing = null;
+  renderCoupons(totalXP());
+  try {
+    if (db) await commit(xRef("coupons", k).set(doc));
+    else saveLocal();
+    if (msg) toast(msg);
+  } catch (e) {
+    toast(NOSAVE);
+  }
+}
+function renderCoupons(xp) {
+  const box = $("couponList");
+  if (!box || box.contains(document.activeElement)) return;
+  const unlocked = TITLES.filter(([n]) => xp >= n)
+    .slice()
+    .reverse();
+  if (!unlocked.length) {
+    box.innerHTML = '<div class="empty">累積滿 50 XP 解鎖第一個稱號，就會拿到第一張戀愛兌換券！</div>';
+    return;
+  }
+  box.innerHTML = unlocked
+    .map(([n, name]) => {
+      const k = String(n),
+        c = store.coupons.find((x) => String(x.id) === k) || {},
+        editing = couponEditing === k;
+      return (
+        `<div class="wish ${c.done ? "done" : ""}"><button class="check" type="button" data-cpcheck="${k}"` +
+        ` aria-pressed="${!!c.done}" aria-label="${esc(name)}兌換券：${c.done ? "已兌換，點一下取消" : "標記已兌換"}">✓</button>` +
+        `<div class="t"><b>🎟️ ${esc(name)}（${n} XP）</b>` +
+        `<div>${c.text ? `🎁 ${esc(c.text)}` : '<span class="sub">還沒寫要換什麼獎勵</span>'}` +
+        `${c.done && c.doneDate ? ` · ${esc(c.doneDate)} 已兌換` : ""}</div>` +
+        `${
+          editing
+            ? `<form class="wishform" data-cpform="${k}" autocomplete="off" style="margin-top:6px">` +
+              `<input maxlength="80" value="${esc(c.text || "")}" placeholder="例：指定抱抱一次、請喝飲料" aria-label="兌換獎勵內容">` +
+              `<button class="btn" type="submit">儲存</button></form>`
+            : ""
+        }</div>` +
+        `<button class="btn ghost del" type="button" data-cpedit="${k}">${editing ? "取消" : c.text ? "修改" : "✏️ 寫獎勵"}</button></div>`
+      );
+    })
+    .join("");
+  box.querySelectorAll("[data-cpcheck]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        const k = b.dataset.cpcheck,
+          c = store.coupons.find((x) => String(x.id) === k),
+          on = !c?.done;
+        saveCoupon(k, { done: on, doneDate: on ? key(today()) : null }, on ? "兌換券已使用 🎟️" : "");
+      }),
+  );
+  box.querySelectorAll("[data-cpedit]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        const k = b.dataset.cpedit;
+        couponEditing = couponEditing === k ? null : k;
+        renderCoupons(totalXP());
+        box.querySelector(`[data-cpform="${k}"] input`)?.focus();
+      }),
+  );
+  box.querySelectorAll("[data-cpform]").forEach((f) =>
+    f.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const k = f.dataset.cpform,
+        text = f.querySelector("input").value.trim();
+      saveCoupon(k, { text }, "獎勵寫好了 🎁");
+    }),
+  );
 }
 
 function renderQuests() {
@@ -1143,6 +1226,24 @@ $("diaryForm").addEventListener("input", (ev) => {
 $("diaryForm").addEventListener("keydown", (ev) => {
   if (ev.key === "Enter" && ev.target.tagName === "INPUT" && !ev.isComposing && ev.keyCode !== 229) ev.preventDefault();
 });
+const DIARY_PROMPTS = [
+  "今天哪個瞬間突然很想對方？",
+  "今天最想誇獎對方的一件事是什麼？",
+  "下次見面最想一起去哪裡或吃什麼？",
+  "今天有沒有遇到什麼好笑或特別的小事？",
+  "如果給今天一個小標題，會叫什麼？",
+  "最近對方做的哪件小事讓你覺得被照顧到？",
+  "今天最開心的一刻是什麼時候？",
+  "現在最想對對方撒嬌說的一句話是？",
+  "今天有沒有看到什麼東西突然想到對方？",
+  "這週最期待跟對方一起做的事是什麼？",
+];
+let promptIdx = -1;
+$("dPromptBtn").onclick = () => {
+  promptIdx = (promptIdx + 1) % DIARY_PROMPTS.length;
+  $("dSay").placeholder = "💡 " + DIARY_PROMPTS[promptIdx];
+  $("dSay").focus();
+};
 
 $("diaryForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
@@ -1773,6 +1874,69 @@ function renderMemories() {
   renderChart();
   renderMonth();
 }
+let lastGachaKey = "";
+$("gachaBtn").onclick = () => {
+  const pool = [];
+  entries.forEach((e) => {
+    const text = e.say || e.mood || e.funny || e.food || e.s1 || e.s2 || "";
+    if (text)
+      pool.push({
+        k: "e:" + e.id,
+        html:
+          `<article class="entry"><header><b>💌 ${esc(e.date)} 的日記</b>` +
+          `<span>${esc(e.by || "")}${e.happy ? ` · ⭐ ${esc(e.happy)}/10` : ""}</span></header>` +
+          `<dl>${[
+            ["⛅ 心情", e.mood],
+            ["🍜 吃了", e.food],
+            ["🤪 最好笑", e.funny],
+            ["💞 想對你說", e.say],
+          ]
+            .filter((r) => r[1])
+            .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
+            .join("")}</dl></article>`,
+      });
+  });
+  calAllPhotos().forEach((p) => {
+    pool.push({
+      k: "p:" + p.id,
+      html:
+        `<article class="entry"><header><b>📷 ${esc(p.date)} 的照片</b><span>${esc(p.by || "")}</span></header>` +
+        `<div class="wall-grid">${photoBtn(p, "")}</div>` +
+        `${p.cap ? `<div>「${esc(p.cap)}」</div>` : ""}</article>`,
+    });
+  });
+  store.rounds
+    .filter((r) => pairOf(r.id).length >= need())
+    .forEach((r) => {
+      pool.push({
+        k: "r:" + r.id,
+        html:
+          `<article class="entry"><header><b>🎲 ${esc(roundDay(r))} 的抽題問答</b></header>` +
+          `<div><b>${esc(r.q)}</b></div><dl>${pairOf(r.id)
+            .map((a) => `<dt>${esc(nameOf(a.by))}</dt><dd>${esc(a.text)}</dd>`)
+            .join("")}</dl></article>`,
+      });
+    });
+  store.wishes
+    .filter((w) => w.done)
+    .forEach((w) => {
+      pool.push({
+        k: "w:" + w.id,
+        html:
+          `<article class="entry"><header><b>🌠 ${esc(w.doneDate || dayOf(w.at))} 達成的願望</b>` +
+          `<span>${esc(w.by || "")} 許的</span></header><div>✅ ${esc(w.text)}</div></article>`,
+      });
+    });
+  if (!pool.length) {
+    $("gachaBox").innerHTML = '<div class="empty">還沒有足夠的回憶可以抽，先去傳張照片或答一題抽題吧！</div>';
+    return;
+  }
+  const cand = pool.length > 1 ? pool.filter((x) => x.k !== lastGachaKey) : pool;
+  const pick = cand[Math.floor(Math.random() * cand.length)];
+  lastGachaKey = pick.k;
+  $("gachaBox").innerHTML = pick.html;
+  $("gachaBtn").textContent = "🎲 再抽一個";
+};
 
 // 月曆：照片牆只載入最近幾十張，所以看哪個月就另外抓那個月的照片
 let calMonth = key(today()).slice(0, 7),
@@ -3215,6 +3379,64 @@ $("picPack").onclick = async () => {
   b.disabled = false;
   b.hidden = true;
   packList = [];
+};
+
+// 更換基地暗號：將四個集合完整複製到新暗號（保留舊暗號資料以防萬一）
+const moveMsg = (t) => ($("moveRoomMsg").textContent = t);
+$("newRoomCode").addEventListener("input", () => {
+  const b = $("moveRoomBtn");
+  delete b.dataset.confirm;
+  b.textContent = "搬家到新暗號";
+  moveMsg("");
+});
+$("moveRoomBtn").onclick = async () => {
+  const b = $("moveRoomBtn"),
+    code = $("newRoomCode").value.trim();
+  if (!db || !navigator.onLine) {
+    moveMsg("要連上網路才能更換暗號。");
+    return;
+  }
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(code)) {
+    moveMsg("新暗號要 8～64 個字，只能用英文、數字、- 或 _。");
+    return;
+  }
+  if (code === getRoom()) {
+    moveMsg("這已經是目前正在使用的暗號了。");
+    return;
+  }
+  if (b.dataset.confirm !== code) {
+    b.dataset.confirm = code;
+    b.textContent = "確定換成這個暗號？再按一次";
+    moveMsg(`即將把所有資料複製到新暗號「${code}」，舊暗號的資料也會保留。`);
+    return;
+  }
+  delete b.dataset.confirm;
+  b.disabled = $("newRoomCode").disabled = true;
+  moveMsg("讀取目前基地資料中…");
+  let copied = 0;
+  try {
+    const targetDb = firebase.firestore().collection("rooms").doc(code);
+    const docs = [];
+    for (const c of BK_COLLS) {
+      const s = await db.collection(c).get();
+      s.docs.forEach((d) => docs.push([c, d.id, d.data()]));
+    }
+    for (const [c, id, data] of docs) {
+      await targetDb.collection(c).doc(id).set(data);
+      copied++;
+      moveMsg(`正在搬移資料… ${copied} / ${docs.length}`);
+    }
+    try {
+      localStorage.setItem(ROOM_KEY, code);
+    } catch (e) {}
+    moveMsg(`搬家完成！共複製 ${copied} 筆資料，正在切換到新暗號…（記得請對方也換成新暗號）`);
+    toast("換好新暗號了 🔐 記得告訴對方！");
+    setTimeout(() => location.reload(), 1200);
+  } catch (e) {
+    moveMsg(`搬到第 ${copied} 筆時網路中斷，原本的資料都安全無損，請確認網路後再試一次。`);
+    b.textContent = "搬家到新暗號";
+    b.disabled = $("newRoomCode").disabled = false;
+  }
 };
 
 // 年度回憶書：從 11/4 起算，每滿一年是一冊
