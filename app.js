@@ -3053,10 +3053,17 @@ $("tabBar").addEventListener(
   );
 })();
 
-// 隨手機傾斜或手指／滑鼠移動，動態改變 Liquid Glass 的反光、高光邊框與陰影角度
+// 隨手機傾斜或滑鼠移動，只用 GPU translate3d 移動反光層（不觸發全頁重繪，保持滑動順暢）
 (() => {
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const root = document.documentElement;
+  const targets = [document.querySelector(".hud"), document.querySelector(".draw"), $("gateForm")].filter(Boolean);
+  const glares = targets.map((el) => {
+    const g = document.createElement("i");
+    g.className = "tilt-glare";
+    g.setAttribute("aria-hidden", "true");
+    el.prepend(g);
+    return g;
+  });
   let tx = 0,
     ty = 0,
     cx = 0,
@@ -3064,30 +3071,33 @@ $("tabBar").addEventListener(
     raf = 0,
     baseX = null,
     baseY = null,
-    hasGyro = false;
+    scrolling = 0;
   const clamp = (v) => Math.max(-1, Math.min(1, v));
+  window.addEventListener(
+    "scroll",
+    () => {
+      scrolling = Date.now() + 120;
+    },
+    { passive: true },
+  );
   function step() {
     raf = 0;
     if (document.hidden) return;
-    cx += (tx - cx) * 0.18;
-    cy += (ty - cy) * 0.18;
-    root.style.setProperty("--tx", cx.toFixed(3));
-    root.style.setProperty("--ty", cy.toFixed(3));
-    root.style.setProperty("--gx", (50 - cx * 44).toFixed(1) + "%");
-    root.style.setProperty("--gy", (32 - cy * 34).toFixed(1) + "%");
-    root.style.setProperty("--ga", (135 + cx * 42 - cy * 28).toFixed(1) + "deg");
-    root.style.setProperty("--rim-x", (cx * -2.8).toFixed(2) + "px");
-    root.style.setProperty("--rim-y", (cy * -2.8).toFixed(2) + "px");
-    root.style.setProperty("--sh-x", (cx * -14).toFixed(1) + "px");
-    root.style.setProperty("--sh-y", (14 - cy * 10).toFixed(1) + "px");
-    if (Math.hypot(tx - cx, ty - cy) > 0.002) raf = requestAnimationFrame(step);
+    cx += (tx - cx) * 0.16;
+    cy += (ty - cy) * 0.16;
+    const x = (cx * -28).toFixed(1),
+      y = (cy * -24).toFixed(1),
+      tf = `translate3d(${x}%,${y}%,0)`;
+    for (let i = 0; i < glares.length; i++) {
+      if (targets[i].offsetParent !== null) glares[i].style.transform = tf;
+    }
+    if (Math.hypot(tx - cx, ty - cy) > 0.004) raf = requestAnimationFrame(step);
   }
   function kick() {
-    if (!raf && !document.hidden) raf = requestAnimationFrame(step);
+    if (!raf && !document.hidden && Date.now() > scrolling) raf = requestAnimationFrame(step);
   }
   function onOrient(ev) {
-    if (ev.gamma === null || ev.beta === null) return;
-    hasGyro = true;
+    if (ev.gamma === null || ev.beta === null || Date.now() <= scrolling) return;
     const g = ev.gamma,
       b = ev.beta;
     if (baseX === null) {
@@ -3121,19 +3131,9 @@ $("tabBar").addEventListener(
   window.addEventListener(
     "pointermove",
     (ev) => {
-      if (hasGyro && ev.pointerType === "touch") return;
+      if (ev.pointerType === "touch") return;
       tx = clamp((ev.clientX / innerWidth) * 2 - 1);
       ty = clamp((ev.clientY / innerHeight) * 2 - 1);
-      kick();
-    },
-    { passive: true },
-  );
-  window.addEventListener(
-    "touchmove",
-    (ev) => {
-      if (hasGyro || !ev.touches[0]) return;
-      tx = clamp((ev.touches[0].clientX / innerWidth) * 2 - 1);
-      ty = clamp((ev.touches[0].clientY / innerHeight) * 2 - 1);
       kick();
     },
     { passive: true },
