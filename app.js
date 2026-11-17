@@ -107,13 +107,46 @@ function toast(msg) {
   clearTimeout(toast.h);
   toast.h = setTimeout(() => (t.hidden = true), 2200);
 }
-function haptic(ms = 8) {
+const HAPTIC_KEY = "love-base-haptic";
+let hapticOn = true,
+  booted = false;
+try {
+  if (localStorage.getItem(HAPTIC_KEY) === "off") hapticOn = false;
+} catch (e) {}
+// 震動回饋：Android 用 navigator.vibrate；iPhone 的 Safari 不支援它，
+// 改用 iOS 18 起的開關元件：點一下 <input type="checkbox" switch> 會有系統的輕觸震動
+// （只有在手指點擊、滑動放開這類操作當下才會震，iOS 17 以前沒有效果）
+let iosTick = null;
+function iosHaptic() {
+  try {
+    if (!iosTick) {
+      iosTick = document.createElement("label");
+      iosTick.setAttribute("aria-hidden", "true");
+      iosTick.style.cssText =
+        "position:fixed;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;left:-9px;top:0";
+      const sw = document.createElement("input");
+      sw.type = "checkbox";
+      sw.tabIndex = -1;
+      sw.setAttribute("switch", "");
+      iosTick.appendChild(sw);
+      document.body.appendChild(iosTick);
+    }
+    iosTick.click();
+  } catch (e) {}
+}
+let lastHaptic = 0;
+function haptic(ms = 22) {
+  if (!hapticOn) return;
+  const now = Date.now();
+  if (now - lastHaptic < 40) return;
+  lastHaptic = now;
   try {
     if (navigator.vibrate) navigator.vibrate(ms);
+    else iosHaptic();
   } catch (e) {}
 }
 function popFloat(el, ic = "💞") {
-  haptic(10);
+  haptic(25);
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
   const x0 = r && r.width ? r.left + r.width / 2 : innerWidth / 2;
@@ -1202,7 +1235,7 @@ let heartDragged = false,
     ev.preventDefault();
     const v = +b.dataset.v;
     happy = happy === v ? 0 : v;
-    haptic(8);
+    haptic(20);
     renderHearts();
     saveDraft();
   });
@@ -1223,7 +1256,7 @@ let heartDragged = false,
     const v = pick(ev.clientX);
     if (v !== happy) {
       happy = v;
-      haptic(6);
+      haptic(16);
       renderHearts();
     }
   });
@@ -3096,6 +3129,15 @@ bindSeg(
     R.dataset.font = v;
   },
 );
+bindSeg(
+  "segHaptic",
+  HAPTIC_KEY,
+  () => (hapticOn ? "on" : "off"),
+  (v) => {
+    hapticOn = v !== "off";
+    if (hapticOn) haptic(28);
+  },
+);
 applyLayout();
 renderLayoutList();
 
@@ -3103,6 +3145,7 @@ renderLayoutList();
 function setView(id) {
   const sec = $(id);
   if (!sec || sec.hidden || !CATS.some((c) => c.secs.includes(id))) id = "today";
+  if (booted && id !== view) haptic(20);
   view = id;
   const c = CATS.find((x) => x.secs.includes(id));
   lastSub[c.id] = id;
@@ -3145,7 +3188,6 @@ function activateCat(cid) {
   const secs = catSecs(c);
   if (!secs.length) return;
   if (CATS.find((x) => x.secs.includes(view)) === c) return;
-  haptic(8);
   const id = secs.includes(lastSub[c.id]) ? lastSub[c.id] : secs[0];
   openFor(id);
   history.replaceState(null, "", "#" + id);
@@ -3169,10 +3211,21 @@ $("tabBar").addEventListener(
   },
   { passive: true },
 );
+// 拖曳選單時頁面是在手指移動中切換的，iPhone 只在手指放開時才允許震動，所以放開時補震一下
+let dragFrom = null;
+["tabBar", "subNav"].forEach((id) => $(id).addEventListener("touchstart", () => (dragFrom = view), { passive: true }));
+function dragEndTick() {
+  if (dragFrom !== null && dragFrom !== view && !navigator.vibrate) {
+    lastHaptic = 0;
+    haptic(20);
+  }
+  dragFrom = null;
+}
 ["touchend", "touchcancel"].forEach((evName) =>
   $("tabBar").addEventListener(
     evName,
     () => {
+      dragEndTick();
       const tb = $("tabBar");
       if (tb.classList.contains("dragging")) {
         tb.classList.remove("dragging");
@@ -3200,7 +3253,6 @@ $("subNav").addEventListener(
     sub.style.setProperty("--sub-i", pos.toFixed(3));
     const id = secs[idx];
     if (id && id !== view) {
-      haptic(8);
       setView(id);
       history.replaceState(null, "", "#" + id);
     }
@@ -3211,6 +3263,7 @@ $("subNav").addEventListener(
   $("subNav").addEventListener(
     evName,
     () => {
+      dragEndTick();
       const sub = $("subNav");
       if (sub.classList.contains("dragging")) {
         sub.classList.remove("dragging");
@@ -3360,26 +3413,25 @@ function renderDiaryToday() {
   $("dNew").textContent = diaryFormOpen ? "收起" : "✏️ 再寫一篇";
   $("diaryN").textContent = `${entries.length} 篇`;
   const box = $("diaryToday");
-  box.innerHTML =
-    list
-      .map(
-        (e) =>
-          `<article class="entry ${e.by ? (e.by === me ? "me" : "them") : ""}"><header><div>${byChip(e.by)}</div>` +
-          `<span>${e.happy ? "⭐ " + esc(e.happy) + "/10" : ""}</span></header>` +
-          `<dl>${[
-            ["⛅ 心情", e.mood],
-            ["🍜 吃了", e.food],
-            ["🤪 最好笑", e.funny],
-            ["💞 想對你說", e.say],
-          ]
-            .filter((r) => r[1])
-            .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
-            .join("")}` +
-          `</dl>${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
-          `${entryExtras(e, "today", !e.by || e.by === me ? `<div class="acts"><button class="btn ghost" type="button" data-editday="${esc(e.id)}">✏️ 編輯</button></div>` : "")}` +
-          `</article>`,
-      )
-      .join("");
+  box.innerHTML = list
+    .map(
+      (e) =>
+        `<article class="entry ${e.by ? (e.by === me ? "me" : "them") : ""}"><header><div>${byChip(e.by)}</div>` +
+        `<span>${e.happy ? "⭐ " + esc(e.happy) + "/10" : ""}</span></header>` +
+        `<dl>${[
+          ["⛅ 心情", e.mood],
+          ["🍜 吃了", e.food],
+          ["🤪 最好笑", e.funny],
+          ["💞 想對你說", e.say],
+        ]
+          .filter((r) => r[1])
+          .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
+          .join("")}` +
+        `</dl>${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
+        `${entryExtras(e, "today", !e.by || e.by === me ? `<div class="acts"><button class="btn ghost" type="button" data-editday="${esc(e.id)}">✏️ 編輯</button></div>` : "")}` +
+        `</article>`,
+    )
+    .join("");
   attachReply("today");
   box.querySelectorAll("[data-editday]").forEach((b) => (b.onclick = () => startEdit(b.dataset.editday)));
   syncNotices();
@@ -3531,7 +3583,14 @@ function entryExtras(e, where, acts = "") {
       `>${diaryUp === e.id ? "上傳中…" : "📷 加照片"}</button>`
     : "";
   const reactBtns = REACTS.map((em) => {
-    const who = [...new Set(emos.filter((r) => r.text === em).map((r) => r.by).filter(Boolean))],
+    const who = [
+        ...new Set(
+          emos
+            .filter((r) => r.text === em)
+            .map((r) => r.by)
+            .filter(Boolean),
+        ),
+      ],
       mine = who.includes(me);
     return (
       `<button type="button" class="react-btn ${mine ? "on" : ""}" data-react="${esc(e.id)}" data-em="${em}" ` +
@@ -4185,6 +4244,7 @@ renderInstall();
 showLastBackup();
 restoreDraft();
 openFor(location.hash.slice(1) || "today");
+booted = true;
 
 /* ===== 伺服器連線（Firebase） ===== */
 const ROOM_KEY = "love-base-room";
