@@ -2961,6 +2961,62 @@ document.addEventListener("click", (ev) => {
   history.pushState(null, "", "#" + id);
 });
 window.addEventListener("popstate", () => openFor(location.hash.slice(1) || "today"));
+function activateCat(cid) {
+  const c = CATS.find((x) => x.id === cid);
+  if (!c) return;
+  const secs = catSecs(c);
+  if (!secs.length) return;
+  if (CATS.find((x) => x.secs.includes(view)) === c) return;
+  const id = secs.includes(lastSub[c.id]) ? lastSub[c.id] : secs[0];
+  openFor(id);
+  history.replaceState(null, "", "#" + id);
+}
+$("tabBar").addEventListener(
+  "touchmove",
+  (ev) => {
+    const t = ev.touches[0];
+    if (!t) return;
+    const el = document.elementFromPoint(t.clientX, t.clientY),
+      a = el && el.closest("#tabBar a[data-c]");
+    if (a) activateCat(a.dataset.c);
+  },
+  { passive: true },
+);
+(() => {
+  let sx = null,
+    sy = 0;
+  document.addEventListener(
+    "touchstart",
+    (ev) => {
+      if (
+        !$("lightbox").hidden ||
+        !$("gate").hidden ||
+        ev.target.closest("input,textarea,select,#hearts,#subNav,#tabBar,.chart")
+      ) {
+        sx = null;
+        return;
+      }
+      sx = ev.touches[0].clientX;
+      sy = ev.touches[0].clientY;
+    },
+    { passive: true },
+  );
+  document.addEventListener(
+    "touchend",
+    (ev) => {
+      if (sx === null) return;
+      const dx = ev.changedTouches[0].clientX - sx,
+        dy = ev.changedTouches[0].clientY - sy;
+      sx = null;
+      if (Math.abs(dx) < 65 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+      const vis = CATS.filter((c) => catSecs(c).length),
+        cur = CATS.find((c) => c.secs.includes(view)),
+        next = vis[vis.indexOf(cur) + (dx < 0 ? 1 : -1)];
+      if (next) activateCat(next.id);
+    },
+    { passive: true },
+  );
+})();
 
 // 今天的日記放在最前面；自己今天寫過就先收起表單，有草稿或正在編輯時一定打開
 let diaryFormOpen = false;
