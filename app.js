@@ -367,11 +367,18 @@ function renderAnniv() {
     left = Math.round((nextAnniv() - t) / 864e5),
     n = Math.round((t - LOVE_START) / 864e5) + 1;
   const isDay = t > LOVE_START && t.getMonth() === LOVE_START.getMonth() && t.getDate() === LOVE_START.getDate();
+  const special = [30, 50, 100, 200, 300, 500, 520, 600, 700, 800, 900, 1000, 1314];
+  const next100 = Math.ceil((n + 1) / 100) * 100;
+  const mile = [...new Set([...special, next100])].sort((a, b) => a - b).find((m) => m > n);
+  const isMile = special.includes(n) || (n >= 100 && n % 100 === 0);
+  const mileText = mile && mile - n < left ? `距離 ${mile} 天還有 ${mile - n} 天 · ` : "";
   $("anniv").innerHTML =
     (isDay
       ? `🎉 今天是我們的 ${t.getFullYear() - LOVE_START.getFullYear()} 週年！`
-      : `💝 在一起第<span class="num">${n}</span>天`) +
-    `<span class="left">距離 ${LOVE_START.getMonth() + 1}/${LOVE_START.getDate()} 週年還有 ${left} 天</span>`;
+      : isMile
+        ? `🎉 今天是在一起第<span class="num">${n}</span>天紀念日！`
+        : `💝 在一起第<span class="num">${n}</span>天`) +
+    `<span class="left">${mileText}距離 ${LOVE_START.getMonth() + 1}/${LOVE_START.getDate()} 週年還有 ${left} 天</span>`;
 }
 
 function renderHUD() {
@@ -429,17 +436,19 @@ function renderQuests() {
   $("reviewList").innerHTML = revs
     .map(
       (r) =>
-        `<div><b>${esc(nameOf(r.by))}</b>${esc(r.text)}` +
-        `${r.by === myName() ? ' <button type="button" class="reply-del" id="reviewEdit">修改</button>' : ""}</div>`,
+        `<div class="rev-row"><span><b>${esc(nameOf(r.by))}</b>${esc(r.text)}</span>` +
+        `${r.by === myName() ? `<button type="button" class="btn ghost small ans-edit" id="reviewEdit">${reviewEditing ? "✕ 取消修改" : "✏️ 修改回顧"}</button>` : ""}</div>`,
     )
     .join("");
   $("reviewForm").hidden = !!myRev && !reviewEditing;
   if (myRev)
     $("reviewEdit").onclick = () => {
-      reviewEditing = true;
-      $("reviewText").value = myRev.text;
-      $("reviewForm").hidden = false;
-      $("reviewText").focus();
+      reviewEditing = !reviewEditing;
+      renderQuests();
+      if (reviewEditing) {
+        $("reviewText").value = myRev.text;
+        $("reviewText").focus();
+      }
     };
   renderTodayPhotos();
 }
@@ -1372,7 +1381,8 @@ function renderDraw() {
     mine = ans.find((a) => a.by === myName()),
     over = ans.length >= need(),
     shownAns = over ? ans : mine ? [mine] : [];
-  $("ansForm").hidden = !!mine && !ansEditing;
+  if (over) ansEditing = false;
+  $("ansForm").hidden = !!mine && (!ansEditing || over);
   $("ansSave").textContent = mine ? "儲存修改" : "送出答案";
   $("reveal").hidden = !shownAns.length;
   if (shownAns.length) {
@@ -1380,10 +1390,10 @@ function renderDraw() {
       .map(
         (a) =>
           `<div class="rev-row"><span><b>${esc(nameOf(a.by))}</b>${esc(a.text)}</span>` +
-          `${a.by === myName() ? `<button type="button" class="btn ghost small ans-edit" id="ansEditBtn">${ansEditing ? "✕ 取消修改" : "✏️ 修改答案"}</button>` : ""}</div>`,
+          `${a.by === myName() && !over ? `<button type="button" class="btn ghost small ans-edit" id="ansEditBtn">${ansEditing ? "✕ 取消修改" : "✏️ 修改答案"}</button>` : ""}</div>`,
       )
       .join("");
-    if (mine)
+    if (mine && !over)
       $("ansEditBtn").onclick = () => {
         ansEditing = !ansEditing;
         renderDraw();
@@ -1487,6 +1497,7 @@ $("ansForm").addEventListener("submit", async (ev) => {
     text = $("ansText").value.trim();
   if (!r || !text) return;
   const mine = pairOf(r.id).find((a) => a.by === myName());
+  if (mine && pairOf(r.id).length >= need()) return;
   $("ansSave").disabled = true;
   try {
     if (mine) {
@@ -1693,8 +1704,8 @@ bindForm(
   },
 );
 
-// 回憶
-function renderOnThisDay() {
+// 回憶：一週前、一個月前、一年前的今天（同時顯示在「今天」首頁與「回憶 → 回顧」）
+function onThisDayHtml() {
   const t = today(),
     y = new Date(t.getFullYear() - 1, t.getMonth(), t.getDate()),
     m = new Date(t.getFullYear(), t.getMonth() - 1, t.getDate());
@@ -1703,28 +1714,50 @@ function renderOnThisDay() {
     ["一個月前的今天", m.getDate() === t.getDate() && m],
     ["一週前的今天", addDays(t, -7)],
   ];
+  const allPh = calAllPhotos();
   const hits = slots
     .filter((x) => x[1])
-    .map(([label, d]) => [label, entries.find((e) => e.date === key(d))])
-    .filter((x) => x[1]);
-  $("onThisDay").innerHTML = hits.length
-    ? hits
-        .map(
-          ([label, e]) =>
-            `<article class="entry"><header><b>📅 ${label}</b><span>${esc(e.date)}${e.happy ? " · ⭐ " + esc(e.happy) + "/10" : ""}` +
-            `</span></header><div>${byChip(e.by)}</div>` +
-            `<dl>${[
-              ["⛅ 心情", e.mood],
-              ["🤪 最好笑", e.funny],
-              ["💞 想對你說", e.say],
-            ]
-              .filter((r) => r[1])
-              .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
-              .join("")}` +
-            `</dl></article>`,
-        )
-        .join("")
-    : '<div class="empty">一週前、一個月前、一年前的今天寫過日記，就會出現在這裡。</div>';
+    .map(([label, d]) => {
+      const k = key(d);
+      loadCalPhotos(k.slice(0, 7));
+      const es = entries.filter((e) => e.date === k).sort(byAt),
+        ps = allPh.filter((p) => p.date === k);
+      return [label, k, es, ps];
+    })
+    .filter(([, , es, ps]) => es.length || ps.length);
+  return hits
+    .map(
+      ([label, k, es, ps]) =>
+        `<article class="entry"><header><b>🕰️ ${label}</b><span>${esc(k)}</span></header>` +
+        `${es
+          .map(
+            (e) =>
+              `<div>${byChip(e.by)}${e.happy ? ` <span class="edited">⭐ ${esc(e.happy)}/10</span>` : ""}</div>` +
+              `<dl>${[
+                ["⛅ 心情", e.mood],
+                ["🍜 吃了", e.food],
+                ["🤪 最好笑", e.funny],
+                ["💞 想對你說", e.say],
+              ]
+                .filter((r) => r[1])
+                .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
+                .join("")}</dl>`,
+          )
+          .join("")}` +
+        `${ps.length ? `<div class="wall-grid">${ps.map((p) => photoBtn(p, "")).join("")}</div>` : ""}</article>`,
+    )
+    .join("");
+}
+function renderOnThisDay() {
+  const h = onThisDayHtml();
+  $("onThisDay").innerHTML = h || '<div class="empty">一週前、一個月前、一年前的今天寫過日記或傳過照片，就會出現在這裡。</div>';
+}
+function renderTodayFlashback() {
+  const box = $("todayFlashback");
+  if (!box) return;
+  const h = onThisDayHtml();
+  box.innerHTML = h;
+  box.hidden = !h;
 }
 function renderChart() {
   const box = $("hChart"),
@@ -1917,6 +1950,7 @@ function loadCalPhotos(m) {
         .filter((p) => !ids.has(p.id))
         .concat(s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => !p.trashed));
       renderDiaryToday();
+      renderTodayFlashback();
       renderOpen();
       if ($("diaryMore").open) renderEntries();
     })
@@ -2758,6 +2792,7 @@ function renderToday() {
   renderAway();
   renderHug();
   renderTodo();
+  renderTodayFlashback();
   syncNotices();
 }
 
