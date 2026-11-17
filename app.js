@@ -3999,7 +3999,34 @@ function showOffline() {
   updateSyncStatus();
 }
 window.addEventListener("offline", updateSyncStatus);
-window.addEventListener("online", updateSyncStatus);
+// 手機把網站放到背景一段時間後，Android 會讓即時連線睡著，切回來時可能一直停在舊資料。
+// 回到前景、網路恢復、或點最上面的同步狀態時，重新接一次線（只會重抓有變動的資料）。
+let hiddenAt = 0,
+  reconnecting = false;
+function reconnect(force) {
+  if (!db || reconnecting || !navigator.onLine) return;
+  const fs = firebase.firestore();
+  if (typeof fs.disableNetwork !== "function") return;
+  reconnecting = true;
+  $("status").textContent = "🔄 正在更新…";
+  fs.disableNetwork()
+    .then(() => fs.enableNetwork())
+    .catch(() => {})
+    .finally(() => {
+      reconnecting = false;
+      setTimeout(updateSyncStatus, 1200);
+      if (force) toast("重新同步好了 🔄");
+    });
+}
+window.addEventListener("online", () => {
+  updateSyncStatus();
+  reconnect();
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) hiddenAt = Date.now();
+  else if (hiddenAt && Date.now() - hiddenAt > 15000) reconnect();
+});
+$("status").addEventListener("click", () => reconnect(true));
 
 // 跨午夜 00:00 或從手機背景切回時自動換日
 let lastDayKey = key(today());
