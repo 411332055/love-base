@@ -185,7 +185,10 @@ form.wishform{display:flex;gap:8px}
 .reveal{display:grid;gap:8px}
 .reveal:empty{display:none}
 .reveal div{background:var(--pink-soft);border-radius:10px;padding:8px 12px;overflow-wrap:anywhere;white-space:pre-wrap}
+.reveal .rev-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.reveal .rev-row>span{flex:1 1 180px;min-width:0}
 .reveal b{margin-right:8px;color:var(--pink)}
+.btn.ghost.small.ans-edit{background:var(--surface);border:1.5px solid var(--pink);color:var(--pink);font-weight:700;font-size:13px;padding:5px 12px;flex:none;margin-left:auto}
 .log,.custom{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .left-hint{text-align:left}
 .citem{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px}
