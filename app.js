@@ -47,6 +47,7 @@ const QUESTIONS = [
 
 const LOVE_START = new Date(2026, 10, 4);
 const DIARY_XP = 10,
+  DIARY_XP_END = "2026-11-17",
   PHOTO_BONUS = 10,
   DRAW_XP = 5,
   STREAK_BONUS = 10,
@@ -278,7 +279,7 @@ function togetherDays() {
 function totalXP() {
   let xp = 0;
   for (const [d, r] of dayRecords()) {
-    if (r.diary.size >= need()) xp += DIARY_XP;
+    if (d < DIARY_XP_END && r.diary.size >= need()) xp += DIARY_XP;
     if (r.photo.size >= need()) xp += PHOTO_BONUS;
   }
   const reviews = new Map();
@@ -1191,8 +1192,6 @@ $("diaryForm").addEventListener("submit", async (ev) => {
     $("dSave").disabled = false;
     return;
   }
-  const counted = entries.some((x) => x.by === myName() && x.date === e.date),
-    partner = entries.some((x) => x.by && x.by !== myName() && x.date === e.date);
   try {
     let newId;
     if (db) {
@@ -1215,9 +1214,7 @@ $("diaryForm").addEventListener("submit", async (ev) => {
     renderHearts();
     growAll();
     renderAll();
-    toast(
-      counted ? "寫好了 💌" : partner ? `兩個人都寫了！+${DIARY_XP} XP 💌` : `寫好了 💌 等對方也寫就 +${DIARY_XP} XP`,
-    );
+    toast("寫好了 💌");
     if (newId && queued.length) {
       const n = await uploadQueue(newId, e.date, queued);
       if (n) toast(`日記寫好了，放了 ${n} 張照片 💌`);
@@ -2616,7 +2613,6 @@ function renderTodo() {
   if (store.hugs.some((h) => h.by && h.by !== me && !h.backAt)) items.push([false, "🤗 抱抱對方", "hugCard"]);
   if (dow(t) === 6) items.push([store.reviews.some((r) => r.date === tk && r.by === me), "📝 寫這週回顧", "todayBox"]);
   if (db) items.push([!!myPhoto(tk), "📷 上傳我的照片", "diary"]);
-  items.push([entries.some((e) => e.by === me && dayOf(e.at) === tk), "💌 寫今天的日記", "diary"]);
   items.push([store.wishes.some((w) => w.by === me && dayOf(w.at) === tk), "🌠 許個願", "wishes"]);
   const r = shownRound(),
     ans = r ? pairOf(r.id) : [],
@@ -2886,40 +2882,7 @@ function renderDiaryToday() {
       .join("") + (db && !theirs ? '<p class="sub" style="margin:0">對方今天還沒寫。</p>' : "");
   attachReply("today");
   box.querySelectorAll("[data-editday]").forEach((b) => (b.onclick = () => startEdit(b.dataset.editday)));
-  const y = addDays(today(), -1),
-    yk = key(y);
-  let skip = "";
-  try {
-    skip = localStorage.getItem(BF_KEY) || "";
-  } catch (e) {}
-  const bf =
-    !!db &&
-    yk >= key(LOVE_START) &&
-    skip !== yk &&
-    !editId &&
-    !draft &&
-    $("dDate").value !== yk &&
-    !entries.some((e) => e.by === me && e.date === yk);
-  $("dBackfill").hidden = !bf;
-  if (bf) {
-    $("dBackfill").innerHTML =
-      `<div class="row between"><span>昨天（${y.getMonth() + 1}/${y.getDate()}）的日記還沒寫，要補嗎？</span><div class="row">` +
-      `<button class="btn" type="button" id="bfGo" style="padding:4px 14px;font-size:13px">補寫</button>` +
-      `<button class="btn ghost" type="button" id="bfNo" style="padding:4px 14px;font-size:13px">不用了</button></div>` +
-      `</div>`;
-    $("bfGo").onclick = () => {
-      diaryFormOpen = true;
-      $("dDate").value = yk;
-      renderDiaryToday();
-      $("dMood").focus();
-    };
-    $("bfNo").onclick = () => {
-      try {
-        localStorage.setItem(BF_KEY, yk);
-      } catch (e) {}
-      renderDiaryToday();
-    };
-  }
+  $("dBackfill").hidden = true;
   syncNotices();
 }
 $("diaryMore").addEventListener("toggle", () => {

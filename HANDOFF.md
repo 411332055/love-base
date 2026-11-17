@@ -76,7 +76,7 @@
 
 | 功能 | 函式 |
 |---|---|
-| XP、稱號、連續天數、補簽卡 | `dayRecords`、`totalXP`、`streakBonus`、`renderStreak`、`renderHUD`，常數 `TITLES`、`DIARY_XP`、`PHOTO_BONUS`、`DRAW_XP`、`STREAK_STEP` |
+| XP、稱號、連續天數、補簽卡 | `dayRecords`、`totalXP`、`streakBonus`、`renderStreak`、`renderHUD`，常數 `TITLES`、`DIARY_XP`、`DIARY_XP_END`、`PHOTO_BONUS`、`DRAW_XP`、`STREAK_STEP` |
 | 紀念日、生日倒數 | `renderAnniv`、`renderBdays`、`saveBday`，交往日 `LOVE_START` |
 | 每日照片、照片牆 | `renderTodayPhotos`、`renderWall`、`myPhotos`、`subPhotos` |
 | 照片上傳、壓縮 | `savePhoto`、`shrink`、`loadImg`、`uploadQueue`（日記照片排隊上傳） |
@@ -122,4 +122,4 @@
 
 ## 八、改動紀錄
 
-`git log` 有完整紀錄，每一筆的訊息都用中文寫了改了什麼。目前版本號是 `sw.js` 的 `love-base-v11`、`index.html` 的 `?v=11`。
+`git log` 有完整紀錄，每一筆的訊息都用中文寫了改了什麼。目前版本號是 `sw.js` 的 `love-base-v12`、`index.html` 的 `?v=12`。
