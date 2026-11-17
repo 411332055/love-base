@@ -777,43 +777,83 @@ function lbStep(n) {
 }
 $("lbPrev").onclick = () => lbStep(-1);
 $("lbNext").onclick = () => lbStep(1);
-// 手指左右滑切換、往下滑關閉大圖
+// 手指左右滑切換、往下滑關閉大圖（純 GPU 跟手，鎖定單一軸向不卡頓）
 (() => {
   let x0 = null,
-    y0 = 0;
-  const im = $("lbImg");
-  im.addEventListener(
+    y0 = 0,
+    dx = 0,
+    dy = 0,
+    axis = "",
+    raf = 0;
+  const im = $("lbImg"),
+    stage = document.querySelector("#lightbox .stage");
+  function paint() {
+    raf = 0;
+    if (x0 === null) return;
+    if (axis === "y") {
+      const y = Math.max(-30, dy * 0.72),
+        s = Math.max(0.82, 1 - Math.max(0, dy) / 680);
+      im.style.transform = `translate3d(0,${y.toFixed(1)}px,0) scale(${s.toFixed(3)})`;
+      im.style.opacity = Math.max(0.35, 1 - Math.max(0, dy) / 420).toFixed(2);
+    } else if (axis === "x") {
+      im.style.transform = `translate3d(${(dx * 0.45).toFixed(1)}px,0,0)`;
+    }
+  }
+  stage.addEventListener(
     "touchstart",
     (e) => {
+      if (e.touches.length !== 1 || e.target.closest("button")) return;
       x0 = e.touches[0].clientX;
       y0 = e.touches[0].clientY;
+      dx = dy = 0;
+      axis = "";
       im.style.transition = "none";
     },
     { passive: true },
   );
-  im.addEventListener(
+  stage.addEventListener(
     "touchmove",
     (e) => {
       if (x0 === null) return;
-      const dx = e.touches[0].clientX - x0,
-        dy = e.touches[0].clientY - y0;
-      if (dy > 10 && Math.abs(dy) > Math.abs(dx) * 1.2) {
-        im.style.transform = `translate3d(0,${(dy * 0.55).toFixed(0)}px,0) scale(${Math.max(0.86, 1 - dy / 900).toFixed(3)})`;
+      dx = e.touches[0].clientX - x0;
+      dy = e.touches[0].clientY - y0;
+      if (!axis) {
+        if (Math.hypot(dx, dy) < 8) return;
+        axis = Math.abs(dy) > Math.abs(dx) ? "y" : "x";
       }
+      if (!raf) raf = requestAnimationFrame(paint);
     },
     { passive: true },
   );
-  im.addEventListener(
+  stage.addEventListener(
     "touchend",
-    (e) => {
+    () => {
       if (x0 === null) return;
-      const dx = e.changedTouches[0].clientX - x0,
-        dy = e.changedTouches[0].clientY - y0;
       x0 = null;
-      im.style.transition = "transform .18s ease";
-      im.style.transform = "";
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) lbStep(dx < 0 ? 1 : -1);
-      else if (dy > 65 && Math.abs(dy) > Math.abs(dx) * 1.3) closePhoto();
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      if (axis === "x" && Math.abs(dx) > 45) {
+        im.style.transition = "none";
+        im.style.transform = "";
+        im.style.opacity = "";
+        lbStep(dx < 0 ? 1 : -1);
+      } else if (axis === "y" && dy > 55) {
+        im.style.transition = "transform .15s ease-out,opacity .15s ease-out";
+        im.style.transform = "translate3d(0,160px,0) scale(.8)";
+        im.style.opacity = "0";
+        setTimeout(() => {
+          im.style.transition = "none";
+          im.style.transform = "";
+          im.style.opacity = "";
+          closePhoto();
+        }, 145);
+      } else {
+        im.style.transition = "transform .2s cubic-bezier(.22,1,.36,1),opacity .2s ease";
+        im.style.transform = "";
+        im.style.opacity = "";
+      }
     },
     { passive: true },
   );
@@ -3008,12 +3048,18 @@ renderLayoutList();
 function setView(id) {
   const sec = $(id);
   if (!sec || sec.hidden || !CATS.some((c) => c.secs.includes(id))) id = "today";
+  const allSecs = CATS.flatMap((x) => catSecs(x)),
+    oldIdx = allSecs.indexOf(view),
+    newIdx = allSecs.indexOf(id),
+    dir = oldIdx >= 0 && newIdx >= 0 && oldIdx !== newIdx ? (newIdx > oldIdx ? "r" : "l") : "";
   view = id;
   const c = CATS.find((x) => x.secs.includes(id));
   lastSub[c.id] = id;
   document.documentElement.dataset.view = c.id;
   document.querySelectorAll(".wrap>section").forEach((x) => {
     const on = x.id === id;
+    if (on && dir) x.dataset.dir = dir;
+    else delete x.dataset.dir;
     x.classList.toggle("current", on);
     x.classList.toggle("open", on);
   });
