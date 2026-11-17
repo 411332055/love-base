@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=29">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=30">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -14,7 +14,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1117">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap">
-<link rel="stylesheet" href="style.css?v=29">
+<link rel="stylesheet" href="style.css?v=30">
 </head>
 <body>
 
@@ -68,7 +68,10 @@
     </div>
     <div class="hug" id="hugCard" hidden>
       <div id="hugState" style="display:flex;flex-direction:column;gap:8px"></div>
-      <button class="btn ghost" type="button" id="hugOpen">🤗 討抱抱</button>
+      <div class="row" style="gap:8px">
+        <button class="btn ghost" type="button" id="hugOpen">🤗 討抱抱</button>
+        <a class="btn ghost" id="otdBtn" href="#onThisDay" hidden style="text-decoration:none;font-size:13px;padding:6px 14px">🕰️ 一週前的今天</a>
+      </div>
       <form class="wishform" id="hugForm" autocomplete="off" hidden>
         <input id="hugText" maxlength="40" placeholder="今天怎麼了（可不填）" aria-label="想對對方說的話">
         <button class="btn" type="submit" id="hugSave">送出</button>
@@ -78,7 +81,6 @@
     </div>
     <div class="todo" id="todoCard"></div>
     <div class="streak" id="streak"></div>
-    <div class="entries" id="todayFlashback" hidden></div>
   </section>
 
   <section id="quests">
@@ -337,7 +339,7 @@
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=29" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=30" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -363,6 +365,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=29"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>

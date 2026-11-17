@@ -1704,8 +1704,8 @@ bindForm(
   },
 );
 
-// 回憶：一週前、一個月前、一年前的今天（同時顯示在「今天」首頁與「回憶 → 回顧」）
-function onThisDayHtml() {
+// 回憶：一週前、一個月前、一年前的今天（主頁顯示小按鈕，點了跳到「回憶 → 回顧」）
+function onThisDayHits() {
   const t = today(),
     y = new Date(t.getFullYear() - 1, t.getMonth(), t.getDate()),
     m = new Date(t.getFullYear(), t.getMonth() - 1, t.getDate());
@@ -1715,7 +1715,7 @@ function onThisDayHtml() {
     ["一週前的今天", addDays(t, -7)],
   ];
   const allPh = calAllPhotos();
-  const hits = slots
+  return slots
     .filter((x) => x[1])
     .map(([label, d]) => {
       const k = key(d);
@@ -1725,39 +1725,40 @@ function onThisDayHtml() {
       return [label, k, es, ps];
     })
     .filter(([, , es, ps]) => es.length || ps.length);
-  return hits
-    .map(
-      ([label, k, es, ps]) =>
-        `<article class="entry"><header><b>🕰️ ${label}</b><span>${esc(k)}</span></header>` +
-        `${es
-          .map(
-            (e) =>
-              `<div>${byChip(e.by)}${e.happy ? ` <span class="edited">⭐ ${esc(e.happy)}/10</span>` : ""}</div>` +
-              `<dl>${[
-                ["⛅ 心情", e.mood],
-                ["🍜 吃了", e.food],
-                ["🤪 最好笑", e.funny],
-                ["💞 想對你說", e.say],
-              ]
-                .filter((r) => r[1])
-                .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
-                .join("")}</dl>`,
-          )
-          .join("")}` +
-        `${ps.length ? `<div class="wall-grid">${ps.map((p) => photoBtn(p, "")).join("")}</div>` : ""}</article>`,
-    )
-    .join("");
 }
 function renderOnThisDay() {
-  const h = onThisDayHtml();
-  $("onThisDay").innerHTML = h || '<div class="empty">一週前、一個月前、一年前的今天寫過日記或傳過照片，就會出現在這裡。</div>';
+  const hits = onThisDayHits();
+  $("onThisDay").innerHTML = hits.length
+    ? hits
+        .map(
+          ([label, k, es, ps]) =>
+            `<article class="entry"><header><b>🕰️ ${label}</b><span>${esc(k)}</span></header>` +
+            `${es
+              .map(
+                (e) =>
+                  `<div>${byChip(e.by)}${e.happy ? ` <span class="edited">⭐ ${esc(e.happy)}/10</span>` : ""}</div>` +
+                  `<dl>${[
+                    ["⛅ 心情", e.mood],
+                    ["🍜 吃了", e.food],
+                    ["🤪 最好笑", e.funny],
+                    ["💞 想對你說", e.say],
+                  ]
+                    .filter((r) => r[1])
+                    .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
+                    .join("")}</dl>`,
+              )
+              .join("")}` +
+            `${ps.length ? `<div class="wall-grid">${ps.map((p) => photoBtn(p, "")).join("")}</div>` : ""}</article>`,
+        )
+        .join("")
+    : '<div class="empty">一週前、一個月前、一年前的今天寫過日記或傳過照片，就會出現在這裡。</div>';
 }
 function renderTodayFlashback() {
-  const box = $("todayFlashback");
-  if (!box) return;
-  const h = onThisDayHtml();
-  box.innerHTML = h;
-  box.hidden = !h;
+  const btn = $("otdBtn");
+  if (!btn) return;
+  const hits = onThisDayHits();
+  btn.hidden = !hits.length;
+  if (hits.length) btn.textContent = "🕰️ " + hits[0][0];
 }
 function renderChart() {
   const box = $("hChart"),
