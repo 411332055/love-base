@@ -622,7 +622,12 @@ function renderWall() {
     $("wallMore").hidden = true;
     return;
   }
-  const days = [...new Set(photos.map((p) => p.date))].sort().reverse();
+  const byDay = new Map();
+  photos.forEach((p) => {
+    if (!byDay.has(p.date)) byDay.set(p.date, []);
+    byDay.get(p.date).push(p);
+  });
+  const days = [...byDay.keys()].sort().reverse();
   const wk = "日一二三四五六";
   w.innerHTML = days
     .map((d) => {
@@ -630,8 +635,8 @@ function renderWall() {
       const dt = new Date(y, m - 1, dd);
       return (
         `<div class="wall-day"><h3>${m}/${dd}（${wk[dt.getDay()]}）</h3>` +
-        `<div class="wall-grid">${photos
-          .filter((p) => p.date === d)
+        `<div class="wall-grid">${byDay
+          .get(d)
           .map((p) => photoBtn(p, ""))
           .join("")}</div></div>`
       );
@@ -1286,6 +1291,10 @@ function renderHearts() {
 }
 // 填寫時框框自動變高
 function grow(t) {
+  if (!t.value) {
+    if (t.style.height) t.style.height = "";
+    return;
+  }
   t.style.height = "auto";
   if (t.scrollHeight > 0) t.style.height = t.scrollHeight + 2 + "px";
   else t.style.height = "";
@@ -1410,8 +1419,8 @@ fetch("questions.json", { cache: "no-cache" })
   .then((j) => {
     if (j) {
       MONTHLY = j;
-      renderDraw();
-      if (typeof renderTodo === "function") renderTodo();
+      renderVer++;
+      renderOpen();
     }
   })
   .catch(() => {});
@@ -1451,15 +1460,28 @@ function shownRound() {
   const r = curRound();
   return r && pairOf(r.id).length < need() ? r : null;
 }
+let _pairsMap = null;
 function pairOf(id) {
-  const seen = new Map();
-  store.answers
-    .filter((a) => a.round === id)
-    .sort(byAt)
-    .forEach((a) => {
-      if (!seen.has(a.by)) seen.set(a.by, a);
+  if (!_pairsMap) {
+    _pairsMap = new Map();
+    const byRound = new Map();
+    store.answers.forEach((a) => {
+      if (!byRound.has(a.round)) byRound.set(a.round, []);
+      byRound.get(a.round).push(a);
     });
-  return [...seen.values()].sort((a, b) => (b.by === myName()) - (a.by === myName()));
+    const me = myName();
+    for (const [rid, list] of byRound) {
+      const seen = new Map();
+      list.sort(byAt).forEach((a) => {
+        if (!seen.has(a.by)) seen.set(a.by, a);
+      });
+      _pairsMap.set(
+        rid,
+        [...seen.values()].sort((a, b) => (b.by === me) - (a.by === me)),
+      );
+    }
+  }
+  return _pairsMap.get(id) || [];
 }
 function renderDraw() {
   const tk = key(today()),
@@ -1918,10 +1940,16 @@ function renderChart() {
     t = today(),
     days = [...Array(30)].map((_, i) => addDays(t, i - 29)),
     fmt = (d) => d.getMonth() + 1 + "/" + d.getDate();
+  const happyByDay = new Map();
+  entries.forEach((e) => {
+    if (!e.happy) return;
+    if (!happyByDay.has(e.date)) happyByDay.set(e.date, []);
+    happyByDay.get(e.date).push(+e.happy);
+  });
   const pts = days
     .map((d, i) => {
-      const v = entries.filter((e) => e.date === key(d) && e.happy).map((e) => +e.happy);
-      return v.length ? { i, d, v: v.reduce((a, b) => a + b, 0) / v.length } : null;
+      const v = happyByDay.get(key(d));
+      return v ? { i, d, v: v.reduce((a, b) => a + b, 0) / v.length } : null;
     })
     .filter(Boolean);
   if (pts.length < 2) {
@@ -2093,12 +2121,30 @@ $("gachaBtn").onclick = () => {
 // 月曆：照片牆只載入最近幾十張，所以看哪個月就另外抓那個月的照片
 let calMonth = key(today()).slice(0, 7),
   calDay = key(today()),
-  calPhotos = [];
+  calPhotos = [],
+  _allPh = null,
+  _phRef = null,
+  _calPhRef = null,
+  _phLen = -1,
+  _calPhLen = -1;
 const calLoaded = new Set();
 function calAllPhotos() {
+  if (
+    _allPh &&
+    _phRef === photos &&
+    _calPhRef === calPhotos &&
+    _phLen === photos.length &&
+    _calPhLen === calPhotos.length
+  )
+    return _allPh;
   const m = new Map();
   [...calPhotos, ...photos].forEach((p) => m.set(p.id, p));
-  return [...m.values()];
+  _phRef = photos;
+  _calPhRef = calPhotos;
+  _phLen = photos.length;
+  _calPhLen = calPhotos.length;
+  _allPh = [...m.values()];
+  return _allPh;
 }
 function loadCalPhotos(m) {
   if (!db || calLoaded.has(m)) return;
@@ -2112,10 +2158,8 @@ function loadCalPhotos(m) {
       calPhotos = calPhotos
         .filter((p) => !ids.has(p.id))
         .concat(s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => !p.trashed));
-      renderDiaryToday();
-      renderTodayFlashback();
+      renderVer++;
       renderOpen();
-      if ($("diaryMore").open) renderEntries();
     })
     .catch(() => {
       calLoaded.delete(m);
@@ -2124,6 +2168,7 @@ function loadCalPhotos(m) {
 }
 function renderCalendar() {
   loadCalPhotos(calMonth);
+  $("diaryN").textContent = `${entries.length} 篇`;
   const [y, m] = calMonth.split("-").map(Number),
     t = today(),
     tk = key(t),
@@ -2131,6 +2176,8 @@ function renderCalendar() {
   const offset = dow(new Date(y, m - 1, 1)),
     count = new Date(y, m, 0).getDate(),
     ps = calAllPhotos(),
+    diaryDays = new Set(entries.map((e) => e.date)),
+    photoDays = new Set(ps.map((p) => p.date)),
     together = new Set(togetherDays());
   const earliest = [key(LOVE_START).slice(0, 7), ...entries.map((e) => String(e.date).slice(0, 7))].sort()[0];
   $("calTitle").textContent = `${y} 年 ${m} 月`;
@@ -2140,8 +2187,8 @@ function renderCalendar() {
   for (let d = 1; d <= count; d++) {
     const k = calMonth + "-" + pad(d);
     const marks = [
-      [entries.some((e) => e.date === k), "diary", "日記"],
-      [ps.some((p) => p.date === k), "photo", "照片"],
+      [diaryDays.has(k), "diary", "日記"],
+      [photoDays.has(k), "photo", "照片"],
       [together.has(k), "task", "一起完成"],
     ].filter((x) => x[0]);
     h +=
@@ -2696,6 +2743,7 @@ function subPhotoTrash() {
     .onSnapshot(
       (s) => {
         trash.photos = s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => p.trashed);
+        renderVer++;
         renderOpen();
         purgeExpired();
       },
@@ -3229,41 +3277,63 @@ function activateCat(cid, noScroll) {
   openFor(id, noScroll);
   history.replaceState(null, "", "#" + id);
 }
-let tabDragTimer = 0,
-  pendingCat = null;
+// 拖曳選單時頁面是在手指移動中切換的，iPhone 只在手指放開時才允許震動，所以放開時補震一下
+let dragFrom = null,
+  tabDragTimer = 0,
+  pendingCat = null,
+  tbRect = null,
+  tbCats = null,
+  tbIdx = -1,
+  tbRaf = 0,
+  tbX = 0;
+$("tabBar").addEventListener(
+  "touchstart",
+  () => {
+    dragFrom = view;
+    tbRect = $("tabBar").getBoundingClientRect();
+    tbCats = CATS.filter((x) => catSecs(x).length);
+    tbIdx = -1;
+  },
+  { passive: true },
+);
 $("tabBar").addEventListener(
   "touchmove",
   (ev) => {
     const t = ev.touches[0];
     if (!t) return;
     ev.preventDefault();
-    const tb = $("tabBar"),
-      r = tb.getBoundingClientRect(),
-      visCats = CATS.filter((x) => catSecs(x).length),
-      n = visCats.length || 1,
-      w = (r.width - 10) / n,
-      pos = Math.max(0, Math.min(n - 1, (t.clientX - r.left - 5 - w / 2) / w)),
-      idx = Math.max(0, Math.min(n - 1, Math.floor((t.clientX - r.left - 5) / w)));
-    tb.classList.add("dragging");
-    tb.style.setProperty("--tab-i", pos.toFixed(3));
-    const c = visCats[idx];
-    if (c) {
-      tb.querySelectorAll("a[data-c]").forEach((a) => a.setAttribute("aria-current", a.dataset.c === c.id));
-      if (pendingCat !== c.id) {
-        pendingCat = c.id;
-        clearTimeout(tabDragTimer);
-        tabDragTimer = setTimeout(() => {
-          tabDragTimer = 0;
-          if (pendingCat) activateCat(pendingCat, true);
-        }, 50);
+    tbX = t.clientX;
+    if (tbRaf) return;
+    tbRaf = requestAnimationFrame(() => {
+      tbRaf = 0;
+      const tb = $("tabBar"),
+        r = tbRect || (tbRect = tb.getBoundingClientRect()),
+        visCats = tbCats || (tbCats = CATS.filter((x) => catSecs(x).length)),
+        n = visCats.length || 1,
+        w = (r.width - 10) / n,
+        pos = Math.max(0, Math.min(n - 1, (tbX - r.left - 5 - w / 2) / w)),
+        idx = Math.max(0, Math.min(n - 1, Math.floor((tbX - r.left - 5) / w)));
+      tb.classList.add("dragging");
+      tb.style.setProperty("--tab-i", pos.toFixed(3));
+      if (idx !== tbIdx) {
+        tbIdx = idx;
+        const c = visCats[idx];
+        if (c) {
+          tb.querySelectorAll("a[data-c]").forEach((a) => a.setAttribute("aria-current", a.dataset.c === c.id));
+          if (pendingCat !== c.id) {
+            pendingCat = c.id;
+            clearTimeout(tabDragTimer);
+            tabDragTimer = setTimeout(() => {
+              tabDragTimer = 0;
+              if (pendingCat) activateCat(pendingCat, true);
+            }, 45);
+          }
+        }
       }
-    }
+    });
   },
   { passive: false },
 );
-// 拖曳選單時頁面是在手指移動中切換的，iPhone 只在手指放開時才允許震動，所以放開時補震一下
-let dragFrom = null;
-["tabBar", "subNav"].forEach((id) => $(id).addEventListener("touchstart", () => (dragFrom = view), { passive: true }));
 function dragEndTick() {
   if (dragFrom !== null && dragFrom !== view && !navigator.vibrate) {
     lastHaptic = 0;
@@ -3276,6 +3346,13 @@ function dragEndTick() {
     evName,
     () => {
       const moved = dragFrom !== null;
+      if (tbRaf) {
+        cancelAnimationFrame(tbRaf);
+        tbRaf = 0;
+      }
+      tbRect = null;
+      tbCats = null;
+      tbIdx = -1;
       if (tabDragTimer) {
         clearTimeout(tabDragTimer);
         tabDragTimer = 0;
@@ -3294,27 +3371,62 @@ function dragEndTick() {
     { passive: true },
   ),
 );
+let subDragTimer = 0,
+  pendingSub = null,
+  subRect = null,
+  subSecs = null,
+  subIdx = -1,
+  subRaf = 0,
+  subX = 0;
+$("subNav").addEventListener(
+  "touchstart",
+  () => {
+    dragFrom = view;
+    subRect = $("subNav").getBoundingClientRect();
+    const cur = CATS.find((c) => c.secs.includes(view));
+    subSecs = cur ? catSecs(cur) : [];
+    subIdx = -1;
+  },
+  { passive: true },
+);
 $("subNav").addEventListener(
   "touchmove",
   (ev) => {
     const t = ev.touches[0];
     if (!t) return;
     ev.preventDefault();
-    const sub = $("subNav"),
-      r = sub.getBoundingClientRect(),
-      cur = CATS.find((c) => c.secs.includes(view)),
-      secs = catSecs(cur),
-      n = secs.length || 1,
-      w = (r.width - 8) / n,
-      pos = Math.max(0, Math.min(n - 1, (t.clientX - r.left - 4 - w / 2) / w)),
-      idx = Math.max(0, Math.min(n - 1, Math.floor((t.clientX - r.left - 4) / w)));
-    sub.classList.add("dragging");
-    sub.style.setProperty("--sub-i", pos.toFixed(3));
-    const id = secs[idx];
-    if (id && id !== view) {
-      setView(id);
-      history.replaceState(null, "", "#" + id);
-    }
+    subX = t.clientX;
+    if (subRaf) return;
+    subRaf = requestAnimationFrame(() => {
+      subRaf = 0;
+      const sub = $("subNav"),
+        r = subRect || (subRect = sub.getBoundingClientRect()),
+        secs = subSecs || (subSecs = catSecs(CATS.find((c) => c.secs.includes(view)))),
+        n = secs.length || 1,
+        w = (r.width - 8) / n,
+        pos = Math.max(0, Math.min(n - 1, (subX - r.left - 4 - w / 2) / w)),
+        idx = Math.max(0, Math.min(n - 1, Math.floor((subX - r.left - 4) / w)));
+      sub.classList.add("dragging");
+      sub.style.setProperty("--sub-i", pos.toFixed(3));
+      if (idx !== subIdx) {
+        subIdx = idx;
+        const id = secs[idx];
+        if (id) {
+          sub.querySelectorAll("a[data-sub]").forEach((a) => a.setAttribute("aria-current", a.dataset.sub === id));
+          if (pendingSub !== id) {
+            pendingSub = id;
+            clearTimeout(subDragTimer);
+            subDragTimer = setTimeout(() => {
+              subDragTimer = 0;
+              if (pendingSub && pendingSub !== view) {
+                setView(pendingSub);
+                history.replaceState(null, "", "#" + pendingSub);
+              }
+            }, 45);
+          }
+        }
+      }
+    });
   },
   { passive: false },
 );
@@ -3322,6 +3434,22 @@ $("subNav").addEventListener(
   $("subNav").addEventListener(
     evName,
     () => {
+      if (subRaf) {
+        cancelAnimationFrame(subRaf);
+        subRaf = 0;
+      }
+      subRect = null;
+      subSecs = null;
+      subIdx = -1;
+      if (subDragTimer) {
+        clearTimeout(subDragTimer);
+        subDragTimer = 0;
+      }
+      if (pendingSub && pendingSub !== view) {
+        setView(pendingSub);
+        history.replaceState(null, "", "#" + pendingSub);
+      }
+      pendingSub = null;
       dragEndTick();
       const sub = $("subNav");
       if (sub.classList.contains("dragging")) {
@@ -3362,37 +3490,52 @@ function syncFilterBar(el) {
     let active = false,
       lastIdx = -1,
       dragTimer = 0,
-      pendingBtn = null;
+      pendingBtn = null,
+      filRect = null,
+      filBtns = null,
+      filRaf = 0,
+      filX = 0;
     const onMove = (clientX) => {
-      const btns = [...el.querySelectorAll("button")];
-      const n = btns.length;
-      if (n < 2) return;
-      const r = el.getBoundingClientRect();
-      const w = (r.width - 8) / n;
-      const pos = Math.max(0, Math.min(n - 1, (clientX - r.left - 4 - w / 2) / w));
-      const idx = Math.max(0, Math.min(n - 1, Math.floor((clientX - r.left - 4) / w)));
-      el.classList.add("dragging");
-      el.style.setProperty("--fil-n", n);
-      el.style.setProperty("--fil-i", pos.toFixed(3));
-      if (idx !== lastIdx) {
-        lastIdx = idx;
-        btns.forEach((b, i) => b.setAttribute("aria-pressed", String(i === idx)));
-        pendingBtn = btns[idx];
-        clearTimeout(dragTimer);
-        dragTimer = setTimeout(() => {
-          dragTimer = 0;
-          if (pendingBtn) {
-            const b = pendingBtn;
-            pendingBtn = null;
-            b.click();
-          }
-        }, 40);
-      }
+      filX = clientX;
+      if (filRaf) return;
+      filRaf = requestAnimationFrame(() => {
+        filRaf = 0;
+        const btns = filBtns || (filBtns = [...el.querySelectorAll("button")]);
+        const n = btns.length;
+        if (n < 2) return;
+        const r = filRect || (filRect = el.getBoundingClientRect());
+        const w = (r.width - 8) / n;
+        const pos = Math.max(0, Math.min(n - 1, (filX - r.left - 4 - w / 2) / w));
+        const idx = Math.max(0, Math.min(n - 1, Math.floor((filX - r.left - 4) / w)));
+        el.classList.add("dragging");
+        el.style.setProperty("--fil-n", n);
+        el.style.setProperty("--fil-i", pos.toFixed(3));
+        if (idx !== lastIdx) {
+          lastIdx = idx;
+          btns.forEach((b, i) => b.setAttribute("aria-pressed", String(i === idx)));
+          pendingBtn = btns[idx];
+          clearTimeout(dragTimer);
+          dragTimer = setTimeout(() => {
+            dragTimer = 0;
+            if (pendingBtn) {
+              const b = pendingBtn;
+              pendingBtn = null;
+              b.click();
+            }
+          }, 40);
+        }
+      });
     };
     const onEnd = () => {
       if (!active && !el.classList.contains("dragging")) return;
       active = false;
       lastIdx = -1;
+      if (filRaf) {
+        cancelAnimationFrame(filRaf);
+        filRaf = 0;
+      }
+      filRect = null;
+      filBtns = null;
       if (dragTimer) {
         clearTimeout(dragTimer);
         dragTimer = 0;
@@ -3413,6 +3556,8 @@ function syncFilterBar(el) {
       () => {
         active = true;
         dragFrom = view;
+        filRect = el.getBoundingClientRect();
+        filBtns = [...el.querySelectorAll("button")];
       },
       { passive: true },
     );
@@ -3431,6 +3576,8 @@ function syncFilterBar(el) {
     el.addEventListener("pointerdown", (ev) => {
       if (ev.pointerType === "mouse" && ev.button === 0) {
         active = true;
+        filRect = el.getBoundingClientRect();
+        filBtns = [...el.querySelectorAll("button")];
         el.setPointerCapture?.(ev.pointerId);
       }
     });
@@ -4227,7 +4374,7 @@ $("photoCapForm").addEventListener("submit", async (ev) => {
       toast(NOSAVE);
     }
   }
-  renderTodayPhotos();
+  renderAll();
 });
 
 const bonusSyncing = new Set();
@@ -4382,36 +4529,50 @@ $("reviewForm").addEventListener("submit", async (ev) => {
   $("reviewSave").disabled = false;
 });
 
-// 收合中的區塊不重畫，展開時才更新；同一幀內的多次重畫自動合併成一次
+// 收合中的區塊不重畫，展開時且資料有變動才更新；同一幀內的多次重畫自動合併成一次
+let renderVer = 1;
+const renderedVer = {};
 function renderOpen() {
   const open = (id) => $(id).classList.contains("open");
-  if (open("today") || open("ladder") || open("tools")) renderHUD();
-  if (open("today")) {
+  const needRender = (id) => {
+    if (!open(id) || renderedVer[id] === renderVer) return false;
+    renderedVer[id] = renderVer;
+    return true;
+  };
+  if ((open("today") || open("ladder") || open("tools")) && renderedVer._hud !== renderVer) {
+    renderedVer._hud = renderVer;
+    renderHUD();
+  }
+  if (needRender("today")) {
     renderStreak();
     renderToday();
   }
-  if (open("quests")) {
+  if (needRender("quests")) {
     renderQuests();
     renderDiaryToday();
     renderQueue();
     growAll();
+  }
+  if (needRender("photos")) renderWall();
+  if (needRender("calendar")) {
+    renderCalendar();
     if ($("diaryMore").open) renderEntries();
   }
-  if (open("photos")) renderWall();
-  if (open("calendar")) renderCalendar();
-  if (open("wishes")) renderWishes();
-  if (open("draw")) {
+  if (needRender("wishes")) renderWishes();
+  if (needRender("draw")) {
     renderDraw();
     renderCustom();
   }
-  if (open("capsule")) renderCapsules();
-  if (open("memories")) renderMemories();
-  if (open("tools")) renderTrash();
-  if (open("book")) renderBook();
+  if (needRender("capsule")) renderCapsules();
+  if (needRender("memories")) renderMemories();
+  if (needRender("tools")) renderTrash();
+  if (needRender("book")) renderBook();
 }
 let renderRaf = 0;
 function renderAll() {
   _dayRecs = null;
+  _pairsMap = null;
+  renderVer++;
   if (!booted) {
     renderOpen();
     return;
