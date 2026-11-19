@@ -4640,8 +4640,13 @@ function pushDevId(ep) {
   }
   return "s_" + h1.toString(36) + h2.toString(36);
 }
+const DEFAULT_PUSH_URL =
+  "https://script.google.com/macros/s/AKfycbyPCIzLMIvBQhkVTLGxBsjhdOy4QSxTsVPneXfXC3zhIkIZ5sL71C3ZdJiZB-wQVBXROQ/exec";
 function pushCfg() {
   return store.push.find((x) => x.id === "cfg");
+}
+function pushUrl() {
+  return pushCfg()?.url || DEFAULT_PUSH_URL;
 }
 function pushSubs() {
   return store.push.filter((x) => x.id !== "cfg" && x.ep && x.p256dh && x.auth);
@@ -4660,7 +4665,7 @@ async function ensurePushCfg(newUrl) {
   const jwk = await crypto.subtle.exportKey("jwk", kp.privateKey);
   const pub = b64u(concatBytes(new Uint8Array([4]), unb64u(jwk.x), unb64u(jwk.y)));
   const doc = {
-    url: typeof newUrl === "string" ? newUrl : cfg?.url || "",
+    url: typeof newUrl === "string" ? newUrl : cfg?.url || DEFAULT_PUSH_URL,
     pub,
     x: jwk.x,
     y: jwk.y,
@@ -4721,8 +4726,9 @@ async function encryptPushBody(subDoc, payloadObj) {
   return b64Std(concatBytes(salt, new Uint8Array([0, 0, 16, 0, 65]), asPub, ct));
 }
 async function sendPush(payloadObj, target = "partner") {
-  const cfg = pushCfg();
-  if (!cfg || !cfg.url || !cfg.pub || !cfg.d) return { sent: 0, reason: "no-url" };
+  const cfg = pushCfg(),
+    url = pushUrl();
+  if (!cfg || !url || !cfg.pub || !cfg.d) return { sent: 0, reason: "no-url" };
   const me = myName();
   const targets = pushSubs().filter((s) => (target === "all" ? true : s.by && s.by !== me));
   if (!targets.length) return { sent: 0, reason: "no-sub" };
@@ -4732,7 +4738,7 @@ async function sendPush(payloadObj, target = "partner") {
       try {
         const auth = await vapidAuth(cfg, s.ep);
         const body = await encryptPushBody(s, payloadObj);
-        const res = await fetch(cfg.url, {
+        const res = await fetch(url, {
           method: "POST",
           body: JSON.stringify({ endpoint: s.ep, auth, body }),
         });
@@ -4769,8 +4775,8 @@ async function checkLocalSub() {
 }
 const pushMsg = (t) => ($("pushMsg").textContent = t);
 async function renderPush() {
-  const cfg = pushCfg(),
-    hasUrl = !!(cfg && cfg.url),
+  const url = pushUrl(),
+    hasUrl = !!url,
     subs = pushSubs(),
     ep = await checkLocalSub(),
     mySub = ep ? subs.find((s) => s.ep === ep && s.by === myName()) : null;
@@ -4779,7 +4785,7 @@ async function renderPush() {
   $("pushToggle").className = mySub ? "btn ghost" : "btn";
   $("pushTest").hidden = !subs.length || !hasUrl;
   $("pushUrlSt").textContent = hasUrl ? "✓ 已設定（兩人共用）" : "尚未設定";
-  if (document.activeElement !== $("pushUrl")) $("pushUrl").value = cfg?.url || "";
+  if (document.activeElement !== $("pushUrl")) $("pushUrl").value = url;
   if (!renderPush.inited) {
     renderPush.inited = true;
     $("pushSetup").open = !hasUrl;
