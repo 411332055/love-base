@@ -640,11 +640,7 @@ function renderWall() {
   $("wallMore").hidden = photos.length < photoLimit;
 }
 function renderPhotosAll() {
-  _dayRecs = null;
-  renderQuests();
-  renderToday();
-  renderDiaryToday();
-  renderOpen();
+  renderAll();
 }
 
 function loadImg(file) {
@@ -1021,6 +1017,7 @@ function subPhotos() {
       (s) => {
         pendingSync.photos = !!s.metadata?.hasPendingWrites;
         updateSyncStatus();
+        if (photos.length && typeof s.docChanges === "function" && !s.docChanges().length) return;
         photos = s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => !p.trashed);
         photoErr = "";
         renderPhotosAll();
@@ -4385,11 +4382,21 @@ $("reviewForm").addEventListener("submit", async (ev) => {
   $("reviewSave").disabled = false;
 });
 
-// 收合中的區塊不重畫，展開時才更新
+// 收合中的區塊不重畫，展開時才更新；同一幀內的多次重畫自動合併成一次
 function renderOpen() {
   const open = (id) => $(id).classList.contains("open");
-  if (open("quests")) growAll();
-  if ($("diaryMore").open) renderEntries();
+  if (open("today") || open("ladder") || open("tools")) renderHUD();
+  if (open("today")) {
+    renderStreak();
+    renderToday();
+  }
+  if (open("quests")) {
+    renderQuests();
+    renderDiaryToday();
+    renderQueue();
+    growAll();
+    if ($("diaryMore").open) renderEntries();
+  }
   if (open("photos")) renderWall();
   if (open("calendar")) renderCalendar();
   if (open("wishes")) renderWishes();
@@ -4400,17 +4407,20 @@ function renderOpen() {
   if (open("capsule")) renderCapsules();
   if (open("memories")) renderMemories();
   if (open("tools")) renderTrash();
-  renderBook();
+  if (open("book")) renderBook();
 }
+let renderRaf = 0;
 function renderAll() {
   _dayRecs = null;
-  renderHUD();
-  renderStreak();
-  renderQuests();
-  renderToday();
-  renderDiaryToday();
-  renderOpen();
-  renderQueue();
+  if (!booted) {
+    renderOpen();
+    return;
+  }
+  if (renderRaf) return;
+  renderRaf = requestAnimationFrame(() => {
+    renderRaf = 0;
+    renderOpen();
+  });
 }
 function saveLocal() {
   try {
@@ -4432,9 +4442,16 @@ function loadLocal() {
   } catch (e) {}
 }
 
-$("dSearch").addEventListener("input", renderEntries);
-$("wSearch").addEventListener("input", renderWishes);
-$("lSearch").addEventListener("input", renderLog);
+const debounce = (fn, ms = 120) => {
+  let t = 0;
+  return () => {
+    clearTimeout(t);
+    t = setTimeout(fn, ms);
+  };
+};
+$("dSearch").addEventListener("input", debounce(renderEntries));
+$("wSearch").addEventListener("input", debounce(renderWishes));
+$("lSearch").addEventListener("input", debounce(renderLog));
 $("filter")
   .querySelectorAll("button")
   .forEach(
@@ -4570,11 +4587,20 @@ $("logout").onclick = () => {
       syncDrawMarks();
     }
   };
+  let hasSnap = { done: false, diary: false };
   db.collection("done").onSnapshot(
     { includeMetadataChanges: true },
     (s) => {
       pendingSync.done = !!s.metadata?.hasPendingWrites;
       updateSyncStatus();
+      if (hasSnap.done && typeof s.docChanges === "function" && !s.docChanges().length) {
+        if (!s.metadata?.fromCache) {
+          got.done = true;
+          ready();
+        }
+        return;
+      }
+      hasSnap.done = true;
       done = {};
       Object.keys(store).forEach((c) => (store[c] = []));
       ["wishes", "capsules", "custom"].forEach((c) => (trash[c] = []));
@@ -4604,6 +4630,14 @@ $("logout").onclick = () => {
     (s) => {
       pendingSync.diary = !!s.metadata?.hasPendingWrites;
       updateSyncStatus();
+      if (hasSnap.diary && typeof s.docChanges === "function" && !s.docChanges().length) {
+        if (!s.metadata?.fromCache) {
+          got.diary = true;
+          ready();
+        }
+        return;
+      }
+      hasSnap.diary = true;
       const all = s.docs.map((d) => ({ id: d.id, ...d.data() }));
       entries = all.filter((e) => !e.trashed);
       trash.diary = all.filter((e) => e.trashed);
