@@ -3017,15 +3017,16 @@ function renderNav() {
   });
   sub.style.setProperty("--sub-n", secs.length || 1);
   if (!sub.classList.contains("dragging")) sub.style.setProperty("--sub-i", Math.max(0, secs.indexOf(view)));
+  const visCats = CATS.filter((x) => catSecs(x).length),
+    tb = $("tabBar"),
+    draggingTb = tb.classList.contains("dragging");
   document.querySelectorAll("[data-c]").forEach((a) => {
     const c = CATS.find((x) => x.id === a.dataset.c);
     a.hidden = !catSecs(c).length;
-    a.setAttribute("aria-current", c === cur);
+    if (!draggingTb || !a.closest("#tabBar")) a.setAttribute("aria-current", c === cur);
   });
-  const visCats = CATS.filter((x) => catSecs(x).length),
-    tb = $("tabBar");
   tb.style.setProperty("--tab-n", visCats.length || 1);
-  if (!tb.classList.contains("dragging")) tb.style.setProperty("--tab-i", Math.max(0, visCats.indexOf(cur)));
+  if (!draggingTb) tb.style.setProperty("--tab-i", Math.max(0, visCats.indexOf(cur)));
 }
 function applyLayout() {
   layout.order.forEach((id) => {
@@ -3190,16 +3191,17 @@ function setView(id) {
   renderNav();
   renderOpen();
 }
-function openFor(id) {
+function openFor(id, noScroll) {
   const el = $(id),
     sec = el && el.closest("section");
   if (!sec) {
     setView("today");
-    scrollTo(0, 0);
+    if (!noScroll) scrollTo(0, 0);
     return;
   }
   setView(sec.id);
   if (el.tagName === "DETAILS") el.open = true;
+  if (noScroll) return;
   if (el === sec) scrollTo(0, 0);
   else el.scrollIntoView({ block: "start" });
 }
@@ -3214,34 +3216,47 @@ document.addEventListener("click", (ev) => {
   history.pushState(null, "", "#" + id);
 });
 window.addEventListener("popstate", () => openFor(location.hash.slice(1) || "today"));
-function activateCat(cid) {
+function activateCat(cid, noScroll) {
   const c = CATS.find((x) => x.id === cid);
   if (!c) return;
   const secs = catSecs(c);
   if (!secs.length) return;
   if (CATS.find((x) => x.secs.includes(view)) === c) return;
   const id = secs.includes(lastSub[c.id]) ? lastSub[c.id] : secs[0];
-  openFor(id);
+  openFor(id, noScroll);
   history.replaceState(null, "", "#" + id);
 }
+let tabDragTimer = 0,
+  pendingCat = null;
 $("tabBar").addEventListener(
   "touchmove",
   (ev) => {
     const t = ev.touches[0];
     if (!t) return;
+    ev.preventDefault();
     const tb = $("tabBar"),
       r = tb.getBoundingClientRect(),
       visCats = CATS.filter((x) => catSecs(x).length),
       n = visCats.length || 1,
       w = (r.width - 10) / n,
-      pos = Math.max(0, Math.min(n - 1, (t.clientX - r.left - 5 - w / 2) / w));
+      pos = Math.max(0, Math.min(n - 1, (t.clientX - r.left - 5 - w / 2) / w)),
+      idx = Math.max(0, Math.min(n - 1, Math.floor((t.clientX - r.left - 5) / w)));
     tb.classList.add("dragging");
     tb.style.setProperty("--tab-i", pos.toFixed(3));
-    const el = document.elementFromPoint(t.clientX, t.clientY),
-      a = el && el.closest("#tabBar a[data-c]");
-    if (a) activateCat(a.dataset.c);
+    const c = visCats[idx];
+    if (c) {
+      tb.querySelectorAll("a[data-c]").forEach((a) => a.setAttribute("aria-current", a.dataset.c === c.id));
+      if (pendingCat !== c.id) {
+        pendingCat = c.id;
+        clearTimeout(tabDragTimer);
+        tabDragTimer = setTimeout(() => {
+          tabDragTimer = 0;
+          if (pendingCat) activateCat(pendingCat, true);
+        }, 50);
+      }
+    }
   },
-  { passive: true },
+  { passive: false },
 );
 // 拖曳選單時頁面是在手指移動中切換的，iPhone 只在手指放開時才允許震動，所以放開時補震一下
 let dragFrom = null;
@@ -3257,12 +3272,21 @@ function dragEndTick() {
   $("tabBar").addEventListener(
     evName,
     () => {
+      const moved = dragFrom !== null;
+      if (tabDragTimer) {
+        clearTimeout(tabDragTimer);
+        tabDragTimer = 0;
+      }
+      if (pendingCat) activateCat(pendingCat, true);
+      pendingCat = null;
+      const changed = moved && dragFrom !== view;
       dragEndTick();
       const tb = $("tabBar");
       if (tb.classList.contains("dragging")) {
         tb.classList.remove("dragging");
         renderNav();
       }
+      if (changed) scrollTo(0, 0);
     },
     { passive: true },
   ),
