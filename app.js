@@ -5063,6 +5063,10 @@ showLastBackup();
 restoreDraft();
 openFor(location.hash.slice(1) || "today");
 booted = true;
+setTimeout(() => {
+  document.documentElement.classList.remove("boot-in");
+  if ($("splash")) $("splash").hidden = true;
+}, 1100);
 
 /* ===== 伺服器連線（Firebase） ===== */
 const ROOM_KEY = "love-base-room";
@@ -5074,6 +5078,8 @@ function getRoom() {
   }
 }
 function showGate(msg) {
+  if ($("splash")) $("splash").hidden = true;
+  document.documentElement.classList.remove("boot-in");
   $("gate").hidden = false;
   $("gateMsg").textContent = msg || "";
   $("gateCode").value = getRoom();
