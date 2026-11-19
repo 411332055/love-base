@@ -3305,6 +3305,94 @@ $("subNav").addEventListener(
     { passive: true },
   ),
 );
+
+// 所有 .filter 分段切換槽都支援滑塊動畫與手指／滑鼠左右拖曳切換（同時讓 subNav 與 tabBar 也支援滑鼠拖曳）
+function syncFilterBar(el) {
+  if (!el || el.classList.contains("dragging")) return;
+  const btns = [...el.querySelectorAll("button")];
+  const n = btns.length || 1;
+  const idx = Math.max(
+    0,
+    btns.findIndex((b) => b.getAttribute("aria-pressed") === "true"),
+  );
+  el.style.setProperty("--fil-n", n);
+  el.style.setProperty("--fil-i", idx);
+}
+(() => {
+  const obs = new MutationObserver((list) => {
+    const seen = new Set();
+    for (const m of list) {
+      const el = m.target.nodeType === 1 ? m.target.closest(".filter") : null;
+      if (el && !seen.has(el)) {
+        seen.add(el);
+        syncFilterBar(el);
+      }
+    }
+  });
+  document.querySelectorAll(".filter").forEach((el) => {
+    syncFilterBar(el);
+    obs.observe(el, { attributes: true, childList: true, subtree: true, attributeFilter: ["aria-pressed"] });
+    let active = false;
+    const onMove = (clientX) => {
+      const btns = [...el.querySelectorAll("button")];
+      const n = btns.length;
+      if (n < 2) return;
+      const r = el.getBoundingClientRect();
+      const w = (r.width - 8) / n;
+      const pos = Math.max(0, Math.min(n - 1, (clientX - r.left - 4 - w / 2) / w));
+      const idx = Math.max(0, Math.min(n - 1, Math.floor((clientX - r.left - 4) / w)));
+      el.classList.add("dragging");
+      el.style.setProperty("--fil-n", n);
+      el.style.setProperty("--fil-i", pos.toFixed(3));
+      const targetBtn = btns[idx];
+      if (targetBtn && targetBtn.getAttribute("aria-pressed") !== "true") targetBtn.click();
+    };
+    const onEnd = () => {
+      if (!active && !el.classList.contains("dragging")) return;
+      active = false;
+      dragEndTick();
+      if (el.classList.contains("dragging")) {
+        el.classList.remove("dragging");
+        syncFilterBar(el);
+      }
+    };
+    el.addEventListener(
+      "touchstart",
+      () => {
+        active = true;
+        dragFrom = view;
+      },
+      { passive: true },
+    );
+    el.addEventListener(
+      "touchmove",
+      (ev) => {
+        const t = ev.touches[0];
+        if (!t) return;
+        ev.preventDefault();
+        onMove(t.clientX);
+      },
+      { passive: false },
+    );
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onEnd, { passive: true });
+    el.addEventListener("pointerdown", (ev) => {
+      if (ev.pointerType === "mouse" && ev.button === 0) {
+        active = true;
+        el.setPointerCapture?.(ev.pointerId);
+      }
+    });
+    el.addEventListener("pointermove", (ev) => {
+      if (ev.pointerType === "mouse" && active) onMove(ev.clientX);
+    });
+    el.addEventListener("pointerup", (ev) => {
+      if (ev.pointerType === "mouse") onEnd();
+    });
+    el.addEventListener("pointercancel", (ev) => {
+      if (ev.pointerType === "mouse") onEnd();
+    });
+  });
+})();
 (() => {
   let sx = null,
     sy = 0;
@@ -3314,7 +3402,7 @@ $("subNav").addEventListener(
       if (
         !$("lightbox").hidden ||
         !$("gate").hidden ||
-        ev.target.closest("input,textarea,select,#hearts,#subNav,#tabBar,.chart")
+        ev.target.closest("input,textarea,select,#hearts,#subNav,#tabBar,.filter,.chart")
       ) {
         sx = null;
         return;
