@@ -5066,7 +5066,7 @@ booted = true;
 setTimeout(() => {
   document.documentElement.classList.remove("boot-in");
   if ($("splash")) $("splash").hidden = true;
-}, 1100);
+}, 1750);
 
 /* ===== 伺服器連線（Firebase） ===== */
 const ROOM_KEY = "love-base-room";
