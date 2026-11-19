@@ -4642,6 +4642,8 @@ function pushDevId(ep) {
 }
 const DEFAULT_PUSH_URL =
   "https://script.google.com/macros/s/AKfycbyPCIzLMIvBQhkVTLGxBsjhdOy4QSxTsVPneXfXC3zhIkIZ5sL71C3ZdJiZB-wQVBXROQ/exec";
+const BADGE_ICON =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAC90lEQVR42u2d4W30IAyGOwIjZISMkBEyQkbICNmgIzBCRsgIGSEjMILbU/lxul5ajrMNJq8lS590Uj/yPgQMBPuDiD7g5RwiAAAAaHhHROP3vxciWoloe+K33yYi6gXb0cf/Yzlpwxp/G2ObTQNwRDQT0U6v20FEnogGhnYM8W8dGe3Y4zM4SwBc7EWBeOyIvfbVdkyZoj+zEJ/J1Q5gZBQ+FwSn8M9AjLUC8KRj20lPdPE3DfM1AdB88Pue2D9MrkG5DRvHkMQBQFv8RwglxL+HUBSAp7K2Z0ZZ1QxH7064sB8btQG4gq99jRZy5wOrQ0+N5rUAdND61DoNAOj9jG9BDgCM/X/PBaIAEPkwR0QYfgoPQ68COKBv0qahCAAHbZPNSQAYoGuyDRIAJuiabJMEgAW6JtsCAAAAAAAAAAAAAA0BmKFrss1YiDW4EMNBTLp1UptxsDQT2w3doO2/tkkCQCTEGAHlAMBEzDgB40yY34LGofwKnU9t1QCAc4Fzm7S+jMMwxDD84NNEXvOaALAqfmP1y/V5OhZlmYsvLgBYE2TG/pw3ZPAWvHlNieMSNHp/4Ut6V46IfA23JLuLrgsCRz4JrkvaV9wlXaiym/L7hcTfa0xV0F8IQF8jgKt8OTFzaiaRrqbl7eqVWy+pfEEt3qQ5LOQLKpm9RDrkFEmlJpmyrKUblaOUTtJJ6Vo4PZskNdLImGg5Mpql9dFKW2lxv8hraKOZpNRD/PKZcy3sGS2ampRI1ztddcKtKXf0VNk6IZQQv3Ty7loWa0E4X3XV2dNd4W3sXTIvtKX09b7lSMdK/QCteaHYeG+hgEMnPCTtWnUBrFfQWKzH9y2UMBmYzhUOpkIQl6whc4tQPt8Q/7N0lNNKEZ9X34aqe73VKkouMVz1tfd662WszsqkBMmTKwD4vY2xP4SXvcVnsVwEzd0VcHBWn8N6Jbreas9HKUMAgAMAAMAhAgAAABwAAAAOAAAABwAAgAMAAMABAADgAAAAcAX/AvfzHzAnP3JsAAAAAElFTkSuQmCC";
 function pushCfg() {
   return store.push.find((x) => x.id === "cfg");
 }
@@ -4900,7 +4902,7 @@ $("pushToggle").onclick = async () => {
       .showNotification("🔔 戀愛基地通知已開啟", {
         body: `${myName()}的${dev}已經準備好接收對方的新動態囉 💞`,
         icon: "./icon-192.png",
-        badge: "./icon-192.png",
+        badge: BADGE_ICON,
         tag: "love-base-welcome",
       })
       .catch(() => {});
