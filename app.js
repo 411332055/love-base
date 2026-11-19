@@ -4895,8 +4895,15 @@ $("pushToggle").onclick = async () => {
         pub: cfg.pub,
         at: nowIso(),
       };
+    const stale = pushSubs().filter((x) => x.id !== id && x.by === myName() && x.dev === dev);
+    stale.forEach((x) =>
+      xRef("push", x.id)
+        .delete()
+        .catch(() => {}),
+    );
     await commit(xRef("push", id).set(doc));
-    store.push = store.push.filter((x) => x.id !== id).concat([{ id, ...doc }]);
+    const staleIds = new Set(stale.map((x) => x.id));
+    store.push = store.push.filter((x) => x.id !== id && !staleIds.has(x.id)).concat([{ id, ...doc }]);
     curSubEp = j.endpoint;
     reg
       .showNotification("🔔 戀愛基地通知已開啟", {
