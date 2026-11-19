@@ -1695,21 +1695,27 @@ function renderWishes() {
     return;
   }
   const cnt = (c) => store.wishes.filter((w) => (w.cat || "") === c && !w.done).length;
-  $("wCatFilter").innerHTML = [
+  const cats = [
     ["all", "全部", store.wishes.filter((w) => !w.done).length],
     ...Object.entries(WCATS).map(([c, l]) => [c, l, cnt(c)]),
-  ]
-    .map(([c, l, n]) => `<button type="button" data-wc="${c}" aria-pressed="${wFilter === c}">${l} ${n}</button>`)
-    .join("");
-  $("wCatFilter")
-    .querySelectorAll("button")
-    .forEach(
+  ];
+  const wf = $("wCatFilter");
+  if (wf.children.length !== cats.length) {
+    wf.innerHTML = cats.map(([c]) => `<button type="button" data-wc="${c}"></button>`).join("");
+    wf.querySelectorAll("button").forEach(
       (b) =>
         (b.onclick = () => {
           wFilter = b.dataset.wc;
           renderWishes();
         }),
     );
+  }
+  cats.forEach(([c, l, n], i) => {
+    const b = wf.children[i];
+    const txt = `${l} ${n}`;
+    if (b.textContent !== txt) b.textContent = txt;
+    b.setAttribute("aria-pressed", String(wFilter === c));
+  });
   const wishes = store.wishes.filter(
     (w) =>
       (wFilter === "all" || (w.cat || "") === wFilter) &&
@@ -3356,7 +3362,10 @@ function syncFilterBar(el) {
   document.querySelectorAll(".filter").forEach((el) => {
     syncFilterBar(el);
     obs.observe(el, { attributes: true, childList: true, subtree: true, attributeFilter: ["aria-pressed"] });
-    let active = false;
+    let active = false,
+      lastIdx = -1,
+      dragTimer = 0,
+      pendingBtn = null;
     const onMove = (clientX) => {
       const btns = [...el.querySelectorAll("button")];
       const n = btns.length;
@@ -3368,12 +3377,34 @@ function syncFilterBar(el) {
       el.classList.add("dragging");
       el.style.setProperty("--fil-n", n);
       el.style.setProperty("--fil-i", pos.toFixed(3));
-      const targetBtn = btns[idx];
-      if (targetBtn && targetBtn.getAttribute("aria-pressed") !== "true") targetBtn.click();
+      if (idx !== lastIdx) {
+        lastIdx = idx;
+        btns.forEach((b, i) => b.setAttribute("aria-pressed", String(i === idx)));
+        pendingBtn = btns[idx];
+        clearTimeout(dragTimer);
+        dragTimer = setTimeout(() => {
+          dragTimer = 0;
+          if (pendingBtn) {
+            const b = pendingBtn;
+            pendingBtn = null;
+            b.click();
+          }
+        }, 40);
+      }
     };
     const onEnd = () => {
       if (!active && !el.classList.contains("dragging")) return;
       active = false;
+      lastIdx = -1;
+      if (dragTimer) {
+        clearTimeout(dragTimer);
+        dragTimer = 0;
+      }
+      if (pendingBtn) {
+        const b = pendingBtn;
+        pendingBtn = null;
+        b.click();
+      }
       dragEndTick();
       if (el.classList.contains("dragging")) {
         el.classList.remove("dragging");
