@@ -3112,7 +3112,7 @@ const R = document.documentElement;
 function syncThemeMeta() {
   const t = R.dataset.theme,
     dark = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches),
-    c = dark ? "#110a14" : "#fff5f8";
+    c = dark ? "#0c080d" : "#f6eff3";
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
     m.removeAttribute("media");
     m.content = c;
