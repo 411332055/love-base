@@ -320,7 +320,7 @@ details.month[open]>.month-body,details.rules[open]>.custom,details.rules[open]>
 @media print{
   :root,:root[data-theme="dark"],:root:not([data-theme="light"]){--bg:#fff;--surface:#fff;--sunk:#f4ebef;--line:#ead9e1;--fg:#2a1b25;--muted:#7c6672;--pink:#e2457a;--pink-soft:#fde3ec;--gold:#c08a12;--gold-soft:#fbefcf;--ink:#fff;color-scheme:light}
   body{padding-left:0!important}
-  .side,.tabbar,.subnav,.toast,#bookTools{display:none!important}
+  .side,.tabbar,.subnav,.toast,#bookTools,#bookMode{display:none!important}
   .wrap{zoom:1!important;max-width:none}
   .wrap>*:not(#book){display:none!important}
   #book .sub{display:none}

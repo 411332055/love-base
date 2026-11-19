@@ -3890,27 +3890,124 @@ $("moveRoomBtn").onclick = async () => {
   }
 };
 
-// 年度回憶書：從 11/4 起算，每滿一年是一冊
+// 回憶書：每月總結與年度總結（年度從 11/4 起算，每滿一年是一冊）
+let bookMode = "month";
 function bookCount() {
   let n = 1;
   while (new Date(LOVE_START.getFullYear() + n, LOVE_START.getMonth(), LOVE_START.getDate()) <= today()) n++;
   return n;
 }
-function renderBook() {
-  if (!$("book").classList.contains("open")) return;
-  const pick = $("bookYear"),
-    years = bookCount(),
-    keep = +pick.value || years;
+function bookMonths() {
+  const list = [];
+  const start = new Date(LOVE_START.getFullYear(), LOVE_START.getMonth(), 1);
+  const nowM = key(today()).slice(0, 7);
+  for (let d = start; key(d).slice(0, 7) <= nowM; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+    list.push(key(d).slice(0, 7));
+  }
+  if (!list.length) list.push(nowM);
+  return list.reverse();
+}
+function bookSay(e) {
+  return (
+    e.say || (e.s1 || e.s2 ? `今天雖然${e.s1 || "＿＿"}，但因為有你${e.s2 || "＿＿"}。` : "") || e.mood || e.funny || ""
+  );
+}
+function bookSummaryData(es, ps, inR) {
+  const rated = es.filter((e) => e.happy);
+  const avg = rated.length ? (rated.reduce((s, e) => s + +e.happy, 0) / rated.length).toFixed(1) : "—";
+  const doneWishes = store.wishes.filter((w) => w.done && inR(w.doneDate));
+  const tiles = [
+    ["日記", es.length + " 篇"],
+    ["照片", ps.length + " 張"],
+    ["一起完成", togetherDays().filter(inR).length + " 天"],
+    ["達成願望", doneWishes.length + " 個"],
+    ["抽題過關", store.rounds.filter((r) => inR(dayOf(r.at)) && pairOf(r.id).length >= need()).length + " 題"],
+    ["抱抱", store.hugs.filter((h) => h.backAt && inR(dayOf(h.backAt))).length + " 次"],
+    ["回應日記", store.replies.filter((r) => r.kind === "text" && es.some((e) => e.id === r.entry)).length + " 則"],
+    ["平均幸福", avg],
+  ];
+  const best = [...rated].sort((x, y) => y.happy - x.happy || String(y.date).localeCompare(String(x.date)))[0];
+  return { tiles, best, doneWishes };
+}
+function renderMonthBook() {
+  const pick = $("bookMonth");
+  const months = bookMonths();
+  const keep = months.includes(pick.value) ? pick.value : months[0];
+  pick.innerHTML = months
+    .map((m) => {
+      const [yy, mm] = m.split("-").map(Number);
+      return `<option value="${m}">${yy} 年 ${mm} 月</option>`;
+    })
+    .join("");
+  pick.value = keep;
+  const [yy, mm] = keep.split("-").map(Number);
+  const a = key(new Date(yy, mm - 1, 1));
+  const b = key(new Date(yy, mm, 0));
+  const inR = (k) => String(k).startsWith(keep);
+  loadCalPhotos(keep);
+  const es = entries.filter((e) => inR(e.date)).sort((x, y) => String(x.date).localeCompare(String(y.date)));
+  const ps = calAllPhotos()
+    .filter((p) => inR(p.date))
+    .sort(byAt);
+  const { tiles, best, doneWishes } = bookSummaryData(es, ps, inR);
+  const hasActivity =
+    es.length || ps.length || doneWishes.length || tiles.some(([k, v]) => k !== "平均幸福" && parseInt(v, 10) > 0);
+  if (!hasActivity) {
+    $("bookBody").innerHTML = '<div class="empty">這個月還沒有回憶，寫下第一篇日記吧。</div>';
+    return;
+  }
+  const photosHtml = ps.length
+    ? `<article class="entry book-m"><header><b>📸 這個月的照片</b><span>共 ${ps.length} 張</span></header>` +
+      `<div class="wall-grid">${ps
+        .slice(0, 6)
+        .map((p) => photoBtn(p, ""))
+        .join("")}</div></article>`
+    : "";
+  const quotes = [];
+  for (const n of NAMES) {
+    const mine = es.filter((e) => e.by === n && bookSay(e)).sort((x, y) => (y.happy || 0) - (x.happy || 0));
+    quotes.push(...mine.slice(0, 2));
+  }
+  const extraQuotes = es.filter((e) => bookSay(e) && !quotes.includes(e)).slice(-2);
+  const shownQuotes = [...quotes, ...extraQuotes].slice(0, 4);
+  const quotesHtml = shownQuotes.length
+    ? `<article class="entry book-m"><header><b>💬 這個月寫給彼此的話</b></header>` +
+      shownQuotes
+        .map((e) => `<blockquote>${esc(bookSay(e))}<br><small>${esc(e.by || "")} · ${esc(e.date)}</small></blockquote>`)
+        .join("") +
+      `</article>`
+    : "";
+  const funs = es.filter((e) => e.funny).slice(-3);
+  const funsHtml = funs.length
+    ? `<article class="entry book-m"><header><b>🤪 這個月好笑的事</b></header>` +
+      funs.map((e) => `<div>🤪 ${esc(e.funny)} <small>(${esc(e.by || "")} · ${esc(e.date)})</small></div>`).join("") +
+      `</article>`
+    : "";
+  const wishesHtml = doneWishes.length
+    ? `<article class="entry book-m"><header><b>🌠 這個月達成的願望</b><span>${doneWishes.length} 個</span></header>` +
+      doneWishes.map((w) => `<div>✅ ${esc(w.text)} <small>(${esc(w.doneDate || "")})</small></div>`).join("") +
+      `</article>`
+    : "";
+  $("bookBody").innerHTML =
+    `<div class="book-cover"><b>${yy} 年 ${mm} 月</b><span>月底總結</span><span>${a} ～ ${b}</span></div>` +
+    `<div class="stats">${tiles.map(([x, v]) => `<div class="stat"><span>${x}</span><b>${v}</b></div>`).join("")}</div>` +
+    `${best ? `<div class="note">⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(bookSay(best))}</div>` : ""}` +
+    `${photosHtml}${quotesHtml}${funsHtml}${wishesHtml}`;
+}
+function renderYearBook() {
+  const pick = $("bookYear");
+  const years = bookCount();
+  const keep = +pick.value || years;
   pick.innerHTML = [...Array(years)].map((_, i) => `<option value="${i + 1}">第 ${i + 1} 年</option>`).join("");
   pick.value = keep;
-  const y0 = LOVE_START.getFullYear() + keep - 1,
-    m0 = LOVE_START.getMonth(),
-    d0 = LOVE_START.getDate();
-  const from = new Date(y0, m0, d0),
-    to = addDays(new Date(y0 + 1, m0, d0), -1),
-    a = key(from),
-    b = key(to),
-    inR = (k) => String(k) >= a && String(k) <= b;
+  const y0 = LOVE_START.getFullYear() + keep - 1;
+  const m0 = LOVE_START.getMonth();
+  const d0 = LOVE_START.getDate();
+  const from = new Date(y0, m0, d0);
+  const to = addDays(new Date(y0 + 1, m0, d0), -1);
+  const a = key(from);
+  const b = key(to);
+  const inR = (k) => String(k) >= a && String(k) <= b;
   const months = [];
   for (
     let d = new Date(y0, m0, 1);
@@ -3920,42 +4017,24 @@ function renderBook() {
     months.push(key(d).slice(0, 7));
   const nowM = key(today()).slice(0, 7);
   months.filter((m) => m <= nowM).forEach((m) => loadCalPhotos(m));
-  const es = entries.filter((e) => inR(e.date)).sort((x, y) => String(x.date).localeCompare(String(y.date))),
-    ps = calAllPhotos()
-      .filter((p) => inR(p.date))
-      .sort(byAt);
+  const es = entries.filter((e) => inR(e.date)).sort((x, y) => String(x.date).localeCompare(String(y.date)));
+  const ps = calAllPhotos()
+    .filter((p) => inR(p.date))
+    .sort(byAt);
   if (!es.length && !ps.length) {
     $("bookBody").innerHTML = '<div class="empty">這一年還沒有回憶，寫下第一篇日記吧。</div>';
     return;
   }
-  const rated = es.filter((e) => e.happy),
-    avg = rated.length ? (rated.reduce((s, e) => s + +e.happy, 0) / rated.length).toFixed(1) : "—";
   const dayN = Math.round((Math.min(to, today()) - from) / 864e5) + 1;
-  const tiles = [
-    ["日記", es.length + " 篇"],
-    ["照片", ps.length + " 張"],
-    ["一起完成", togetherDays().filter(inR).length + " 天"],
-    ["達成願望", store.wishes.filter((w) => w.done && inR(w.doneDate)).length + " 個"],
-    ["抽題過關", store.rounds.filter((r) => inR(dayOf(r.at)) && pairOf(r.id).length >= need()).length + " 題"],
-    ["抱抱", store.hugs.filter((h) => h.backAt && inR(dayOf(h.backAt))).length + " 次"],
-    ["回應日記", store.replies.filter((r) => r.kind === "text" && es.some((e) => e.id === r.entry)).length + " 則"],
-    ["平均幸福", avg],
-  ];
-  const say = (e) =>
-    e.say ||
-    (e.s1 || e.s2 ? `今天雖然${e.s1 || "＿＿"}，但因為有你${e.s2 || "＿＿"}。` : "") ||
-    e.mood ||
-    e.funny ||
-    "";
-  const best = [...rated].sort((x, y) => y.happy - x.happy || String(y.date).localeCompare(String(x.date)))[0];
+  const { tiles, best } = bookSummaryData(es, ps, inR);
   const pages = months
     .map((m) => {
-      const me = es.filter((e) => e.date.startsWith(m)),
-        mp = ps.filter((p) => p.date.startsWith(m));
+      const me = es.filter((e) => e.date.startsWith(m));
+      const mp = ps.filter((p) => p.date.startsWith(m));
       if (!me.length && !mp.length) return "";
-      const top = [...me].filter(say).sort((x, y) => (y.happy || 0) - (x.happy || 0))[0],
-        fun = me.filter((e) => e.funny).slice(-1)[0],
-        [yy, mm] = m.split("-").map(Number);
+      const top = [...me].filter(bookSay).sort((x, y) => (y.happy || 0) - (x.happy || 0))[0];
+      const fun = me.filter((e) => e.funny).slice(-1)[0];
+      const [yy, mm] = m.split("-").map(Number);
       return (
         `<article class="entry book-m"><header><b>${yy} 年 ${mm} 月</b><span>${me.length} 篇日記 · ${mp.length} 張照片</span>` +
         `</header>${
@@ -3966,17 +4045,35 @@ function renderBook() {
                 .join("")}</div>`
             : ""
         }` +
-        `${top ? `<blockquote>${esc(say(top))}<br><small>${esc(top.by || "")} · ${esc(top.date)}</small></blockquote>` : ""}` +
+        `${top ? `<blockquote>${esc(bookSay(top))}<br><small>${esc(top.by || "")} · ${esc(top.date)}</small></blockquote>` : ""}` +
         `${fun ? `<div>🤪 ${esc(fun.funny)}</div>` : ""}</article>`
       );
     })
     .join("");
   $("bookBody").innerHTML =
     `<div class="book-cover"><b>第 ${keep} 年</b><span>一起走過 ${dayN} 天</span><span>${a} ～ ${b}</span></div>` +
-    `<div class="stats">${tiles.map(([x, v]) => `<div class="stat"><span>${x}</span><b>${v}</b></div>`).join("")}` +
-    `</div>${best ? `<div class="note">⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(say(best))}</div>` : ""}` +
+    `<div class="stats">${tiles.map(([x, v]) => `<div class="stat"><span>${x}</span><b>${v}</b></div>`).join("")}</div>` +
+    `${best ? `<div class="note">⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(bookSay(best))}</div>` : ""}` +
     `${pages}`;
 }
+function renderBook() {
+  if (!$("book").classList.contains("open")) return;
+  $("bookMonth").hidden = bookMode !== "month";
+  $("bookYear").hidden = bookMode !== "year";
+  document.querySelectorAll("#bookMode button").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.m === bookMode));
+  });
+  if (bookMode === "month") renderMonthBook();
+  else renderYearBook();
+}
+document.querySelectorAll("#bookMode button").forEach((b) => {
+  b.onclick = () => {
+    haptic("tap");
+    bookMode = b.dataset.m;
+    renderBook();
+  };
+});
+$("bookMonth").onchange = renderBook;
 $("bookYear").onchange = renderBook;
 $("bookPrint").onclick = () => window.print();
 
