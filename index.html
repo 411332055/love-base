@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=57">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=58">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -14,7 +14,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f0913">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap">
-<link rel="stylesheet" href="style.css?v=57">
+<link rel="stylesheet" href="style.css?v=58">
 </head>
 <body>
 
@@ -263,6 +263,37 @@
         <div class="row between"><span class="sub">這些設定只影響你這台裝置，對方的畫面不會變。</span><button class="btn ghost" type="button" id="layoutReset">恢復預設版面</button></div>
       </div>
     </details>
+    <details class="rules" id="pushBox">
+      <summary>🔔 手機推播通知（<span id="pushState">未開啟</span>）</summary>
+      <div class="custom">
+        <p class="sub">開啟後，就算沒開網站或手機鎖屏，對方寫日記、傳照片、討抱抱或回答抽題時也會跳出通知。iPhone 請先「加到主畫面」再從桌面圖示打開來開啟。</p>
+        <div class="row">
+          <button class="btn" type="button" id="pushToggle">🔔 在這台裝置開啟通知</button>
+          <button class="btn ghost" type="button" id="pushTest" hidden>📨 發測試通知</button>
+        </div>
+        <div class="sub" id="pushDevices"></div>
+        <p class="sub" id="pushMsg"></p>
+        <details class="month" id="pushSetup">
+          <summary>⚙️ 設定推播小郵差<span id="pushUrlSt">尚未設定</span></summary>
+          <div class="month-body">
+            <p class="sub">只要設定一次，兩個人就能共用（完全免費、不用綁卡）：</p>
+            <ol class="sub" style="margin:0;padding-left:1.4em">
+              <li>打開 <a href="https://script.google.com" target="_blank" rel="noopener" style="color:var(--pink)">script.google.com</a>，點左上角「新專案」。</li>
+              <li>把裡面原本的程式碼全選刪掉，點下方「📋 複製郵差程式碼」貼進去。</li>
+              <li>點右上角「部署 → 新增部署作業」，類型選「網頁應用程式」，<b>誰可以存取選「所有人」</b>，按部署並授權。</li>
+              <li>複製拿到的「網頁應用程式網址（…/exec）」貼在下面按儲存就完成了！</li>
+            </ol>
+            <div class="row">
+              <button class="btn ghost small" type="button" id="pushCopyCode">📋 複製郵差程式碼</button>
+            </div>
+            <div class="row">
+              <input id="pushUrl" placeholder="貼上 https://script.google.com/macros/s/.../exec" aria-label="推播郵差網址" style="flex:1;min-width:180px">
+              <button class="btn" type="button" id="pushUrlSave">儲存網址</button>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
     <details class="rules" id="bdayBox">
       <summary>🎂 生日</summary>
       <div class="custom">
@@ -342,7 +373,7 @@
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=57" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=58" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -368,6 +399,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=57"></script>
+<script src="app.js?v=58"></script>
 </body>
 </html>

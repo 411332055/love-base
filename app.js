@@ -73,6 +73,7 @@ const store = {
   bonus: [],
   reviews: [],
   wrote: [],
+  push: [],
 };
 // 刪除時在原本的資料上標記 trashed，30 天後才真的清掉
 const trash = { diary: [], photos: [], wishes: [], capsules: [], custom: [] };
@@ -784,6 +785,7 @@ $("photoFile").addEventListener("change", async () => {
             ? `${n}上傳好了 📸 等對方也傳就 +${PHOTO_BONUS} XP`
             : `${n}上傳好了 📸`),
     );
+    notifyPartner("📷 今日照片", `${myName()}傳了${ok > 1 ? ` ${ok} 張` : ""}今天的照片`, "#quests", "photo-" + date);
   } else if (msg) toast(msg);
   renderPhotosAll();
 });
@@ -1399,6 +1401,13 @@ $("diaryForm").addEventListener("submit", async (ev) => {
     growAll();
     renderAll();
     toast("寫好了 💌");
+    const preview = (e.mood || e.say || e.food || e.funny || "").slice(0, 24);
+    notifyPartner(
+      "💌 新日記",
+      `${myName()}寫了一篇新日記${preview ? `：「${preview}」` : ""}`,
+      "#quests",
+      "diary-" + e.date,
+    );
     if (newId && queued.length) {
       const n = await uploadQueue(newId, e.date, queued);
       if (n) toast(`日記寫好了，放了 ${n} 張照片 💌`);
@@ -1621,7 +1630,15 @@ async function drawQ() {
   b.disabled = true;
   try {
     if (t) await updDoc("rounds", t.id, { q, at: nowIso(), by: myName() });
-    else await addDoc("rounds", { q, at: nowIso(), by: myName(), day: key(today()) });
+    else {
+      await addDoc("rounds", { q, at: nowIso(), by: myName(), day: key(today()) });
+      notifyPartner(
+        "🎲 今日抽題",
+        `${myName()}抽了今天的題目：「${q.slice(0, 28)}」`,
+        "#draw",
+        "draw-q-" + key(today()),
+      );
+    }
   } catch (e) {
     toast("沒抽成功，請再試一次");
   }
@@ -1673,8 +1690,15 @@ $("ansForm").addEventListener("submit", async (ev) => {
       if (pairOf(r.id).length >= need()) {
         await markRoundPassed(r);
         toast(`過關！+${DRAW_XP} XP 🎲`);
+        notifyPartner(
+          "🎲 抽題揭曉！",
+          `${myName()}也答完了，快來看你們的答案（+${DRAW_XP} XP）`,
+          "#draw",
+          "draw-ans-" + r.id,
+        );
       } else {
         toast(`答案送出了 🎲 等對方回答就 +${DRAW_XP} XP`);
+        notifyPartner("🎲 等你回答", `${myName()}答好抽題了，換你作答就會揭曉！`, "#draw", "draw-ans-" + r.id);
       }
     }
   } catch (e) {
@@ -1788,7 +1812,10 @@ function toggleWish(id) {
   if (!w) return;
   const on = !w.done;
   updDoc("wishes", id, { done: on, doneDate: on ? key(today()) : null });
-  if (on) toast("願望達成 🌠");
+  if (on) {
+    toast("願望達成 🌠");
+    notifyPartner("🌠 願望達成！", `${myName()}完成了願望：「${w.text.slice(0, 26)}」`, "#wishes", "wish-done-" + id);
+  }
 }
 bindForm(
   "wishForm",
@@ -1798,8 +1825,10 @@ bindForm(
     return text && { c: "wishes", doc: { text, cat: wCat, done: false, doneDate: null, by: myName(), at: nowIso() } };
   },
   () => {
+    const text = $("wText").value.trim();
     $("wText").value = "";
     toast("許願成功 🌠");
+    notifyPartner("🌠 新願望", `${myName()}許了一個願望：「${text.slice(0, 28)}」`, "#wishes", "wish-new");
   },
 );
 
@@ -1876,6 +1905,7 @@ bindForm(
   () => {
     $("capText").value = "";
     toast("封存好了 ⏳");
+    notifyPartner("⏳ 時光膠囊", `${myName()}封存了一顆寫給未來的時光膠囊`, "#capsule", "cap-new");
   },
 );
 
@@ -2931,6 +2961,7 @@ function renderHug() {
           popFloat(b, "💞");
           updDoc("hugs", b.dataset.hugback, { backBy: me, backAt: nowIso() });
           toast("抱回去了 💞");
+          notifyPartner("💞 收到抱抱", `${me}抱了你一下！`, "#hugCard", "hug-back");
         }),
     );
   $("hugState")
@@ -2960,11 +2991,13 @@ bindForm(
   "hugSave",
   () => ({ c: "hugs", doc: { text: $("hugText").value.trim(), by: myName(), at: nowIso() } }),
   () => {
+    const txt = $("hugText").value.trim();
     $("hugText").value = "";
     hugOpen = false;
     popFloat($("hugCard"), "🤗");
     renderHug();
     toast("討抱抱送出去了 🤗");
+    notifyPartner("🤗 討抱抱", `${myName()}想要你的抱抱${txt ? `：「${txt}」` : ""}`, "#hugCard", "hug-ask");
   },
 );
 $("hugForm").addEventListener("keydown", (ev) => {
@@ -3732,7 +3765,10 @@ $("dPhotoFile").addEventListener("change", async () => {
       e.date,
       list.map((f) => ({ file: f })),
     );
-    if (n) toast(`加了 ${n} 張照片 📷`);
+    if (n) {
+      toast(`加了 ${n} 張照片 📷`);
+      notifyPartner("📷 日記新照片", `${myName()}在日記加了 ${n} 張照片`, "#quests", "dphoto-" + e.id);
+    }
     return;
   }
   const have = editId ? entryPhotos(editId).length : 0;
@@ -3876,7 +3912,9 @@ document.addEventListener("click", (ev) => {
       dropReply(hit.id);
     } else {
       popFloat(rc, text);
-      addDoc("replies", { entry, kind: "emo", text, by: me, at: nowIso() }).catch(() => toast(NOSAVE));
+      addDoc("replies", { entry, kind: "emo", text, by: me, at: nowIso() })
+        .then(() => notifyPartner("💗 日記貼圖", `${me}對日記按了 ${text}`, "#calendar", "react-" + entry))
+        .catch(() => toast(NOSAVE));
     }
     return;
   }
@@ -3909,9 +3947,12 @@ bindForm(
     );
   },
   () => {
+    const txt = replyTextEl.value.trim(),
+      eid = replyTo ? replyTo.entry : "";
     replyTextEl.value = "";
     closeReply();
     toast("回應送出了 💬");
+    notifyPartner("💬 日記新回應", `${myName()}回應了日記：「${txt.slice(0, 30)}」`, "#calendar", "reply-" + eid);
   },
 );
 $("replyForm").addEventListener("keydown", (ev) => {
@@ -4523,11 +4564,387 @@ $("reviewForm").addEventListener("submit", async (ev) => {
           ? `兩個人都寫好了！+${SUNDAY_TASK.xp} XP 📝`
           : `寫好了 📝 等對方也寫就 +${SUNDAY_TASK.xp} XP`,
     );
+    if (first) notifyPartner("📝 這週回顧", `${me}寫好了這週回顧`, "#quests", "review-" + date);
   } catch (e) {
     toast(NOSAVE);
   }
   $("reviewSave").disabled = false;
 });
+
+/* ===== 手機推播通知（Web Push + Google Apps Script 免綁卡轉發） ===== */
+const GAS_PUSH_CODE = `function doPost(e) {
+  try {
+    var d = JSON.parse(e.postData.contents);
+    var res = UrlFetchApp.fetch(d.endpoint, {
+      method: "post",
+      contentType: "application/octet-stream",
+      headers: {
+        Authorization: d.auth,
+        TTL: "86400",
+        Urgency: "high",
+        "Content-Encoding": "aes128gcm"
+      },
+      payload: Utilities.base64Decode(d.body),
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    return ContentService.createTextOutput(
+      JSON.stringify({ ok: code >= 200 && code < 300, code: code })
+    ).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(
+      JSON.stringify({ ok: false, error: String(err) })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+}`;
+
+const pushEnc = new TextEncoder();
+function b64Std(bytes) {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+function b64u(buf) {
+  return b64Std(buf instanceof Uint8Array ? buf : new Uint8Array(buf))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+function unb64u(str) {
+  const pad = (str + "===".slice((str.length + 3) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(pad),
+    out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function concatBytes(...arrs) {
+  const out = new Uint8Array(arrs.reduce((n, a) => n + a.length, 0));
+  let o = 0;
+  for (const a of arrs) {
+    out.set(a, o);
+    o += a.length;
+  }
+  return out;
+}
+async function hmacSha256(keyBytes, dataBytes) {
+  const k = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return new Uint8Array(await crypto.subtle.sign("HMAC", k, dataBytes));
+}
+function pushDevId(ep) {
+  let h1 = 0x811c9dc5,
+    h2 = 0x01000193;
+  for (let i = 0; i < ep.length; i++) {
+    const c = ep.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ (c + i), 0x85ebca6b) >>> 0;
+  }
+  return "s_" + h1.toString(36) + h2.toString(36);
+}
+function pushCfg() {
+  return store.push.find((x) => x.id === "cfg");
+}
+function pushSubs() {
+  return store.push.filter((x) => x.id !== "cfg" && x.ep && x.p256dh && x.auth);
+}
+async function ensurePushCfg(newUrl) {
+  let cfg = pushCfg();
+  if (cfg && cfg.pub && cfg.x && cfg.y && cfg.d) {
+    if (typeof newUrl === "string" && newUrl !== (cfg.url || "")) {
+      cfg.url = newUrl;
+      if (db) await commit(xRef("push", "cfg").update({ url: newUrl, at: nowIso() }));
+      else saveLocal();
+    }
+    return cfg;
+  }
+  const kp = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const jwk = await crypto.subtle.exportKey("jwk", kp.privateKey);
+  const pub = b64u(concatBytes(new Uint8Array([4]), unb64u(jwk.x), unb64u(jwk.y)));
+  const doc = {
+    url: typeof newUrl === "string" ? newUrl : cfg?.url || "",
+    pub,
+    x: jwk.x,
+    y: jwk.y,
+    d: jwk.d,
+    at: nowIso(),
+  };
+  if (db) await commit(xRef("push", "cfg").set(doc));
+  store.push = store.push.filter((x) => x.id !== "cfg").concat([{ id: "cfg", ...doc }]);
+  if (!db) saveLocal();
+  return store.push.find((x) => x.id === "cfg");
+}
+async function vapidAuth(cfg, endpoint) {
+  const privKey = await crypto.subtle.importKey(
+    "jwk",
+    { kty: "EC", crv: "P-256", x: cfg.x, y: cfg.y, d: cfg.d, ext: true },
+    { name: "ECDSA", namedCurve: "P-256" },
+    false,
+    ["sign"],
+  );
+  const head = b64u(pushEnc.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
+  const body = b64u(
+    pushEnc.encode(
+      JSON.stringify({
+        aud: new URL(endpoint).origin,
+        exp: Math.floor(Date.now() / 1000) + 43200,
+        sub: "mailto:lovebase@example.com",
+      }),
+    ),
+  );
+  const sig = b64u(
+    await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, privKey, pushEnc.encode(head + "." + body)),
+  );
+  return `vapid t=${head}.${body}.${sig}, k=${cfg.pub}`;
+}
+async function encryptPushBody(subDoc, payloadObj) {
+  const uaPub = unb64u(subDoc.p256dh),
+    auth = unb64u(subDoc.auth);
+  const uaKey = await crypto.subtle.importKey("raw", uaPub, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const asKP = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const asPub = new Uint8Array(await crypto.subtle.exportKey("raw", asKP.publicKey));
+  const shared = new Uint8Array(await crypto.subtle.deriveBits({ name: "ECDH", public: uaKey }, asKP.privateKey, 256));
+  const prkKey = await hmacSha256(auth, shared);
+  const ikm = await hmacSha256(
+    prkKey,
+    concatBytes(pushEnc.encode("WebPush: info\0"), uaPub, asPub, new Uint8Array([1])),
+  );
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const prk = await hmacSha256(salt, ikm);
+  const cek = (
+    await hmacSha256(prk, concatBytes(pushEnc.encode("Content-Encoding: aes128gcm\0"), new Uint8Array([1])))
+  ).slice(0, 16);
+  const nonce = (
+    await hmacSha256(prk, concatBytes(pushEnc.encode("Content-Encoding: nonce\0"), new Uint8Array([1])))
+  ).slice(0, 12);
+  const plain = concatBytes(pushEnc.encode(JSON.stringify(payloadObj)), new Uint8Array([2]));
+  const cekKey = await crypto.subtle.importKey("raw", cek, "AES-GCM", false, ["encrypt"]);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, cekKey, plain));
+  return b64Std(concatBytes(salt, new Uint8Array([0, 0, 16, 0, 65]), asPub, ct));
+}
+async function sendPush(payloadObj, target = "partner") {
+  const cfg = pushCfg();
+  if (!cfg || !cfg.url || !cfg.pub || !cfg.d) return { sent: 0, reason: "no-url" };
+  const me = myName();
+  const targets = pushSubs().filter((s) => (target === "all" ? true : s.by && s.by !== me));
+  if (!targets.length) return { sent: 0, reason: "no-sub" };
+  let sent = 0;
+  await Promise.all(
+    targets.map(async (s) => {
+      try {
+        const auth = await vapidAuth(cfg, s.ep);
+        const body = await encryptPushBody(s, payloadObj);
+        const res = await fetch(cfg.url, {
+          method: "POST",
+          body: JSON.stringify({ endpoint: s.ep, auth, body }),
+        });
+        const j = await res.json().catch(() => null);
+        if (j && (j.code === 404 || j.code === 410)) {
+          store.push = store.push.filter((x) => x.id !== s.id);
+          if (db)
+            xRef("push", s.id)
+              .delete()
+              .catch(() => {});
+        } else if (!j || j.ok) {
+          sent++;
+        }
+      } catch (e) {}
+    }),
+  );
+  return { sent };
+}
+function notifyPartner(title, body, hash = "#today", tag = "love-base") {
+  if (!db) return;
+  sendPush({ title, body, url: "./" + hash, tag }, "partner").catch(() => {});
+}
+let curSubEp = "";
+async function checkLocalSub() {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "";
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg ? await reg.pushManager.getSubscription() : null;
+    curSubEp = sub ? sub.endpoint : "";
+  } catch (e) {
+    curSubEp = "";
+  }
+  return curSubEp;
+}
+const pushMsg = (t) => ($("pushMsg").textContent = t);
+async function renderPush() {
+  const cfg = pushCfg(),
+    hasUrl = !!(cfg && cfg.url),
+    subs = pushSubs(),
+    ep = await checkLocalSub(),
+    mySub = ep ? subs.find((s) => s.ep === ep && s.by === myName()) : null;
+  $("pushState").textContent = mySub ? "已開啟" : "未開啟";
+  $("pushToggle").textContent = mySub ? "🔕 關閉這台裝置的通知" : "🔔 在這台裝置開啟通知";
+  $("pushToggle").className = mySub ? "btn ghost" : "btn";
+  $("pushTest").hidden = !subs.length || !hasUrl;
+  $("pushUrlSt").textContent = hasUrl ? "✓ 已設定（兩人共用）" : "尚未設定";
+  if (document.activeElement !== $("pushUrl")) $("pushUrl").value = cfg?.url || "";
+  if (!renderPush.inited) {
+    renderPush.inited = true;
+    $("pushSetup").open = !hasUrl;
+  }
+  $("pushDevices").textContent = subs.length
+    ? "已開啟通知的裝置：" + subs.map((s) => `${s.by}（${s.dev || "裝置"}）`).join("、")
+    : "目前還沒有裝置開啟通知。";
+}
+$("pushCopyCode").onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(GAS_PUSH_CODE);
+    toast("郵差程式碼複製好了 📋");
+  } catch (e) {
+    const ta = document.createElement("textarea");
+    ta.value = GAS_PUSH_CODE;
+    document.body.append(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    toast("郵差程式碼複製好了 📋");
+  }
+};
+$("pushUrlSave").onclick = async () => {
+  if (!db) {
+    pushMsg("要連上伺服器才能儲存網址。");
+    return;
+  }
+  const u = $("pushUrl").value.trim();
+  if (u && !/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/i.test(u)) {
+    pushMsg("網址格式看起來不對，請貼上結尾是 /exec 的 Google 網頁應用程式網址。");
+    return;
+  }
+  $("pushUrlSave").disabled = true;
+  try {
+    await ensurePushCfg(u);
+    $("pushSetup").open = !u;
+    pushMsg(u ? "推播郵差網址存好了！兩個人會自動共用這個設定。" : "已清除網址。");
+    toast(u ? "郵差網址存好了 🔔" : "已清除網址");
+    renderPush();
+  } catch (e) {
+    pushMsg(NOSAVE);
+  }
+  $("pushUrlSave").disabled = false;
+};
+$("pushToggle").onclick = async () => {
+  if (!db) {
+    pushMsg("要連上伺服器才能開啟通知。");
+    return;
+  }
+  if (isIOS && !isStandalone()) {
+    pushMsg("iPhone 請先按 Safari 下方的分享按鈕 →「加入主畫面」，再從桌面上的基地圖示點進來開啟通知喔！");
+    return;
+  }
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    pushMsg("這個瀏覽器不支援推播通知，Android 請用 Chrome，iPhone 請加到主畫面後打開。");
+    return;
+  }
+  const b = $("pushToggle");
+  b.disabled = true;
+  pushMsg("處理中…");
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    const existing = sub ? pushSubs().find((s) => s.ep === sub.endpoint && s.by === myName()) : null;
+    if (existing) {
+      await sub.unsubscribe().catch(() => {});
+      store.push = store.push.filter((x) => x.id !== existing.id);
+      await commit(xRef("push", existing.id).delete());
+      curSubEp = "";
+      pushMsg("已關閉這台裝置的通知。");
+      toast("通知已關閉 🔕");
+      renderPush();
+      b.disabled = false;
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") {
+      pushMsg("通知權限被拒絕了，請到瀏覽器或手機設定裡把這個網站的「通知」打開。");
+      b.disabled = false;
+      return;
+    }
+    const cfg = await ensurePushCfg();
+    if (sub) {
+      const oldDoc = pushSubs().find((s) => s.ep === sub.endpoint);
+      if (!oldDoc || oldDoc.pub !== cfg.pub) {
+        await sub.unsubscribe().catch(() => {});
+        sub = null;
+      }
+    }
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: unb64u(cfg.pub),
+      });
+    }
+    const j = sub.toJSON(),
+      id = pushDevId(j.endpoint),
+      dev = isIOS ? "iPhone" : /Android/i.test(navigator.userAgent) ? "Android" : "電腦",
+      doc = {
+        by: myName(),
+        ep: j.endpoint,
+        p256dh: j.keys.p256dh,
+        auth: j.keys.auth,
+        dev,
+        pub: cfg.pub,
+        at: nowIso(),
+      };
+    await commit(xRef("push", id).set(doc));
+    store.push = store.push.filter((x) => x.id !== id).concat([{ id, ...doc }]);
+    curSubEp = j.endpoint;
+    reg
+      .showNotification("🔔 戀愛基地通知已開啟", {
+        body: `${myName()}的${dev}已經準備好接收對方的新動態囉 💞`,
+        icon: "./icon-192.png",
+        badge: "./icon-192.png",
+        tag: "love-base-welcome",
+      })
+      .catch(() => {});
+    pushMsg(
+      cfg.url
+        ? "這台裝置的通知開啟了！可以按「📨 發測試通知」試試看。"
+        : "這台裝置已開啟通知！接著展開下方「⚙️ 設定推播小郵差」貼上網址就能跨手機推播。",
+    );
+    toast("這台裝置的通知開啟了 🔔");
+    renderPush();
+  } catch (e) {
+    pushMsg("開啟失敗，請確認已連上網路且網址是用 https 打開。");
+  }
+  b.disabled = false;
+};
+$("pushTest").onclick = async () => {
+  const b = $("pushTest");
+  b.disabled = true;
+  pushMsg("正在發送測試通知…");
+  try {
+    const r = await sendPush(
+      {
+        title: "🔔 戀愛基地測試通知",
+        body: `${myName()}按了測試通知，推播設定成功囉 💞`,
+        url: "./#today",
+        tag: "love-base-test-" + Date.now(),
+      },
+      "all",
+    );
+    pushMsg(
+      r.sent
+        ? `已發送給 ${r.sent} 台裝置！幾秒內手機就會跳出通知。`
+        : "沒有送出成功，請確認推播郵差網址有沒有部署為「所有人皆可存取」。",
+    );
+    if (r.sent) toast("測試通知送出了 📨");
+  } catch (e) {
+    pushMsg("發送失敗，請確認網路與推播郵差網址。");
+  }
+  b.disabled = false;
+  renderPush();
+};
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (ev) => {
+    if (ev.data && ev.data.type === "nav" && ev.data.url) {
+      const h = ev.data.url.split("#")[1] || "today";
+      openFor(h);
+      history.replaceState(null, "", "#" + h);
+    }
+  });
+}
 
 // 收合中的區塊不重畫，展開時且資料有變動才更新；同一幀內的多次重畫自動合併成一次
 let renderVer = 1;
@@ -4565,7 +4982,10 @@ function renderOpen() {
   }
   if (needRender("capsule")) renderCapsules();
   if (needRender("memories")) renderMemories();
-  if (needRender("tools")) renderTrash();
+  if (needRender("tools")) {
+    renderTrash();
+    renderPush();
+  }
   if (needRender("book")) renderBook();
 }
 let renderRaf = 0;

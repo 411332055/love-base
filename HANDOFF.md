@@ -61,6 +61,7 @@
 | `fixes` | 補簽卡用掉的紀錄 | `day`、`by`、`at` |
 | `birthdays` | 生日 | id 是名字，`m`、`d` |
 | `backups` | 做過備份的紀錄 | `full`、`by`、`at` |
+| `push` | 手機推播設定與裝置訂閱 | `cfg` 存 VAPID 金鑰與 Google Apps Script 轉發網址（`url`、`pub`、`x`、`y`、`d`、`at`）；`s_亂數` 存各台裝置的 Web Push 訂閱（`by`、`ep`、`p256dh`、`auth`、`dev`、`pub`、`at`） |
 
 `wrote`、`bonus` 和 `passed` 是 XP 不倒扣的關鍵：日記、照片或抽題刪掉後，這些紀錄還在，分數就不會少。不要刪它們，也不要改成只從 `diary`、`photos`、`answers` 即時計算。
 
@@ -92,6 +93,7 @@
 | 備份、補回、更換暗號 | `exportBackup`、`backupHtml`、`prepRestore`、`applyRestore`、`moveRoomBtn` |
 | 選單、區塊順序、外觀 | `CATS`、`SEC_META`、`renderNav`、`applyLayout`、`setView` |
 | 震動回饋 | `haptic`（Android 用 `navigator.vibrate`，iPhone 用 `iosHaptic` 點隱藏的 iOS 18 開關元件）、`HAPTIC_LV`、`dragEndTick`、設定頁的「測試震動」 |
+| 手機推播通知 | `renderPush`、`notifyPartner`、`sendPush`、`ensurePushCfg`、`vapidAuth`、`encryptPushBody`（瀏覽器端用 Web Crypto API 簽署 VAPID 與 `aes128gcm` 加密，透過 Google Apps Script 轉發） |
 | 登入畫面、連線、資料同步 | `showGate`，以及檔案最後面的啟動程式（`onSnapshot` 都在那裡） |
 | 重畫畫面 | `renderAll`，資料一變動就整個重畫 |
 
@@ -111,7 +113,7 @@
 
 ## 六、已知的限制和還沒做的事
 
-- **沒有通知**：對方寫了日記要自己打開才知道。做推播要加 Firebase Cloud Messaging，iPhone 要先加到主畫面才收得到。
+- **推播通知**：已在「更多 → 設定 → 🔔 手機推播通知」支援 Web Push（透過免費的 Google Apps Script 轉發，iPhone 需先加到主畫面）。
 - `diary` 和 `done` 每次都整包載入。靠 Firestore 的離線快取所以不慢，幾年後資料很多時可能要分批。
 - 月底總結已整合進「回憶書」，和年度總結放在一起切換。
 - 名字 `寒冰`、`夏夏` 是寫死的（`NAMES`），不支援第三個人。
