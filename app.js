@@ -557,7 +557,7 @@ function myPhoto(d) {
 function photoBtn(p, cls) {
   return (
     `<button type="button" class="${cls}" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片${p.cap ? "：" + esc(p.cap) : ""}"><img src="${p.th}` +
-    `" alt="" loading="lazy"><span class="nm">${esc(p.by)}${p.by === myName() ? "（我）" : ""}${p.cap ? " 💬" : ""}</span></button>`
+    `" alt="" loading="lazy" decoding="async"><span class="nm">${esc(p.by)}${p.by === myName() ? "（我）" : ""}${p.cap ? " 💬" : ""}</span></button>`
   );
 }
 function renderTodayPhotos() {
@@ -2388,7 +2388,7 @@ ${part(
     `
 ${part("caps", "時光膠囊", caps.map((c) => `<article><h3>${c.openDate > tk ? "🔒 封存中" : "💌 已打開"}<span>${esc(c.by)} · ${esc(c.openDate)} 打開</span>` + `</h3>${c.openDate > tk ? "" : `<p style="margin:0;white-space:pre-wrap">${esc(c.text)}</p>`}</article>`).join(""))}` +
     `
-${part("wall", "照片", wall.length ? `<div class="grid">${wall.map((p) => `<figure><img src="${esc(p.th)}" alt="${esc(p.by)} 的照片" loading="lazy">${esc(p.date)} · ${esc(p.by)}` + `${p.cap ? `<br>${esc(p.cap)}` : ""}</figure>`).join("")}` + `</div>` : "")}` +
+${part("wall", "照片", wall.length ? `<div class="grid">${wall.map((p) => `<figure><img src="${esc(p.th)}" alt="${esc(p.by)} 的照片" loading="lazy" decoding="async">${esc(p.date)} · ${esc(p.by)}` + `${p.cap ? `<br>${esc(p.cap)}` : ""}</figure>`).join("")}` + `</div>` : "")}` +
     `
 </main>${BK_TAG}${json}<${"/"}script></body></html>`
   );
@@ -2519,7 +2519,7 @@ function trashLabel(c, x) {
   if (c === "diary")
     return `💌 ${esc(x.date)} 的日記：${esc(String(x.mood || x.say || x.funny || x.food || x.s1 || x.s2 || "").slice(0, 40))}`;
   if (c === "photos")
-    return `<img src="${esc(x.th)}" alt="" loading="lazy">📷 ${esc(x.date)} ${esc(x.by)} 的照片${x.replaced ? "（被換掉的）" : ""}`;
+    return `<img src="${esc(x.th)}" alt="" loading="lazy" decoding="async">📷 ${esc(x.date)} ${esc(x.by)} 的照片${x.replaced ? "（被換掉的）" : ""}`;
   if (c === "wishes") return `🌠 ${esc(x.text)}`;
   if (c === "capsules")
     return x.openDate > key(today()) ? `🔒 封存中的膠囊（${esc(x.openDate)} 打開）` : `⏳ ${esc(x.text)}`;
