@@ -3112,7 +3112,7 @@ const R = document.documentElement;
 function syncThemeMeta() {
   const t = R.dataset.theme,
     dark = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches),
-    c = dark ? "#140c14" : "#f6eaf1";
+    c = dark ? "#140c14" : "#fff5f8";
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
     m.removeAttribute("media");
     m.content = c;
@@ -3341,91 +3341,88 @@ $("subNav").addEventListener(
   );
 })();
 
-// 隨手機傾斜或滑鼠移動，只用 GPU translate3d 移動反光層（不觸發全頁重繪，保持滑動順暢）
+// 觸碰或滑過玻璃卡片時，在手指位置浮現琉璃水光漣漪（不使用陀螺儀，省電且滑動順暢）
 (() => {
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const targets = [document.querySelector(".hud"), document.querySelector(".draw"), $("gateForm")].filter(Boolean);
-  const glares = targets.map((el) => {
-    const g = document.createElement("i");
-    g.className = "tilt-glare";
-    g.setAttribute("aria-hidden", "true");
-    el.prepend(g);
+  const GLASS_SEL =
+    ".hud,.today,.hug,.todo,.streak,form.diary,.entry,.draw,.wish,.panel,.book-cover,.ladder,.gate-box,details.rules,.subnav,.tabbar";
+  let activeCard = null;
+  let activeGlare = null;
+  let hideTimer = 0;
+  function ensureGlare(card) {
+    let g = card.querySelector(":scope > .tilt-glare");
+    if (!g) {
+      g = document.createElement("i");
+      g.className = "tilt-glare";
+      g.setAttribute("aria-hidden", "true");
+      card.prepend(g);
+    }
     return g;
-  });
-  let tx = 0,
-    ty = 0,
-    cx = 0,
-    cy = 0,
-    raf = 0,
-    baseX = null,
-    baseY = null,
-    scrolling = 0;
-  const clamp = (v) => Math.max(-1, Math.min(1, v));
+  }
+  function moveGlare(card, g, ev) {
+    const r = card.getBoundingClientRect();
+    const x = Math.round(ev.clientX - r.left);
+    const y = Math.round(ev.clientY - r.top);
+    g.style.setProperty("--gx", `${x}px`);
+    g.style.setProperty("--gy", `${y}px`);
+  }
+  function clearActive() {
+    if (activeGlare) activeGlare.classList.remove("on");
+    if (activeCard) activeCard.classList.remove("glass-touch");
+    activeCard = null;
+    activeGlare = null;
+  }
   window.addEventListener(
-    "scroll",
-    () => {
-      scrolling = Date.now() + 120;
+    "pointerdown",
+    (ev) => {
+      const card = ev.target.closest?.(GLASS_SEL);
+      if (!card) return;
+      clearTimeout(hideTimer);
+      if (activeCard && activeCard !== card) clearActive();
+      const g = ensureGlare(card);
+      activeCard = card;
+      activeGlare = g;
+      moveGlare(card, g, ev);
+      card.classList.add("glass-touch");
+      g.classList.add("on");
     },
     { passive: true },
   );
-  function step() {
-    raf = 0;
-    if (document.hidden) return;
-    cx += (tx - cx) * 0.16;
-    cy += (ty - cy) * 0.16;
-    const x = (cx * -28).toFixed(1),
-      y = (cy * -24).toFixed(1),
-      tf = `translate3d(${x}%,${y}%,0)`;
-    for (let i = 0; i < glares.length; i++) {
-      if (targets[i].offsetParent !== null) glares[i].style.transform = tf;
-    }
-    if (Math.hypot(tx - cx, ty - cy) > 0.004) raf = requestAnimationFrame(step);
-  }
-  function kick() {
-    if (!raf && !document.hidden && Date.now() > scrolling) raf = requestAnimationFrame(step);
-  }
-  function onOrient(ev) {
-    if (ev.gamma === null || ev.beta === null || Date.now() <= scrolling) return;
-    const g = ev.gamma,
-      b = ev.beta;
-    if (baseX === null) {
-      baseX = g;
-      baseY = b;
-    } else {
-      if (g - baseX > 15) baseX = g - 15;
-      else if (g - baseX < -15) baseX = g + 15;
-      if (b - baseY > 15) baseY = b - 15;
-      else if (b - baseY < -15) baseY = b + 15;
-    }
-    tx = clamp((g - baseX) / 12);
-    ty = clamp((b - baseY) / 12);
-    kick();
-  }
-  if ("DeviceOrientationEvent" in window) {
-    if (typeof DeviceOrientationEvent.requestPermission === "function") {
-      const ask = () => {
-        DeviceOrientationEvent.requestPermission()
-          .then((st) => {
-            if (st === "granted") window.addEventListener("deviceorientation", onOrient, { passive: true });
-          })
-          .catch(() => {});
-      };
-      document.addEventListener("touchend", ask, { once: true, passive: true });
-      document.addEventListener("click", ask, { once: true, passive: true });
-    } else {
-      window.addEventListener("deviceorientation", onOrient, { passive: true });
-    }
-  }
   window.addEventListener(
     "pointermove",
     (ev) => {
-      if (ev.pointerType === "touch") return;
-      tx = clamp((ev.clientX / innerWidth) * 2 - 1);
-      ty = clamp((ev.clientY / innerHeight) * 2 - 1);
-      kick();
+      if (ev.pointerType === "touch") {
+        if (!activeCard || !activeGlare) return;
+        moveGlare(activeCard, activeGlare, ev);
+        return;
+      }
+      const card = ev.target.closest?.(GLASS_SEL);
+      if (!card) {
+        if (activeCard) clearActive();
+        return;
+      }
+      if (activeCard && activeCard !== card) clearActive();
+      const g = ensureGlare(card);
+      activeCard = card;
+      activeGlare = g;
+      moveGlare(card, g, ev);
+      g.classList.add("on");
     },
     { passive: true },
   );
+  const endTouch = () => {
+    if (!activeCard) return;
+    const g = activeGlare;
+    const c = activeCard;
+    c.classList.remove("glass-touch");
+    hideTimer = setTimeout(() => {
+      if (g) g.classList.remove("on");
+    }, 90);
+    activeCard = null;
+    activeGlare = null;
+  };
+  window.addEventListener("pointerup", endTouch, { passive: true });
+  window.addEventListener("pointercancel", endTouch, { passive: true });
 })();
 
 // 今天的日記放在最前面；自己今天寫過就先收起表單，有草稿或正在編輯時一定打開
