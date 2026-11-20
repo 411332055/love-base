@@ -9,7 +9,7 @@
 
 - 使用者是「寒冰」，和女朋友「夏夏」一起用這個網站。兩個人都不是工程師。
 - 用繁體中文、白話說明。一次改一件事，先說打算怎麼改，等他同意再動手。
-- 寒冰用 **Android（Samsung）的 Chrome**，網站有加到主畫面當 App 用。夏夏的手機型號沒有記錄，iPhone 和 Android 都要能用。電腦是 Windows。
+- 寒冰用 **Android（Samsung）的 Chrome**，網站有加到主畫面當 App 用。夏夏用 **iPhone（iOS）**，iPhone Safari 和 Android Chrome 都要能用。電腦是 Windows。
 - 使用者在電腦的 `C:\Users\icebo\love-base` 有一份 repo，用 Antigravity CLI（指令 `agy`）修改。
 - 另一個 AI 助手（Claude）也會直接推送到 GitHub，所以**每次開始前都要先 `git pull`**，推送前也要再 pull 一次。
 

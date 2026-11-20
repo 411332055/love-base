@@ -3031,10 +3031,11 @@ function renderTodo() {
     ``;
 }
 function syncNotices() {
-  $("notices").hidden = ["bkNudge", "awayCard"].every((id) => $(id).hidden);
+  $("notices").hidden = ["bkNudge", "picNudge", "awayCard"].every((id) => $(id).hidden);
 }
 function renderToday() {
   renderBackupNudge();
+  renderPicNudge();
   renderAway();
   renderHug();
   renderTodo();
@@ -3997,6 +3998,230 @@ function renderBackupNudge() {
   };
 }
 
+// 照片空間提醒：每半年（180 天）提醒一次，按「之後再說」隔 14 天
+const PIC_SCAN_KEY = "love-base-last-pic-scan",
+  PIC_SNOOZE = "love-base-pic-snooze";
+function renderPicNudge() {
+  const box = $("picNudge");
+  if (!box) return;
+  let last = 0,
+    snooze = 0;
+  try {
+    last = +localStorage.getItem(PIC_SCAN_KEY) || 0;
+    snooze = +localStorage.getItem(PIC_SNOOZE) || 0;
+  } catch (e) {}
+  const started = photos.reduce((a, p) => Math.min(a, new Date(p.at).getTime() || a), Date.now());
+  if (
+    !db ||
+    !dataReady ||
+    !photos.length ||
+    (!last && Date.now() - started < 180 * 864e5) ||
+    (last && Date.now() - last < 180 * 864e5) ||
+    Date.now() < snooze
+  ) {
+    box.hidden = true;
+    syncNotices();
+    return;
+  }
+  box.innerHTML =
+    `<div class="row between"><span>🗜️ 已經半年沒檢查照片空間囉</span><div class="row">` +
+    `<a class="btn" href="#picBox" style="padding:4px 14px;font-size:13px;text-decoration:none">去檢查</a>` +
+    `<button class="btn ghost" type="button" id="picLater" style="padding:4px 14px;font-size:13px">之後再說</button>` +
+    `</div></div>`;
+  box.hidden = false;
+  $("picLater").onclick = () => {
+    try {
+      localStorage.setItem(PIC_SNOOZE, Date.now() + 14 * 864e5);
+    } catch (e) {}
+    renderPicNudge();
+  };
+}
+
+// Google 雲端每月自動備份程式碼（貼到個人 Google Apps Script 使用）
+const GAS_BACKUP_CODE = `// 我們的戀愛遊戲基地 — Google 雲端每月自動備份小幫手
+// 1. 確認下方 ROOM_CODE 是你們的基地暗號（請勿分享此專案給別人）
+// 2. 在上方函式選單選擇「setupMonthlyTrigger」並按「執行」授權即可完成
+const ROOM_CODE = "__ROOM_CODE__";
+const FOLDER_NAME = "戀愛基地備份";
+const WARN_MB = 700;
+const PROJECT_ID = "love-base-eec24";
+
+function setupMonthlyTrigger() {
+  ScriptApp.getProjectTriggers().forEach((t) => {
+    if (t.getHandlerFunction() === "runMonthlyBackup") ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger("runMonthlyBackup").timeBased().onMonthDay(1).atHour(3).create();
+  runMonthlyBackup();
+}
+
+function fromFsVal(v) {
+  if (!v || typeof v !== "object") return null;
+  if ("stringValue" in v) return v.stringValue;
+  if ("integerValue" in v) return Number(v.integerValue);
+  if ("doubleValue" in v) return Number(v.doubleValue);
+  if ("booleanValue" in v) return Boolean(v.booleanValue);
+  if ("nullValue" in v) return null;
+  if ("timestampValue" in v) return v.timestampValue;
+  if ("arrayValue" in v) return (v.arrayValue.values || []).map(fromFsVal);
+  if ("mapValue" in v) return fromFsFields(v.mapValue.fields || {});
+  return null;
+}
+
+function fromFsFields(f) {
+  const o = {};
+  Object.keys(f || {}).forEach((k) => (o[k] = fromFsVal(f[k])));
+  return o;
+}
+
+function fetchColl(base, coll) {
+  const out = {};
+  const size = coll === "pics" ? 40 : 200;
+  let token = "";
+  do {
+    const url = base + "/" + coll + "?pageSize=" + size + (token ? "&pageToken=" + encodeURIComponent(token) : "");
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) throw new Error("讀取 " + coll + " 失敗：" + res.getContentText());
+    const body = JSON.parse(res.getContentText());
+    (body.documents || []).forEach((d) => {
+      const id = d.name.split("/").pop();
+      out[id] = fromFsFields(d.fields || {});
+    });
+    token = body.nextPageToken || "";
+  } while (token);
+  return out;
+}
+
+function escHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+function runMonthlyBackup() {
+  if (!ROOM_CODE || ROOM_CODE.indexOf("把這裡換成") >= 0 || ROOM_CODE.length < 8) {
+    throw new Error("請先把 ROOM_CODE 改成你們的基地暗號（至少 8 個字）");
+  }
+  const base =
+    "https://firestore.googleapis.com/v1/projects/" +
+    PROJECT_ID +
+    "/databases/(default)/documents/rooms/" +
+    encodeURIComponent(ROOM_CODE);
+  const data = {};
+  ["done", "diary", "photos", "pics"].forEach((c) => (data[c] = fetchColl(base, c)));
+
+  const nowIso = new Date().toISOString();
+  const todayStr = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd");
+  const diary = Object.values(data.diary).filter((x) => !x.trashed);
+  const photos = Object.values(data.photos).filter((x) => !x.trashed);
+  const totalBytes = Object.values(data.pics).reduce((s, d) => s + String(d.img || "").length, 0);
+  const mb = Number((totalBytes / 1048576).toFixed(1));
+
+  diary.sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+  const payload = { app: "love-base", version: 2, exportedAt: nowIso, full: true, data };
+  const json = JSON.stringify(payload).replace(/</g, "\\\\u003c");
+  const articles = diary
+    .map(
+      (e) =>
+        "<article><h3>" +
+        escHtml(e.date) +
+        " · " +
+        escHtml(e.by) +
+        "</h3>" +
+        (e.mood ? "<p><b>心情：</b>" + escHtml(e.mood) + "</p>" : "") +
+        (e.food ? "<p><b>吃了：</b>" + escHtml(e.food) + "</p>" : "") +
+        (e.say ? "<p>" + escHtml(e.say) + "</p>" : "") +
+        "</article>",
+    )
+    .join("");
+  const html =
+    '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    "<title>戀愛基地自動備份 " +
+    todayStr +
+    "</title><style>body{margin:0;background:#fbf6f8;color:#2a1b25;font:16px/1.7 system-ui,sans-serif}main{max-width:680px;margin:0 auto;padding:24px 16px}article{background:#fff;border:1px solid #ead9e1;border-radius:12px;padding:12px 16px;margin:0 0 12px;white-space:pre-wrap}</style></head><body><main>" +
+    "<h1>我們的戀愛遊戲基地（自動備份）</h1><p>備份日期：" +
+    todayStr +
+    " · " +
+    diary.length +
+    " 篇日記 · " +
+    photos.length +
+    " 張照片（含原圖，約 " +
+    mb +
+    " MB）</p><p>要還原時，到網站「更多 → 設定 → 資料備份 → 從備份檔補回資料」選這個檔案即可。</p>" +
+    articles +
+    '</main><script type="application/json" id="love-base-backup">' +
+    json +
+    "</" +
+    "script></body></html>";
+
+  const folders = DriveApp.getFoldersByName(FOLDER_NAME);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(FOLDER_NAME);
+  const fileName = "戀愛基地備份_" + todayStr + "_完整.html";
+  const file = folder.createFile(fileName, html, MimeType.HTML);
+
+  try {
+    UrlFetchApp.fetch(base + "/done/x~backups~auto_" + Date.now(), {
+      method: "patch",
+      contentType: "application/json",
+      payload: JSON.stringify({
+        fields: {
+          full: { booleanValue: true },
+          by: { stringValue: "自動備份" },
+          at: { stringValue: nowIso },
+        },
+      }),
+      muteHttpExceptions: true,
+    });
+  } catch (e) {}
+
+  const me = Session.getActiveUser().getEmail();
+  if (me) {
+    const warn = mb >= WARN_MB;
+    const subject = warn
+      ? "⚠️ 戀愛基地照片空間已達 " + mb + " MB（已完成本月備份）"
+      : "💾 戀愛基地每月自動備份完成（" + todayStr + "）";
+    const body =
+      "本月完整備份（含原圖）已存進你的 Google 雲端硬碟「" +
+      FOLDER_NAME +
+      "」資料夾！\\n\\n" +
+      "• 檔案名稱：" +
+      fileName +
+      "\\n" +
+      "• 雲端連結：" +
+      file.getUrl() +
+      "\\n" +
+      "• 日記篇數：" +
+      diary.length +
+      " 篇\\n" +
+      "• 照片張數：" +
+      photos.length +
+      " 張\\n" +
+      "• 照片空間：" +
+      mb +
+      " MB / 1024 MB" +
+      (warn ? "\\n\\n⚠️ 提醒：照片空間已超過 " + WARN_MB + " MB，可以準備考慮升級空間或搬移照片囉！" : "");
+    MailApp.sendEmail(me, subject, body);
+  }
+}`;
+
+if ($("bkAutoCopy")) {
+  $("bkAutoCopy").onclick = async () => {
+    let code = "";
+    try {
+      code = localStorage.getItem(ROOM_KEY) || "";
+    } catch (e) {}
+    const text = GAS_BACKUP_CODE.replace("__ROOM_CODE__", code || "把這裡換成你們的基地暗號");
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.append(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    toast(code ? "已複製（已自動帶入暗號，請勿外傳）📋" : "已複製自動備份程式碼 📋");
+  };
+}
+
 // 照片空間
 let packList = [];
 const picMsg = (t) => ($("picMsg").textContent = t);
@@ -4029,6 +4254,10 @@ $("picScan").onclick = async () => {
       `目前有 ${s.docs.length} 張照片，約 ${(total / 1048576).toFixed(1)}` +
         ` MB，免費空間是 1024 MB。${packList.length ? "壓縮後畫質會略降，而且無法還原，建議先做完整備份。" : "都已經夠小，不用壓縮。"}`,
     );
+    try {
+      localStorage.setItem(PIC_SCAN_KEY, String(Date.now()));
+    } catch (e) {}
+    renderPicNudge();
     if (packList.length) {
       $("picPack").textContent = `壓縮 ${packList.length} 張舊照片`;
       $("picPack").hidden = false;

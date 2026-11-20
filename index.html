@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
-<link rel="manifest" href="manifest.webmanifest?v=65">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=65">
+<link rel="manifest" href="manifest.webmanifest?v=66">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=66">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -14,7 +14,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f0913">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap">
-<link rel="stylesheet" href="style.css?v=65">
+<link rel="stylesheet" href="style.css?v=66">
 </head>
 <body>
 
@@ -70,6 +70,7 @@
   <section id="today" class="current">
     <div class="notices" id="notices" hidden>
       <div class="away" id="bkNudge" hidden></div>
+      <div class="away" id="picNudge" hidden></div>
       <div class="away" id="awayCard" hidden></div>
     </div>
     <div class="hug" id="hugCard" hidden>
@@ -330,9 +331,24 @@
         <div class="row"><button class="btn ghost" type="button" id="bkPick">從備份檔補回資料</button><button class="btn" type="button" id="bkConfirm" hidden></button></div>
         <input type="file" id="bkFile" accept=".html,.json,text/html,application/json" hidden>
         <p class="sub" id="bkMsg"></p>
+        <details class="month" id="bkAutoSetup">
+          <summary>☁️ 設定 Google 雲端每月自動備份</summary>
+          <div class="month-body">
+            <p class="sub">設定一次後，每個月 1 號會自動把日記和原圖存進你的 Google 雲端硬碟「戀愛基地備份」資料夾，並寄信通知空間用量（Android 和 iPhone 都通用，完全免費）：</p>
+            <ol class="sub" style="margin:0;padding-left:1.4em">
+              <li>打開 <a href="https://script.google.com" target="_blank" rel="noopener" style="color:var(--pink)">script.google.com</a>，點左上角「新專案」。</li>
+              <li>把裡面原本的程式碼全選刪掉，點下方「📋 複製自動備份程式碼」貼進去（會自動帶入目前的暗號，請勿分享給別人），按儲存。</li>
+              <li>在上方函式選單選擇 <b>setupMonthlyTrigger</b>，點「▶ 執行」並允許存取 Google 雲端硬碟與寄信權限。</li>
+              <li>完成！系統會立刻先幫你備份一次，之後每個月 1 號自動備份。</li>
+            </ol>
+            <div class="row">
+              <button class="btn ghost small" type="button" id="bkAutoCopy">📋 複製自動備份程式碼</button>
+            </div>
+          </div>
+        </details>
       </div>
     </details>
-    <details class="rules">
+    <details class="rules" id="picBox">
       <summary>🗜️ 照片空間</summary>
       <div class="custom">
         <p class="sub">新上傳的照片已經會自動壓小。這裡可以檢查目前用了多少，也可以把舊照片一起壓小。</p>
@@ -380,7 +396,7 @@
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=65" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=66" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -406,6 +422,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=65"></script>
+<script src="app.js?v=66"></script>
 </body>
 </html>
