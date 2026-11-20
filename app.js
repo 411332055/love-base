@@ -4231,6 +4231,11 @@ function runMonthlyBackup() {
   }
 }`;
 
+if ($("appVer")) {
+  const s = document.querySelector('script[src*="app.js?v="]');
+  const m = s && s.getAttribute("src").match(/\?v=(\d+)/);
+  if (m) $("appVer").textContent = "目前版本 v" + m[1];
+}
 if ($("bkAutoCopy")) {
   $("bkAutoCopy").onclick = async () => {
     let code = "";
