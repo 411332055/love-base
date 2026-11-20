@@ -150,10 +150,20 @@ function haptic(ms = 22) {
   if (now - lastHaptic < 40) return;
   lastHaptic = now;
   try {
+    const dur = Number.isFinite(ms) ? ms : 22;
     const [k, min] = HAPTIC_LV[hapticLv];
-    if (navigator.vibrate) navigator.vibrate(Math.round(Math.max(ms * k, min)));
+    if (navigator.vibrate) navigator.vibrate(Math.round(Math.max(dur * k, min)));
     else iosHaptic();
   } catch (e) {}
+}
+// 滑塊統一震動體感：導覽列（tabBar / subNav）、分段切換槽（.filter）、幸福指數（#hearts）共用
+const SLIDER_TICK_MS = 20;
+function sliderTick(force = false) {
+  if (force) lastHaptic = 0;
+  haptic(SLIDER_TICK_MS);
+}
+function sliderDragEndTick(changed) {
+  if (changed && !navigator.vibrate) sliderTick(true);
 }
 function popFloat(el, ic = "💞") {
   haptic(25);
@@ -1235,7 +1245,8 @@ function endEdit() {
 }
 $("editCancel").onclick = endEdit;
 let heartDragged = false,
-  heartStart = null;
+  heartStart = null,
+  heartStartVal = 0;
 (function buildHearts() {
   $("hearts").innerHTML =
     [...Array(10)]
@@ -1248,7 +1259,7 @@ let heartDragged = false,
     ev.preventDefault();
     const v = +b.dataset.v;
     happy = happy === v ? 0 : v;
-    haptic(20);
+    sliderTick();
     renderHearts();
     saveDraft();
   });
@@ -1260,6 +1271,7 @@ let heartDragged = false,
   };
   $("hearts").addEventListener("pointerdown", (ev) => {
     heartStart = ev.clientX;
+    heartStartVal = happy;
     heartDragged = false;
   });
   $("hearts").addEventListener("pointermove", (ev) => {
@@ -1269,12 +1281,15 @@ let heartDragged = false,
     const v = pick(ev.clientX);
     if (v !== happy) {
       happy = v;
-      haptic(16);
+      sliderTick();
       renderHearts();
     }
   });
   const endDrag = () => {
-    if (heartDragged) saveDraft();
+    if (heartDragged) {
+      sliderDragEndTick(happy !== heartStartVal);
+      saveDraft();
+    }
     heartStart = null;
     setTimeout(() => (heartDragged = false), 60);
   };
@@ -3241,8 +3256,6 @@ bindSeg(
   () => hapticLv,
   (v) => {
     hapticLv = HAPTIC_LV[v] ? v : "mid";
-    lastHaptic = 0;
-    haptic(20);
   },
 );
 bindSeg(
@@ -3251,7 +3264,6 @@ bindSeg(
   () => (hapticOn ? "on" : "off"),
   (v) => {
     hapticOn = v !== "off";
-    if (hapticOn) haptic(28);
   },
 );
 applyLayout();
@@ -3261,7 +3273,7 @@ renderLayoutList();
 function setView(id) {
   const sec = $(id);
   if (!sec || sec.hidden || !CATS.some((c) => c.secs.includes(id))) id = "today";
-  if (booted && id !== view) haptic(20);
+  if (booted && id !== view) sliderTick();
   view = id;
   const c = CATS.find((x) => x.secs.includes(id));
   lastSub[c.id] = id;
@@ -3367,10 +3379,7 @@ $("tabBar").addEventListener(
   { passive: false },
 );
 function dragEndTick() {
-  if (dragFrom !== null && dragFrom !== view && !navigator.vibrate) {
-    lastHaptic = 0;
-    haptic(20);
-  }
+  sliderDragEndTick(dragFrom !== null && dragFrom !== view);
   dragFrom = null;
 }
 ["touchend", "touchcancel"].forEach((evName) =>
@@ -3493,7 +3502,7 @@ $("subNav").addEventListener(
   ),
 );
 
-// 所有 .filter 分段切換槽都支援滑塊動畫與手指／滑鼠左右拖曳切換（同時讓 subNav 與 tabBar 也支援滑鼠拖曳）
+// 所有 .filter 分段切換槽都支援滑塊動畫、手指／滑鼠左右拖曳切換與統一震動回饋
 function syncFilterBar(el) {
   if (!el || el.classList.contains("dragging")) return;
   const btns = [...el.querySelectorAll("button")];
@@ -3519,14 +3528,51 @@ function syncFilterBar(el) {
   document.querySelectorAll(".filter").forEach((el) => {
     syncFilterBar(el);
     obs.observe(el, { attributes: true, childList: true, subtree: true, attributeFilter: ["aria-pressed"] });
+    const isHapticSeg = el.id === "segHaptic" || el.id === "segHapticLv";
     let active = false,
+      startIdx = -1,
       lastIdx = -1,
+      dragChanged = false,
+      fromDrag = false,
+      clickWasPressed = false,
       dragTimer = 0,
       pendingBtn = null,
       filRect = null,
       filBtns = null,
       filRaf = 0,
       filX = 0;
+    const fireDragClick = (b) => {
+      fromDrag = true;
+      try {
+        b.click();
+      } finally {
+        fromDrag = false;
+      }
+    };
+    const beginDrag = () => {
+      active = true;
+      filRect = el.getBoundingClientRect();
+      filBtns = [...el.querySelectorAll("button")];
+      startIdx = filBtns.findIndex((b) => b.getAttribute("aria-pressed") === "true");
+      lastIdx = startIdx;
+      dragChanged = false;
+    };
+    el.addEventListener(
+      "click",
+      (ev) => {
+        const b = ev.target.closest("button");
+        clickWasPressed = !!b && b.getAttribute("aria-pressed") === "true";
+      },
+      true,
+    );
+    el.addEventListener("click", (ev) => {
+      if (!ev.target.closest("button")) return;
+      if (fromDrag) {
+        if (isHapticSeg) sliderTick(true);
+        return;
+      }
+      if (!clickWasPressed) sliderTick(isHapticSeg);
+    });
     const onMove = (clientX) => {
       filX = clientX;
       if (filRaf) return;
@@ -3544,6 +3590,8 @@ function syncFilterBar(el) {
         el.style.setProperty("--fil-i", pos.toFixed(3));
         if (idx !== lastIdx) {
           lastIdx = idx;
+          dragChanged = idx !== startIdx;
+          if (!isHapticSeg) sliderTick();
           btns.forEach((b, i) => b.setAttribute("aria-pressed", String(i === idx)));
           pendingBtn = btns[idx];
           clearTimeout(dragTimer);
@@ -3552,7 +3600,7 @@ function syncFilterBar(el) {
             if (pendingBtn) {
               const b = pendingBtn;
               pendingBtn = null;
-              b.click();
+              fireDragClick(b);
             }
           }, 40);
         }
@@ -3560,8 +3608,11 @@ function syncFilterBar(el) {
     };
     const onEnd = () => {
       if (!active && !el.classList.contains("dragging")) return;
+      const changed = dragChanged;
       active = false;
+      startIdx = -1;
       lastIdx = -1;
+      dragChanged = false;
       if (filRaf) {
         cancelAnimationFrame(filRaf);
         filRaf = 0;
@@ -3575,24 +3626,15 @@ function syncFilterBar(el) {
       if (pendingBtn) {
         const b = pendingBtn;
         pendingBtn = null;
-        b.click();
+        fireDragClick(b);
       }
-      dragEndTick();
+      sliderDragEndTick(changed);
       if (el.classList.contains("dragging")) {
         el.classList.remove("dragging");
         syncFilterBar(el);
       }
     };
-    el.addEventListener(
-      "touchstart",
-      () => {
-        active = true;
-        dragFrom = view;
-        filRect = el.getBoundingClientRect();
-        filBtns = [...el.querySelectorAll("button")];
-      },
-      { passive: true },
-    );
+    el.addEventListener("touchstart", beginDrag, { passive: true });
     el.addEventListener(
       "touchmove",
       (ev) => {
@@ -3607,9 +3649,7 @@ function syncFilterBar(el) {
     el.addEventListener("touchcancel", onEnd, { passive: true });
     el.addEventListener("pointerdown", (ev) => {
       if (ev.pointerType === "mouse" && ev.button === 0) {
-        active = true;
-        filRect = el.getBoundingClientRect();
-        filBtns = [...el.querySelectorAll("button")];
+        beginDrag();
         el.setPointerCapture?.(ev.pointerId);
       }
     });
@@ -4671,7 +4711,6 @@ function renderBook() {
 }
 document.querySelectorAll("#bookMode button").forEach((b) => {
   b.onclick = () => {
-    haptic("tap");
     bookMode = b.dataset.m;
     renderBook();
   };
