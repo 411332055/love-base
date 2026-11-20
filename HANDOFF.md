@@ -114,6 +114,7 @@
 ## 六、已知的限制和還沒做的事
 
 - **推播通知**：已在「更多 → 設定 → 🔔 手機推播通知」支援 Web Push（透過免費的 Google Apps Script 轉發，iPhone 需先加到主畫面）。
+- **推播郵差只能轉發到推播服務**：`GAS_PUSH_CODE` 裡的 `PUSH_HOSTS` 白名單只允許 Google（FCM）、Apple、Mozilla、Microsoft 的推播網址。郵差網址公開在 GitHub 上，沒有白名單的話別人可以拿它當免費轉發站。改了 `GAS_PUSH_CODE` 之後，使用者要自己到 Apps Script 重新部署「新版本」才會生效。
 - `diary` 和 `done` 每次都整包載入。靠 Firestore 的離線快取所以不慢，幾年後資料很多時可能要分批。
 - 月底總結已整合進「回憶書」，和年度總結放在一起切換。
 - 名字 `寒冰`、`夏夏` 是寫死的（`NAMES`），不支援第三個人。

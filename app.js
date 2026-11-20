@@ -4572,9 +4572,17 @@ $("reviewForm").addEventListener("submit", async (ev) => {
 });
 
 /* ===== 手機推播通知（Web Push + Google Apps Script 免綁卡轉發） ===== */
-const GAS_PUSH_CODE = `function doPost(e) {
+const GAS_PUSH_CODE = `// 只轉發到手機推播服務（Google、Apple、Mozilla、Microsoft），其他網址一律拒絕，
+// 避免這個公開的網址被別人拿去當免費轉發站。
+var PUSH_HOSTS = /^https:\\/\\/([a-z0-9-]+\\.)*(fcm\\.googleapis\\.com|android\\.googleapis\\.com|push\\.apple\\.com|push\\.services\\.mozilla\\.com|notify\\.windows\\.com)\\//i;
+function doPost(e) {
   try {
     var d = JSON.parse(e.postData.contents);
+    if (!d || typeof d.endpoint !== "string" || !PUSH_HOSTS.test(d.endpoint) ||
+        typeof d.body !== "string" || d.body.length > 8000 || typeof d.auth !== "string" || d.auth.indexOf("vapid ") !== 0) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, code: 400, error: "not a push endpoint" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     var res = UrlFetchApp.fetch(d.endpoint, {
       method: "post",
       contentType: "application/octet-stream",
