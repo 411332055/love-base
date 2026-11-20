@@ -2773,8 +2773,7 @@ function subPhotoTrash() {
     .onSnapshot(
       (s) => {
         trash.photos = s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => p.trashed);
-        renderVer++;
-        renderOpen();
+        renderAll();
         purgeExpired();
       },
       () => {},
@@ -4120,27 +4119,116 @@ function runMonthlyBackup() {
 
   diary.sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
   photos.sort((a, b) => String(a.at || a.date || "").localeCompare(String(b.at || b.date || "")));
+  const xs = (c) =>
+    Object.entries(data.done || {})
+      .filter(([k]) => k.indexOf("x~" + c + "~") === 0)
+      .map(([k, v]) => Object.assign({ id: k.split("~")[2] }, v))
+      .filter((x) => !x.trashed)
+      .sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+  const replies = xs("replies");
+  const reviews = xs("reviews");
+  const wishes = xs("wishes");
+  const rounds = xs("rounds");
+  const answers = xs("answers");
+  const caps = xs("capsules");
+  const passed = rounds.filter(
+    (r) => new Set(answers.filter((a) => a.round === r.id).map((a) => a.by)).size >= 2,
+  );
   const payload = { app: "love-base", version: 2, exportedAt: nowIso, full: true, data };
   const json = JSON.stringify(payload).replace(/</g, "\\\\u003c");
   const articles = diary
     .map((e) => {
       const phs = photos.filter((p) => p.entry === e.id);
+      const texts = replies.filter((r) => r.entry === e.id && r.kind === "text");
       return (
         "<article><h3>" +
         escHtml(e.date) +
         " · " +
         escHtml(e.by) +
+        (e.happy ? " · ⭐ " + escHtml(e.happy) + "/10" : "") +
         "</h3>" +
         (e.mood ? "<p><b>心情：</b>" + escHtml(e.mood) + "</p>" : "") +
         (e.food ? "<p><b>吃了：</b>" + escHtml(e.food) + "</p>" : "") +
         (e.say ? "<p>" + escHtml(e.say) + "</p>" : "") +
+        (e.s1 || e.s2
+          ? "<blockquote>今天雖然" + escHtml(e.s1 || "＿＿") + "，但因為有你" + escHtml(e.s2 || "＿＿") + "。</blockquote>"
+          : "") +
         (phs.length
           ? '<div class="dph">' + phs.map((p) => '<img src="' + escHtml(p.th) + '" alt="日記照片">').join("") + "</div>"
           : "") +
+        texts.map((r) => '<p class="re"><b>' + escHtml(r.by) + "</b> " + escHtml(r.text) + "</p>").join("") +
         "</article>"
       );
     })
     .join("");
+  const revDates = [...new Set(reviews.map((r) => r.date))].sort();
+  const revHtml = revDates.length
+    ? "<h2>📝 每週回顧</h2>" +
+      revDates
+        .map(
+          (d) =>
+            "<article><h3>" +
+            escHtml(d) +
+            "</h3>" +
+            reviews
+              .filter((r) => r.date === d)
+              .map((r) => "<p><b>" + escHtml(r.by) + "：</b>" + escHtml(r.text) + "</p>")
+              .join("") +
+            "</article>",
+        )
+        .join("")
+    : "";
+  const wishHtml = wishes.length
+    ? "<h2>🌠 願望清單</h2><ul>" +
+      wishes
+        .map(
+          (w) =>
+            "<li>" +
+            (w.done ? "✅ " : "⬜ ") +
+            escHtml(w.text) +
+            (w.done && w.doneDate ? "（" + escHtml(w.doneDate) + " 完成）" : "") +
+            "</li>",
+        )
+        .join("") +
+      "</ul>"
+    : "";
+  const drawHtml = passed.length
+    ? "<h2>🎲 抽題紀錄</h2>" +
+      passed
+        .map((r) => {
+          const byMap = {};
+          answers
+            .filter((a) => a.round === r.id)
+            .forEach((a) => (byMap[a.by] = a.text));
+          return (
+            "<article><h3>" +
+            escHtml(r.q) +
+            "</h3>" +
+            Object.keys(byMap)
+              .map((who) => "<p><b>" + escHtml(who) + "：</b>" + escHtml(byMap[who]) + "</p>")
+              .join("") +
+            "</article>"
+          );
+        })
+        .join("")
+    : "";
+  const capHtml = caps.length
+    ? "<h2>⏳ 時光膠囊</h2>" +
+      caps
+        .map(
+          (c) =>
+            "<article><h3>" +
+            (c.openDate > todayStr ? "🔒 封存中" : "💌 已打開") +
+            " · " +
+            escHtml(c.by) +
+            "（" +
+            escHtml(c.openDate) +
+            " 打開）</h3>" +
+            (c.openDate > todayStr ? "" : "<p>" + escHtml(c.text) + "</p>") +
+            "</article>",
+        )
+        .join("")
+    : "";
   const wallHtml = photos.length
     ? "<h2>📷 照片牆（" +
       photos.length +
@@ -4164,7 +4252,7 @@ function runMonthlyBackup() {
     '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     "<title>戀愛基地自動備份 " +
     todayStr +
-    "</title><style>body{margin:0;background:#fbf6f8;color:#2a1b25;font:16px/1.7 system-ui,sans-serif}main{max-width:680px;margin:0 auto;padding:24px 16px}h2{font-size:20px;margin:32px 0 12px;padding-bottom:6px;border-bottom:2px solid #e2457a}article{background:#fff;border:1px solid #ead9e1;border-radius:12px;padding:12px 16px;margin:0 0 12px;white-space:pre-wrap}.dph{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.dph img{width:130px;height:130px;object-fit:cover;border-radius:8px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}figure{margin:0;font-size:13px;color:#7c6672}figure img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block;margin-bottom:4px}</style></head><body><main>" +
+    "</title><style>body{margin:0;background:#fbf6f8;color:#2a1b25;font:16px/1.7 system-ui,sans-serif}main{max-width:680px;margin:0 auto;padding:24px 16px}h2{font-size:20px;margin:32px 0 12px;padding-bottom:6px;border-bottom:2px solid #e2457a}article{background:#fff;border:1px solid #ead9e1;border-radius:12px;padding:12px 16px;margin:0 0 12px;white-space:pre-wrap}blockquote{margin:8px 0 0;padding:8px 12px;background:#fde3ec;border-radius:8px}.re{margin:6px 0 0;padding:4px 10px;background:#f4ebef;border-radius:8px;font-size:14px}.dph{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.dph img{width:130px;height:130px;object-fit:cover;border-radius:8px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}figure{margin:0;font-size:13px;color:#7c6672}figure img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block;margin-bottom:4px}</style></head><body><main>" +
     "<h1>我們的戀愛遊戲基地（自動備份）</h1><p>備份日期：" +
     todayStr +
     " · " +
@@ -4175,6 +4263,10 @@ function runMonthlyBackup() {
     mb +
     " MB）</p><p>要還原時，到網站「更多 → 設定 → 資料備份 → 從備份檔補回資料」選這個檔案即可。</p>" +
     articles +
+    revHtml +
+    wishHtml +
+    drawHtml +
+    capHtml +
     wallHtml +
     '</main><script type="application/json" id="love-base-backup">' +
     json +
@@ -4236,6 +4328,22 @@ if ($("appVer")) {
   const m = s && s.getAttribute("src").match(/\?v=(\d+)/);
   if (m) $("appVer").textContent = "目前版本 v" + m[1];
 }
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed;left:-9999px;top:0;font-size:16px";
+    document.body.append(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    document.execCommand("copy");
+    ta.remove();
+  }
+}
 if ($("bkAutoCopy")) {
   $("bkAutoCopy").onclick = async () => {
     let code = "";
@@ -4243,16 +4351,7 @@ if ($("bkAutoCopy")) {
       code = localStorage.getItem(ROOM_KEY) || "";
     } catch (e) {}
     const text = GAS_BACKUP_CODE.replace("__ROOM_CODE__", code || "把這裡換成你們的基地暗號");
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (e) {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      document.body.append(ta);
-      ta.select();
-      document.execCommand("copy");
-      ta.remove();
-    }
+    await copyText(text);
     toast(code ? "已複製（已自動帶入暗號，請勿外傳）📋" : "已複製自動備份程式碼 📋");
   };
 }
@@ -5069,18 +5168,8 @@ async function renderPush() {
     : "目前還沒有裝置開啟通知。";
 }
 $("pushCopyCode").onclick = async () => {
-  try {
-    await navigator.clipboard.writeText(GAS_PUSH_CODE);
-    toast("郵差程式碼複製好了 📋");
-  } catch (e) {
-    const ta = document.createElement("textarea");
-    ta.value = GAS_PUSH_CODE;
-    document.body.append(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-    toast("郵差程式碼複製好了 📋");
-  }
+  await copyText(GAS_PUSH_CODE);
+  toast("郵差程式碼複製好了 📋");
 };
 $("pushUrlSave").onclick = async () => {
   if (!db) {
