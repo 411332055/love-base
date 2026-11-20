@@ -3225,7 +3225,6 @@ bindSeg(
 );
 // 測試震動：按下去直接震，並顯示是卡在瀏覽器還是手機設定
 $("hapticTest").onclick = () => {
-  const ver = ((document.querySelector('script[src*="app.js"]') || {}).src || "").match(/v=(\d+)/);
   let res = "這個瀏覽器不支援震動";
   try {
     if (navigator.vibrate) res = navigator.vibrate([200, 100, 200]) ? "已經叫手機震了" : "被瀏覽器擋下來";
@@ -3234,7 +3233,7 @@ $("hapticTest").onclick = () => {
     res = "發生錯誤";
   }
   $("hapticInfo").textContent =
-    `${res} · 震動開關：${hapticOn ? "開" : "關"} · 強度：${{ light: "輕", mid: "中", strong: "強" }[hapticLv]} · 版本 v${ver ? ver[1] : "?"}`;
+    `${res} · 震動開關：${hapticOn ? "開" : "關"} · 強度：${{ light: "輕", mid: "中", strong: "強" }[hapticLv]}`;
 };
 bindSeg(
   "segHapticLv",
