@@ -4109,17 +4109,23 @@ function runMonthlyBackup() {
 
   const nowIso = new Date().toISOString();
   const todayStr = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd");
-  const diary = Object.values(data.diary).filter((x) => !x.trashed);
-  const photos = Object.values(data.photos).filter((x) => !x.trashed);
+  const diary = Object.entries(data.diary)
+    .map(([id, v]) => Object.assign({ id }, v))
+    .filter((x) => !x.trashed);
+  const photos = Object.entries(data.photos)
+    .map(([id, v]) => Object.assign({ id }, v))
+    .filter((x) => !x.trashed);
   const totalBytes = Object.values(data.pics).reduce((s, d) => s + String(d.img || "").length, 0);
   const mb = Number((totalBytes / 1048576).toFixed(1));
 
   diary.sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+  photos.sort((a, b) => String(a.at || a.date || "").localeCompare(String(b.at || b.date || "")));
   const payload = { app: "love-base", version: 2, exportedAt: nowIso, full: true, data };
   const json = JSON.stringify(payload).replace(/</g, "\\\\u003c");
   const articles = diary
-    .map(
-      (e) =>
+    .map((e) => {
+      const phs = photos.filter((p) => p.entry === e.id);
+      return (
         "<article><h3>" +
         escHtml(e.date) +
         " · " +
@@ -4128,14 +4134,37 @@ function runMonthlyBackup() {
         (e.mood ? "<p><b>心情：</b>" + escHtml(e.mood) + "</p>" : "") +
         (e.food ? "<p><b>吃了：</b>" + escHtml(e.food) + "</p>" : "") +
         (e.say ? "<p>" + escHtml(e.say) + "</p>" : "") +
-        "</article>",
-    )
+        (phs.length
+          ? '<div class="dph">' + phs.map((p) => '<img src="' + escHtml(p.th) + '" alt="日記照片">').join("") + "</div>"
+          : "") +
+        "</article>"
+      );
+    })
     .join("");
+  const wallHtml = photos.length
+    ? "<h2>📷 照片牆（" +
+      photos.length +
+      ' 張）</h2><div class="grid">' +
+      photos
+        .map(
+          (p) =>
+            '<figure><img src="' +
+            escHtml(p.th) +
+            '" alt="照片" loading="lazy">' +
+            escHtml(p.date) +
+            " · " +
+            escHtml(p.by) +
+            (p.cap ? "<br>" + escHtml(p.cap) : "") +
+            "</figure>",
+        )
+        .join("") +
+      "</div>"
+    : "";
   const html =
     '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     "<title>戀愛基地自動備份 " +
     todayStr +
-    "</title><style>body{margin:0;background:#fbf6f8;color:#2a1b25;font:16px/1.7 system-ui,sans-serif}main{max-width:680px;margin:0 auto;padding:24px 16px}article{background:#fff;border:1px solid #ead9e1;border-radius:12px;padding:12px 16px;margin:0 0 12px;white-space:pre-wrap}</style></head><body><main>" +
+    "</title><style>body{margin:0;background:#fbf6f8;color:#2a1b25;font:16px/1.7 system-ui,sans-serif}main{max-width:680px;margin:0 auto;padding:24px 16px}h2{font-size:20px;margin:32px 0 12px;padding-bottom:6px;border-bottom:2px solid #e2457a}article{background:#fff;border:1px solid #ead9e1;border-radius:12px;padding:12px 16px;margin:0 0 12px;white-space:pre-wrap}.dph{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.dph img{width:130px;height:130px;object-fit:cover;border-radius:8px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}figure{margin:0;font-size:13px;color:#7c6672}figure img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block;margin-bottom:4px}</style></head><body><main>" +
     "<h1>我們的戀愛遊戲基地（自動備份）</h1><p>備份日期：" +
     todayStr +
     " · " +
@@ -4146,6 +4175,7 @@ function runMonthlyBackup() {
     mb +
     " MB）</p><p>要還原時，到網站「更多 → 設定 → 資料備份 → 從備份檔補回資料」選這個檔案即可。</p>" +
     articles +
+    wallHtml +
     '</main><script type="application/json" id="love-base-backup">' +
     json +
     "</" +
