@@ -729,6 +729,7 @@ async function savePhoto(file, date, opt = {}) {
   // 同時寫入原圖、縮圖與每日打卡紀錄，確保弱網下 0.2 秒內全部鎖進本機離線佇列
   const pPic = db.collection("pics").doc(id).set({ img, date, by: myName() });
   const pMeta = db.collection("photos").doc(id).set(meta);
+  picCache.set(id, img);
   const item = { id, ...meta };
   photos = photos.filter((p) => p.id !== id).concat([item]);
   calPhotos = calPhotos.filter((p) => p.id !== id).concat([item]);
@@ -802,12 +803,30 @@ $("photoFile").addEventListener("change", async () => {
 let lbId = null,
   lbList = [],
   lbFull = "";
+const picCache = new Map();
+function fetchPicImg(id) {
+  if (picCache.has(id)) return Promise.resolve(picCache.get(id));
+  if (!db) return Promise.resolve("");
+  return db
+    .collection("pics")
+    .doc(id)
+    .get()
+    .then((s) => {
+      const img = (s.exists && s.data()?.img) || "";
+      if (img) {
+        if (picCache.size >= 24) picCache.delete(picCache.keys().next().value);
+        picCache.set(id, img);
+      }
+      return img;
+    });
+}
 // list：同一組照片的 id，可以左右切換
 function openPhoto(id, list) {
   const p = calAllPhotos().find((x) => x.id === id);
   if (!p) return;
   lbId = id;
-  lbFull = "";
+  const cached = picCache.get(id) || "";
+  lbFull = cached;
   if (list) lbList = list.filter((i) => calAllPhotos().some((x) => x.id === i));
   if (!lbList.includes(id)) lbList = [id];
   const i = lbList.indexOf(id),
@@ -815,7 +834,7 @@ function openPhoto(id, list) {
   $("lbCount").textContent = many ? `${i + 1} / ${lbList.length}` : "";
   $("lbPrev").hidden = !many || i === 0;
   $("lbNext").hidden = !many || i === lbList.length - 1;
-  $("lbImg").src = p.th;
+  $("lbImg").src = cached || p.th;
   $("lbImg").alt = p.by + " 的照片";
   const [, m, d] = p.date.split("-").map(Number),
     mine = p.by === myName();
@@ -828,25 +847,30 @@ function openPhoto(id, list) {
   delete del.dataset.confirm;
   del.textContent = "刪除這張";
   $("lightbox").hidden = false;
-  db.collection("pics")
-    .doc(id)
-    .get()
-    .then((s) => {
-      const d = s.exists ? s.data() : null;
-      if (lbId === id && d && d.img) {
-        lbFull = d.img;
-        $("lbImg").src = d.img;
-      }
-    })
-    .catch(() => {
-      if (lbId === id)
-        $("lbCount").textContent =
-          ($("lbCount").textContent ? $("lbCount").textContent + " · " : "") + "原圖沒載到，先顯示縮圖";
-    });
+  if (!cached) {
+    fetchPicImg(id)
+      .then((img) => {
+        if (lbId === id && img) {
+          lbFull = img;
+          $("lbImg").src = img;
+        }
+      })
+      .catch(() => {
+        if (lbId === id)
+          $("lbCount").textContent =
+            ($("lbCount").textContent ? $("lbCount").textContent + " · " : "") + "原圖沒載到，先顯示縮圖";
+      });
+  }
+  [lbList[i - 1], lbList[i + 1]].filter(Boolean).forEach((adj) => fetchPicImg(adj).catch(() => {}));
 }
 function lbStep(n) {
   const i = lbList.indexOf(lbId) + n;
-  if (i >= 0 && i < lbList.length) openPhoto(lbList[i]);
+  if (i >= 0 && i < lbList.length) {
+    sliderTick();
+    openPhoto(lbList[i]);
+    return true;
+  }
+  return false;
 }
 $("lbPrev").onclick = () => lbStep(-1);
 $("lbNext").onclick = () => lbStep(1);
@@ -869,7 +893,9 @@ $("lbNext").onclick = () => lbStep(1);
       im.style.transform = `translate3d(0,${y.toFixed(1)}px,0) scale(${s.toFixed(3)})`;
       im.style.opacity = Math.max(0.35, 1 - Math.max(0, dy) / 420).toFixed(2);
     } else if (axis === "x") {
-      im.style.transform = `translate3d(${(dx * 0.45).toFixed(1)}px,0,0)`;
+      const i = lbList.indexOf(lbId),
+        atEdge = (dx > 0 && i <= 0) || (dx < 0 && i >= lbList.length - 1);
+      im.style.transform = `translate3d(${(dx * (atEdge ? 0.18 : 0.45)).toFixed(1)}px,0,0)`;
     }
   }
   stage.addEventListener(
@@ -907,12 +933,14 @@ $("lbNext").onclick = () => lbStep(1);
         cancelAnimationFrame(raf);
         raf = 0;
       }
-      if (axis === "x" && Math.abs(dx) > 45) {
+      const nextIdx = lbList.indexOf(lbId) + (dx < 0 ? 1 : -1);
+      if (axis === "x" && Math.abs(dx) > 45 && nextIdx >= 0 && nextIdx < lbList.length) {
         im.style.transition = "none";
         im.style.transform = "";
         im.style.opacity = "";
         lbStep(dx < 0 ? 1 : -1);
       } else if (axis === "y" && dy > 55) {
+        sliderTick();
         im.style.transition = "transform .15s ease-out,opacity .15s ease-out";
         im.style.transform = "translate3d(0,160px,0) scale(.8)";
         im.style.opacity = "0";
@@ -1013,6 +1041,7 @@ $("lbDel").onclick = async () => {
   }
   try {
     await db.collection("photos").doc(id).update({ trashed: trashMark() });
+    picCache.delete(id);
     photos = photos.filter((p) => p.id !== id);
     calPhotos = calPhotos.filter((p) => p.id !== id);
     closePhoto();
@@ -1384,8 +1413,8 @@ $("diaryForm").addEventListener("submit", async (ev) => {
       Object.assign(old, upd);
       const eid = editId;
       endEdit();
-      renderAll();
       const n = await uploadQueue(eid, upd.date, queued);
+      renderAll();
       toast(n ? `修改好了 ✏️ 加了 ${n} 張照片` : "修改好了 ✏️");
     } catch (err) {
       $("dMsg").textContent = "沒存到，請再試一次";
@@ -2203,6 +2232,7 @@ function loadCalPhotos(m) {
       calPhotos = calPhotos
         .filter((p) => !ids.has(p.id))
         .concat(s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => !p.trashed));
+      _entryMeta = null;
       renderVer++;
       renderOpen();
     })
@@ -2674,7 +2704,11 @@ async function restoreReplaced(item) {
     { id, trashed, replaced, ...data } = item;
   const pc = await db.collection("pics").doc(id).get();
   await archivePhoto(orig);
-  if (pc.exists) await db.collection("pics").doc(orig).set(pc.data());
+  if (pc.exists) {
+    await db.collection("pics").doc(orig).set(pc.data());
+    if (pc.data()?.img) picCache.set(orig, pc.data().img);
+  }
+  picCache.delete(id);
   await db.collection("photos").doc(orig).set(data);
   await db.collection("photos").doc(id).delete();
   await db
@@ -3706,8 +3740,7 @@ function renderDiaryToday() {
   const tk = key(today()),
     me = myName(),
     list = entries.filter((e) => e.date === tk).sort(byAt),
-    mine = list.some((e) => e.by === me),
-    theirs = list.some((e) => e.by && e.by !== me);
+    mine = list.some((e) => e.by === me);
   let draft = false;
   try {
     draft = !!localStorage.getItem(DRAFT_KEY);
@@ -3758,11 +3791,45 @@ const shrinkFull = (im) => shrink(im, 1280, PHOTO_MAX, 0.76),
 const DIARY_PH_MAX = 9;
 let dQueue = [],
   diaryUp = null,
-  addTarget = null;
+  addTarget = null,
+  _entryMeta = null;
+function entryMetaMap() {
+  if (_entryMeta) return _entryMeta;
+  const repliesByEntry = new Map(),
+    photosByEntry = new Map(),
+    dailyPhotoByKey = new Map(),
+    firstEntryIds = new Set(),
+    seenFirst = new Set();
+  [...store.replies].sort(byAt).forEach((r) => {
+    if (!repliesByEntry.has(r.entry)) repliesByEntry.set(r.entry, []);
+    repliesByEntry.get(r.entry).push(r);
+  });
+  calAllPhotos().forEach((p) => {
+    if (p.trashed) return;
+    if (p.entry) {
+      if (!photosByEntry.has(p.entry)) photosByEntry.set(p.entry, []);
+      photosByEntry.get(p.entry).push(p);
+    } else if (p.date && p.by) {
+      const k = p.date + "_" + p.by;
+      if (!dailyPhotoByKey.has(k) || p.id === k) dailyPhotoByKey.set(k, p);
+    }
+  });
+  for (const list of photosByEntry.values()) list.sort(byAt);
+  [...entries]
+    .sort((a, b) => (String(a.date) + a.at).localeCompare(String(b.date) + b.at))
+    .forEach((e) => {
+      const k = e.date + "_" + e.by;
+      if (!seenFirst.has(k)) {
+        seenFirst.add(k);
+        firstEntryIds.add(e.id);
+      }
+    });
+  _entryMeta = { repliesByEntry, photosByEntry, dailyPhotoByKey, firstEntryIds };
+  return _entryMeta;
+}
 function entryPhotos(id, all) {
-  return (all || calAllPhotos())
-    .filter((p) => p.entry === id && !p.trashed)
-    .sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  if (!all) return entryMetaMap().photosByEntry.get(id) || [];
+  return all.filter((p) => p.entry === id && !p.trashed).sort((a, b) => String(a.at).localeCompare(String(b.at)));
 }
 function renderQueue() {
   const box = $("dPhotos");
@@ -3874,16 +3941,13 @@ const replyFormEl = $("replyForm"),
   replyTextEl = $("replyText");
 function entryExtras(e, where, acts = "") {
   const me = myName(),
-    rs = store.replies.filter((r) => r.entry === e.id).sort(byAt),
+    meta = entryMetaMap(),
+    rs = meta.repliesByEntry.get(e.id) || [],
     texts = rs.filter((r) => r.kind === "text"),
     emos = rs.filter((r) => r.kind === "emo"),
-    all = calAllPhotos(),
-    first = entries.filter((x) => x.date === e.date && x.by === e.by).sort(byAt)[0]?.id === e.id;
-  const own = entryPhotos(e.id, all),
-    phs = [
-      where === "list" && first ? all.find((p) => !p.entry && p.date === e.date && p.by === e.by) : null,
-      ...own,
-    ].filter(Boolean);
+    first = meta.firstEntryIds.has(e.id);
+  const own = meta.photosByEntry.get(e.id) || [],
+    phs = [where === "list" && first ? meta.dailyPhotoByKey.get(e.date + "_" + e.by) : null, ...own].filter(Boolean);
   const canAdd = db && !photoErr && e.by === me && own.length < DIARY_PH_MAX;
   const addBtn = canAdd
     ? `<button type="button" class="btn ghost" data-addph="${esc(e.id)}" ${diaryUp === e.id ? "disabled" : ""}` +
@@ -4775,6 +4839,9 @@ function checkRollover() {
   const oldKey = lastDayKey;
   lastDayKey = nk;
   if (!editId && $("dDate").value === oldKey) $("dDate").value = nk;
+  const minCap = key(addDays(today(), 1));
+  $("capDate").min = minCap;
+  if ($("capDate").value && $("capDate").value < minCap) $("capDate").value = minCap;
   if (calDay === oldKey) {
     calDay = nk;
     calMonth = nk.slice(0, 7);
@@ -5406,6 +5473,7 @@ let renderRaf = 0;
 function renderAll() {
   _dayRecs = null;
   _pairsMap = null;
+  _entryMeta = null;
   renderVer++;
   if (!booted) {
     renderOpen();
@@ -5463,7 +5531,6 @@ $("dDate").value = key(today());
 $("capDate").min = key(addDays(today(), 1));
 $("capDate").value = key(nextAnniv());
 renderHearts();
-renderAll();
 renderInstall();
 showLastBackup();
 restoreDraft();

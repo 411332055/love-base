@@ -130,6 +130,8 @@ textarea{resize:none;min-height:44px;overflow:hidden;line-height:1.55}
 @media (max-width:520px){form.diary{grid-template-columns:1fr}}
 .entries{display:flex;flex-direction:column;gap:12px}
 .entry{background:var(--glass-bg);border:.5px solid var(--line);border-radius:var(--r);padding:15px 16px;display:flex;flex-direction:column;gap:7px;box-shadow:var(--card-shadow)}
+#entries .entry,#logList .entry{content-visibility:auto;contain-intrinsic-size:auto 180px}
+.wall-day{content-visibility:auto;contain-intrinsic-size:auto 160px}
 .entry header{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
 .entry header b{font-weight:700}
 .entry header span{font-size:13px;color:var(--muted)}
