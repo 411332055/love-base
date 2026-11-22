@@ -390,6 +390,7 @@ details.month[open]>.month-body,details.rules[open]>.custom,details.rules[open]>
 
 /* 提示合併成一張卡；照片格縮小 */
 .notices{background:var(--glass-bg);border:.5px solid var(--line);box-shadow:var(--card-shadow);border-radius:var(--r);padding:2px 16px;display:flex;flex-direction:column}
+.notices:not(:has(>:not([hidden]))){display:none}
 .notices>.away{background:none;border-radius:0;padding:10px 0}
 .notices>.away:not([hidden])~.away:not([hidden]){border-top:.5px solid var(--line)}
 .done-line{color:var(--ok);font-weight:700}

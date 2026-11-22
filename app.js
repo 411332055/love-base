@@ -2936,6 +2936,7 @@ function renderAway() {
   const card = $("awayCard");
   if (!db || !seenMs) {
     card.hidden = true;
+    syncNotices();
     return;
   }
   const me = myName(),
@@ -2963,6 +2964,7 @@ function renderAway() {
   );
   if (!groups.length) {
     card.hidden = true;
+    syncNotices();
     return;
   }
   const name = groups[0][0][0].by === me ? groups[0][0][0].backBy : groups[0][0][0].by;
@@ -2971,6 +2973,7 @@ function renderAway() {
     `<button class="btn ghost" type="button" id="awayOk">知道了</button></div>` +
     `<div class="away-list">${groups.map((g) => `<a href="#${g[2]}">${g[1](g[0].length)}</a>`).join("")}</div>`;
   card.hidden = false;
+  syncNotices();
   $("awayOk").onclick = () => {
     const v = nowIso();
     seenMs = new Date(v).getTime();
@@ -4041,6 +4044,7 @@ function renderBackupNudge() {
     `<button class="btn ghost" type="button" id="bkLater" style="padding:4px 14px;font-size:13px">之後再說</button>` +
     `</div></div>`;
   box.hidden = false;
+  syncNotices();
   $("bkLater").onclick = () => {
     try {
       localStorage.setItem(BK_SNOOZE, Date.now() + 7 * 864e5);
@@ -4080,6 +4084,7 @@ function renderPicNudge() {
     `<button class="btn ghost" type="button" id="picLater" style="padding:4px 14px;font-size:13px">之後再說</button>` +
     `</div></div>`;
   box.hidden = false;
+  syncNotices();
   $("picLater").onclick = () => {
     try {
       localStorage.setItem(PIC_SNOOZE, Date.now() + 14 * 864e5);
