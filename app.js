@@ -417,8 +417,10 @@ function renderBdays() {
     let nx = new Date(t.getFullYear(), b.m - 1, b.d);
     if (nx < t) nx = new Date(t.getFullYear() + 1, b.m - 1, b.d);
     const left = Math.round((nx - t) / 864e5),
-      who = n === myName() ? "我" : n;
-    return `<span>${left === 0 ? `🎂 今天是${who}的生日！` : `🎂 ${who}的生日還有 ${left} 天`}</span>`;
+      who = n === myName() ? "我" : n,
+      cls = n === "寒冰" ? "b-ice" : "b-leaf",
+      ic = n === "寒冰" ? "🧊" : "🍃";
+    return `<span class="${cls}">🎂 ${ic} ${left === 0 ? `今天是${who}的生日！` : `${who}的生日還有 ${left} 天`}</span>`;
   }).join("");
   const f = $("bdayForm");
   if (f.contains(document.activeElement)) return;
@@ -467,7 +469,7 @@ function renderAnniv() {
       : isMile
         ? `🎉 今天是在一起第<span class="num">${n}</span>天紀念日！`
         : `💝 在一起第<span class="num">${n}</span>天`) +
-    `<span class="left">距離 ${LOVE_START.getMonth() + 1}/${LOVE_START.getDate()} 週年還有 ${left} 天</span>`;
+    `<span class="left">💍 距離 ${LOVE_START.getMonth() + 1}/${LOVE_START.getDate()} 週年還有 ${left} 天</span>`;
 }
 
 function renderHUD() {
@@ -566,9 +568,11 @@ function myPhoto(d) {
   return myPhotos(d)[0];
 }
 function photoBtn(p, cls) {
+  const pCls = p.by === "寒冰" ? " p-ice" : p.by === "夏夏" ? " p-leaf" : "",
+    ic = p.by === "寒冰" ? "🧊 " : p.by === "夏夏" ? "🍃 " : "";
   return (
     `<button type="button" class="${cls}" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片${p.cap ? "：" + esc(p.cap) : ""}"><img src="${p.th}` +
-    `" alt="" loading="lazy" decoding="async"><span class="nm">${esc(p.by)}${p.by === myName() ? "（我）" : ""}${p.cap ? " 💬" : ""}</span></button>`
+    `" alt="" loading="lazy" decoding="async"><span class="nm${pCls}">${ic}${esc(p.by)}${p.by === myName() ? "（我）" : ""}${p.cap ? " 💬" : ""}</span></button>`
   );
 }
 function renderTodayPhotos() {
@@ -1102,11 +1106,31 @@ function myName() {
   }
 }
 let who = "all";
+function personCls(n) {
+  return n === "寒冰" ? "p-ice" : n === "夏夏" ? "p-leaf" : "";
+}
 function byChip(n) {
   if (!n) return '<span class="by">未署名</span>';
   const me = n === myName(),
     ic = n === "寒冰" ? "🧊" : n === "夏夏" ? "🍃" : "✍️";
-  return `<span class="by ${me ? "me" : "them"}">${ic} ${esc(n)}${me ? "（我）" : ""}</span>`;
+  return `<span class="by ${me ? "me" : "them"} ${personCls(n)}">${ic} ${esc(n)}${me ? "（我）" : ""}</span>`;
+}
+const DIARY_DT_CLS = {
+  "⛅ 心情": "dt-mood",
+  "🍜 吃了": "dt-food",
+  "🤪 最好笑": "dt-funny",
+  "💞 想對你說": "dt-say",
+};
+function diaryDl(e) {
+  return [
+    ["⛅ 心情", e.mood],
+    ["🍜 吃了", e.food],
+    ["🤪 最好笑", e.funny],
+    ["💞 想對你說", e.say],
+  ]
+    .filter((r) => r[1])
+    .map((r) => `<dt class="${DIARY_DT_CLS[r[0]] || ""}">${r[0]}</dt><dd>${esc(r[1])}</dd>`)
+    .join("");
 }
 
 let monthOpen = {}; // 月份 -> 使用者手動開合的狀態
@@ -1140,19 +1164,11 @@ function renderEntries() {
     return;
   }
   const card = (e) =>
-    `<article class="entry ${e.by ? (e.by === me ? "me" : "them") : ""}"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b>` +
+    `<article class="entry ${e.by ? (e.by === me ? "me" : "them") + " " + personCls(e.by) : ""}"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b>` +
     `<span>${esc(e.date)}${e.happy ? " · ⭐ " + esc(e.happy) + "/10" : ""}</span></header>
   <div>${byChip(e.by)}` +
     `</div>
-  <dl>${[
-    ["⛅ 心情", e.mood],
-    ["🍜 吃了", e.food],
-    ["🤪 最好笑", e.funny],
-    ["💞 想對你說", e.say],
-  ]
-    .filter((r) => r[1])
-    .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
-    .join("")}` +
+  <dl>${diaryDl(e)}` +
     `</dl>
   ${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
     `
@@ -1843,7 +1859,7 @@ function renderWishes() {
   const renderWishItem = (w) =>
     `<div class="wish ${w.done ? "done" : ""}"><button class="check" type="button" data-id="${esc(w.id)}` +
     `" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}：${w.done ? "已完成，點一下取消" : "標記完成"}">✓</button>` +
-    `<div class="t"><b>${esc(w.text)}</b><div><button type="button" class="cat" data-cat="${esc(w.id)}` +
+    `<div class="t"><b>${esc(w.text)}</b><div><button type="button" class="cat" data-c="${esc(w.cat || "")}" data-cat="${esc(w.id)}` +
     `" aria-label="分類：${WCATS[w.cat || ""]}，點一下換分類">${WCATS[w.cat || ""]}</button>${esc(w.by || "")}` +
     ` 許的${w.done ? ` · ${esc(w.doneDate)} 完成` : ""}</div></div>` +
     `<button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`;
@@ -1925,31 +1941,91 @@ bindForm(
   },
 );
 
-// 時光膠囊
+// 時光膠囊（支援分類標籤：週年紀念、生日驚喜、心裡話、未來約定）
+const CCATS = { anniv: "💍 週年紀念", bday: "🎂 生日驚喜", love: "💌 心裡話", pact: "🎯 未來約定" };
+let cCat = "love",
+  cFilter = "all";
+function syncCCat() {
+  const box = $("capCatPick");
+  if (!box) return;
+  box.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.cc === cCat)));
+}
+$("capCatPick")
+  ?.querySelectorAll("button")
+  .forEach(
+    (b) =>
+      (b.onclick = () => {
+        cCat = b.dataset.cc;
+        syncCCat();
+      }),
+  );
+syncCCat();
 function renderCapsules() {
   const box = $("capList"),
+    cf = $("capCatFilter"),
     tk = key(today());
   if (!store.capsules.length) {
+    if (cf) cf.innerHTML = "";
     box.innerHTML = '<div class="empty">還沒有膠囊。封存第一封寫給未來的信。</div>';
     return;
   }
+  const catOf = (c) => (CCATS[c.cat] ? c.cat : "love");
+  const cats = [
+    ["all", "全部", store.capsules.length],
+    ...Object.entries(CCATS).map(([k, l]) => [k, l, store.capsules.filter((c) => catOf(c) === k).length]),
+  ];
+  if (cf) {
+    if (cf.children.length !== cats.length) {
+      cf.innerHTML = cats.map(([k]) => `<button type="button" data-cc="${k}"></button>`).join("");
+      cf.querySelectorAll("button").forEach(
+        (b) =>
+          (b.onclick = () => {
+            cFilter = b.dataset.cc;
+            renderCapsules();
+          }),
+      );
+    }
+    cats.forEach(([k, l, n], i) => {
+      const b = cf.children[i];
+      const txt = `${l} ${n}`;
+      if (b.textContent !== txt) b.textContent = txt;
+      b.setAttribute("aria-pressed", String(cFilter === k));
+    });
+  }
+  const list = store.capsules.filter((c) => cFilter === "all" || catOf(c) === cFilter);
+  if (!list.length) {
+    box.innerHTML = '<div class="empty">這一類還沒有時光膠囊。</div>';
+    return;
+  }
+  const catBtn = (c) => {
+    const ck = catOf(c);
+    return `<button type="button" class="cap-cat" data-c="${ck}" data-capcat="${esc(c.id)}" aria-label="分類：${CCATS[ck]}，點一下換分類">${CCATS[ck]}</button>`;
+  };
   const acts = (c) =>
     `<div class="acts"><button class="btn ghost del" type="button" data-id="${esc(c.id)}">刪除</button></div>`;
-  const opened = store.capsules.filter((c) => c.openDate <= tk).sort((a, b) => b.openDate.localeCompare(a.openDate));
-  const sealed = store.capsules.filter((c) => c.openDate > tk).sort((a, b) => a.openDate.localeCompare(b.openDate));
+  const opened = list.filter((c) => c.openDate <= tk).sort((a, b) => b.openDate.localeCompare(a.openDate));
+  const sealed = list.filter((c) => c.openDate > tk).sort((a, b) => a.openDate.localeCompare(b.openDate));
   box.innerHTML = [
     ...opened.map(
       (c) =>
-        `<article class="entry"><header><b>💌 ${esc(c.openDate)} 打開的膠囊</b><span>${esc(nameOf(c.by))}` +
-        `寫於 ${esc(dayOf(c.at))}</span></header><p class="letter">${esc(c.text)}</p>${acts(c)}</article>`,
+        `<article class="entry ${personCls(c.by)}"><header><b>${catBtn(c)}💌 ${esc(c.openDate)} 打開的膠囊</b><span>${byChip(c.by)} · 寫於 ${esc(dayOf(c.at))}</span></header><p class="letter">${esc(c.text)}</p>${acts(c)}</article>`,
     ),
     ...sealed.map(
       (c) =>
-        `<article class="entry sealed"><header><b>🔒 封存中</b><span>${esc(nameOf(c.by))}寫於 ${esc(dayOf(c.at))}</span>` +
+        `<article class="entry sealed ${personCls(c.by)}"><header><b>${catBtn(c)}🔒 封存中</b><span>${byChip(c.by)} · 寫於 ${esc(dayOf(c.at))}</span>` +
         `</header><p class="letter">${esc(c.openDate)} 打開，還有 ${Math.round((fromKey(c.openDate) - today()) / 864e5)}` +
         ` 天</p>${acts(c)}</article>`,
     ),
   ].join("");
+  box.querySelectorAll("[data-capcat]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        const c = store.capsules.find((x) => x.id === b.dataset.capcat);
+        if (!c) return;
+        const ks = Object.keys(CCATS);
+        updDoc("capsules", c.id, { cat: ks[(ks.indexOf(catOf(c)) + 1) % ks.length] });
+      }),
+  );
   armDelete(box, "capsules");
 }
 bindForm(
@@ -1964,7 +2040,7 @@ bindForm(
       return null;
     }
     $("capMsg").textContent = "";
-    return { c: "capsules", doc: { text, openDate, by: myName(), at: nowIso() } };
+    return { c: "capsules", doc: { text, openDate, cat: cCat, by: myName(), at: nowIso() } };
   },
   () => {
     $("capText").value = "";
@@ -2006,15 +2082,7 @@ function renderOnThisDay() {
               .map(
                 (e) =>
                   `<div>${byChip(e.by)}${e.happy ? ` <span class="edited">⭐ ${esc(e.happy)}/10</span>` : ""}</div>` +
-                  `<dl>${[
-                    ["⛅ 心情", e.mood],
-                    ["🍜 吃了", e.food],
-                    ["🤪 最好笑", e.funny],
-                    ["💞 想對你說", e.say],
-                  ]
-                    .filter((r) => r[1])
-                    .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
-                    .join("")}</dl>`,
+                  `<dl>${diaryDl(e)}</dl>`,
               )
               .join("")}` +
             `${ps.length ? `<div class="wall-grid">${ps.map((p) => photoBtn(p, "")).join("")}</div>` : ""}</article>`,
@@ -2156,17 +2224,9 @@ $("gachaBtn").onclick = () => {
       pool.push({
         k: "e:" + e.id,
         html:
-          `<article class="entry"><header><b>💌 ${esc(e.date)} 的日記</b>` +
-          `<span>${esc(e.by || "")}${e.happy ? ` · ⭐ ${esc(e.happy)}/10` : ""}</span></header>` +
-          `<dl>${[
-            ["⛅ 心情", e.mood],
-            ["🍜 吃了", e.food],
-            ["🤪 最好笑", e.funny],
-            ["💞 想對你說", e.say],
-          ]
-            .filter((r) => r[1])
-            .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
-            .join("")}</dl></article>`,
+          `<article class="entry ${personCls(e.by)}"><header><b>💌 ${esc(e.date)} 的日記</b>` +
+          `<span>${byChip(e.by)}${e.happy ? ` · ⭐ ${esc(e.happy)}/10` : ""}</span></header>` +
+          `<dl>${diaryDl(e)}</dl></article>`,
       });
   });
   calAllPhotos().forEach((p) => {
@@ -2333,17 +2393,9 @@ function renderCalDetail() {
     es
       .map(
         (e) =>
-          `<article class="entry ${e.by ? (e.by === myName() ? "me" : "them") : ""}"><header><div>${byChip(e.by)}</div>` +
+          `<article class="entry ${e.by ? (e.by === myName() ? "me" : "them") + " " + personCls(e.by) : ""}"><header><div>${byChip(e.by)}</div>` +
           `<span>${e.happy ? "⭐ " + esc(e.happy) + "/10" : ""}</span></header>` +
-          `<dl>${[
-            ["⛅ 心情", e.mood],
-            ["🍜 吃了", e.food],
-            ["🤪 最好笑", e.funny],
-            ["💞 想對你說", e.say],
-          ]
-            .filter((r) => r[1])
-            .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
-            .join("")}` +
+          `<dl>${diaryDl(e)}` +
           `</dl>${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
           `${entryExtras(e, "cal")}</article>`,
       )
@@ -3798,17 +3850,9 @@ function renderDiaryToday() {
   box.innerHTML = list
     .map(
       (e) =>
-        `<article class="entry ${e.by ? (e.by === me ? "me" : "them") : ""}"><header><div>${byChip(e.by)}</div>` +
+        `<article class="entry ${e.by ? (e.by === me ? "me" : "them") + " " + personCls(e.by) : ""}"><header><div>${byChip(e.by)}</div>` +
         `<span>${e.happy ? "⭐ " + esc(e.happy) + "/10" : ""}</span></header>` +
-        `<dl>${[
-          ["⛅ 心情", e.mood],
-          ["🍜 吃了", e.food],
-          ["🤪 最好笑", e.funny],
-          ["💞 想對你說", e.say],
-        ]
-          .filter((r) => r[1])
-          .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
-          .join("")}` +
+        `<dl>${diaryDl(e)}` +
         `</dl>${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
         `${entryExtras(e, "today", !e.by || e.by === me ? `<div class="acts"><button class="btn ghost" type="button" data-editday="${esc(e.id)}">✏️ 編輯</button></div>` : "")}` +
         `</article>`,
