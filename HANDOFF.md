@@ -87,7 +87,7 @@
 | 日記回應与表情貼圖 | `entryExtras`、`attachReply`、`REACTS`、`popFloat` |
 | 抽題 | `monthBank`、`turnOf`、`todayRound`、`shownRound`、`drawQ`、`renderDraw`、`renderLog` |
 | 願望 | `renderWishes`、`toggleWish`，分類 `WCATS` |
-| 月曆、回顧、那年今天、時光膠囊、回憶書 | `renderCalendar`、`renderCalDetail`、`onThisDayHits`、`renderOnThisDay`、`renderTodayFlashback`、`renderMemories`、`renderCapsules`、`renderBook` |
+| 月曆、回顧、那年今天、時光膠囊、回憶書 | `renderCalendar`、`renderCalDetail`、`onThisDayHits`、`renderOnThisDay`、`renderTodayFlashback`、`renderMemories`、`renderCapsules`、`renderCapNudge`、`renderBook` |
 | 星期日這週回顧 | `renderWeekRecap` |
 | 垃圾桶 | `renderTrash`、`restoreItem`、`archivePhoto`、`restoreReplaced`、`hardDelete`、`purgeExpired` |
 | 備份、補回、更換暗號 | `exportBackup`、`backupHtml`、`prepRestore`、`applyRestore`、`moveRoomBtn` |

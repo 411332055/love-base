@@ -609,6 +609,9 @@ function renderTodayPhotos() {
       `>${up ? "上傳中…" : mineAll.length > 1 ? "換第一張" : "換一張"}</button>` +
       `<button class="btn ghost small" type="button" id="capEdit">${capEditing ? "✕ 取消" : `✏️ ${mine.cap ? "改這句話" : "寫一句話"}`}` +
       `</button>${mine.cap ? `<span class="ph-note">「${esc(mine.cap)}」</span>` : ""}</div>`;
+  const otherCaps = [...mineAll.slice(1), ...others].filter((p) => p.cap);
+  if (otherCaps.length)
+    h += otherCaps.map((p) => `<div class="ph-note">${esc(nameOf(p.by))}：「${esc(p.cap)}」</div>`).join("");
   box.innerHTML = h;
   if (mine)
     $("capEdit").onclick = () => {
@@ -1055,10 +1058,16 @@ $("lbDel").onclick = async () => {
   if (!b.dataset.confirm) {
     b.dataset.confirm = 1;
     b.textContent = "確定刪除？再按一次";
+    setTimeout(() => {
+      if (b.isConnected && lbId === id) {
+        delete b.dataset.confirm;
+        b.textContent = "刪除這張";
+      }
+    }, 3000);
     return;
   }
   try {
-    await db.collection("photos").doc(id).update({ trashed: trashMark() });
+    await commit(db.collection("photos").doc(id).update({ trashed: trashMark() }));
     picCache.delete(id);
     photos = photos.filter((p) => p.id !== id);
     calPhotos = calPhotos.filter((p) => p.id !== id);
@@ -1161,7 +1170,7 @@ function renderEntries() {
     `</dl>
   ${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
     `
-  ${entryExtras(e, "list", `<div class="acts">${!e.by || e.by === me ? `<button class="btn ghost edit" type="button" data-id="${esc(e.id)}">✏️ 編輯</button>` : ""}` + `<button class="btn ghost del" type="button" data-id="${esc(e.id)}">刪除</button></div>`)}` +
+  ${entryExtras(e, "list")}` +
     `</article>`;
   const groups = new Map();
   shown.forEach((e) => {
@@ -1219,13 +1228,12 @@ function renderEntries() {
       }),
   );
   box.querySelectorAll("details.month[open]").forEach((d) => loadCalPhotos(d.dataset.m));
-  attachReply("list");
-  box.querySelectorAll(".edit").forEach((b) => (b.onclick = () => startEdit(b.dataset.id)));
-  armDelete(box, "diary", delEntry, "確定刪除？再按一次");
+  bindEntryActs(box, "list");
 }
 async function delEntry(id) {
   const item = entries.find((e) => e.id === id);
   if (!item) return;
+  if (editId === id) endEdit();
   const old = entries,
     mark = trashMark();
   entries = entries.filter((e) => e.id !== id);
@@ -1723,7 +1731,7 @@ function bindForm(form, btn, build, after) {
   });
 }
 // 中文選字按 Enter 時不要送出
-["wishForm", "cqForm"].forEach((f) =>
+["wishForm", "cqForm", "hugForm", "replyForm", "photoCapForm", "lbCapForm", "gateForm"].forEach((f) =>
   $(f).addEventListener("keydown", (ev) => {
     if (ev.key === "Enter" && (ev.isComposing || ev.keyCode === 229)) ev.preventDefault();
   }),
@@ -1975,16 +1983,18 @@ bindForm(
   },
 );
 
-// 回憶：一週前、一個月前、一年前的今天（主頁顯示小按鈕，點了跳到「回憶 → 回顧」）
+// 回憶：一週前、一個月前、歷年的今天（主頁顯示小按鈕，點了跳到「回憶 → 回顧」）
 function onThisDayHits() {
   const t = today(),
-    y = new Date(t.getFullYear() - 1, t.getMonth(), t.getDate()),
     m = new Date(t.getFullYear(), t.getMonth() - 1, t.getDate());
-  const slots = [
-    ["一年前的今天", y.getDate() === t.getDate() && y],
-    ["一個月前的今天", m.getDate() === t.getDate() && m],
-    ["一週前的今天", addDays(t, -7)],
-  ];
+  const slots = [];
+  for (let yr = t.getFullYear() - 1; yr >= LOVE_START.getFullYear(); yr--) {
+    const y = new Date(yr, t.getMonth(), t.getDate()),
+      diff = t.getFullYear() - yr;
+    if (y.getDate() === t.getDate() && y >= LOVE_START)
+      slots.push([diff === 1 ? "一年前的今天" : `${diff} 年前的今天`, y]);
+  }
+  slots.push(["一個月前的今天", m.getDate() === t.getDate() && m], ["一週前的今天", addDays(t, -7)]);
   const allPh = calAllPhotos();
   return slots
     .filter((x) => x[1])
@@ -2000,9 +2010,13 @@ function onThisDayHits() {
 function renderOnThisDay() {
   const hits = onThisDayHits(),
     title = hits.length === 1 ? `🕰️ ${hits[0][0]}` : "🕰️ 那年的今天",
-    n = hits.reduce((s, [, , es, ps]) => s + es.length + ps.length, 0);
-  if ($("otdTitle"))
-    $("otdTitle").innerHTML = `${title}<span id="otdN">${hits.length ? `${hits[0][1]} · ${n} 則` : "尚無紀錄"}</span>`;
+    n = hits.reduce((s, [, , es, ps]) => s + es.length + ps.length, 0),
+    sub = !hits.length
+      ? "尚無紀錄"
+      : hits.length === 1
+        ? `${hits[0][1]} · ${n} 則`
+        : `${hits.map((h) => h[0].replace("的今天", "")).join("、")} · ${n} 則`;
+  if ($("otdTitle")) $("otdTitle").innerHTML = `${title}<span id="otdN">${sub}</span>`;
   $("otdBody").innerHTML = hits.length
     ? hits
         .map(
@@ -2012,7 +2026,8 @@ function renderOnThisDay() {
               .map(
                 (e) =>
                   `<div>${byChip(e.by)}${e.happy ? ` <span class="edited">⭐ ${esc(e.happy)}/10</span>` : ""}</div>` +
-                  `<dl>${diaryDl(e)}</dl>`,
+                  `<dl>${diaryDl(e)}</dl>` +
+                  `${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}`,
               )
               .join("")}` +
             `${ps.length ? `<div class="wall-grid">${ps.map((p) => photoBtn(p, "")).join("")}</div>` : ""}</article>`,
@@ -2080,42 +2095,21 @@ function renderChart() {
 function renderMonth() {
   const pick = $("mPick"),
     keep = pick.value,
-    cur = key(today()).slice(0, 7);
-  const months = [
-    ...new Set([
-      cur,
-      ...entries.map((e) => String(e.date).slice(0, 7)),
-      ...Object.keys(done).map((k) => k.slice(0, 7)),
-    ]),
-  ]
-    .sort()
-    .reverse();
+    cur = key(today()).slice(0, 7),
+    months = bookMonths();
   pick.innerHTML = months.map((m) => `<option value="${m}">${m.replace("-", " 年 ")} 月</option>`).join("");
   pick.value = months.includes(keep) ? keep : cur;
   const m = pick.value,
-    es = entries.filter((e) => String(e.date).startsWith(m)),
-    esIds = new Set(es.map((e) => e.id)),
-    rated = es.filter((e) => e.happy);
+    inR = (k) => String(k).startsWith(m),
+    es = entries.filter((e) => inR(e.date)),
+    ps = calAllPhotos().filter((p) => inR(p.date));
   loadCalPhotos(m);
-  const avg = rated.length ? (rated.reduce((a, e) => a + +e.happy, 0) / rated.length).toFixed(1) : "—";
-  const tiles = [
-    ["日記", es.length + " 篇"],
-    ["照片", calAllPhotos().filter((p) => String(p.date).startsWith(m)).length + " 張"],
-    ["一起完成", togetherDays().filter((k) => k.startsWith(m)).length + " 天"],
-    ["抽題過關", store.rounds.filter((r) => roundDay(r).startsWith(m) && pairOf(r.id).length >= need()).length + " 題"],
-    ["達成願望", store.wishes.filter((w) => w.done && String(w.doneDate).startsWith(m)).length + " 個"],
-    ["抱抱", store.hugs.filter((h) => h.backAt && dayOf(h.backAt).startsWith(m)).length + " 次"],
-    ["回應與貼圖", store.replies.filter((r) => esIds.has(r.entry)).length + " 則"],
-    ["平均幸福", avg],
-  ];
+  const { tiles, best } = bookSummaryData(es, ps, inR);
   $("mStats").innerHTML = tiles.map(([a, b]) => `<div class="stat"><span>${a}</span><b>${b}</b></div>`).join("");
-  const best = [...rated].sort((a, b) => b.happy - a.happy || String(b.date).localeCompare(String(a.date)))[0],
-    funny = es.filter((e) => e.funny).slice(-3);
+  const funny = es.filter((e) => e.funny).slice(-3);
   $("mBest").innerHTML =
-    (best
-      ? `<p>⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(best.say || best.mood || "")}</p>`
-      : "") + funny.map((e) => `<p>🤪 ${esc(e.date)}：${esc(e.funny)}</p>`).join("") ||
-    '<p class="sub">這個月還沒有日記。</p>';
+    (best ? `<p>⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(bookSay(best))}</p>` : "") +
+      funny.map((e) => `<p>🤪 ${esc(e.date)}：${esc(e.funny)}</p>`).join("") || '<p class="sub">這個月還沒有日記。</p>';
 }
 $("mPick").onchange = renderMonth;
 window.addEventListener("resize", () => {
@@ -2148,16 +2142,21 @@ function renderMemories() {
 }
 let lastGachaKey = "";
 $("gachaBtn").onclick = () => {
-  const pool = [];
+  sliderTick();
+  const pool = [],
+    tk = key(today());
   entries.forEach((e) => {
-    const text = e.say || e.mood || e.funny || e.food || e.s1 || e.s2 || "";
-    if (text)
+    const text = e.say || e.mood || e.funny || e.food || e.s1 || e.s2 || "",
+      phs = entryPhotos(e.id);
+    if (text || phs.length)
       pool.push({
         k: "e:" + e.id,
         html:
           `<article class="entry"><header><b>💌 ${esc(e.date)} 的日記</b>` +
           `<span>${esc(e.by || "")}${e.happy ? ` · ⭐ ${esc(e.happy)}/10` : ""}</span></header>` +
-          `<dl>${diaryDl(e)}</dl></article>`,
+          `<dl>${diaryDl(e)}</dl>` +
+          `${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
+          `${phs.length ? `<div class="wall-grid">${phs.map((p) => photoBtn(p, "")).join("")}</div>` : ""}</article>`,
       });
   });
   calAllPhotos().forEach((p) => {
@@ -2189,6 +2188,25 @@ $("gachaBtn").onclick = () => {
         html:
           `<article class="entry"><header><b>🌠 ${esc(w.doneDate || dayOf(w.at))} 達成的願望</b>` +
           `<span>${esc(w.by || "")} 許的</span></header><div>✅ ${esc(w.text)}</div></article>`,
+      });
+    });
+  [...new Set(store.reviews.map((r) => r.date))].forEach((d) => {
+    const revs = store.reviews.filter((r) => r.date === d).sort(byAt);
+    pool.push({
+      k: "v:" + d,
+      html:
+        `<article class="entry"><header><b>📝 ${esc(d)} 的每週回顧</b></header>` +
+        `<dl>${revs.map((r) => `<dt>${esc(nameOf(r.by))}</dt><dd>${esc(r.text)}</dd>`).join("")}</dl></article>`,
+    });
+  });
+  store.capsules
+    .filter((c) => c.openDate <= tk)
+    .forEach((c) => {
+      pool.push({
+        k: "c:" + c.id,
+        html:
+          `<article class="entry"><header><b>💌 ${esc(c.openDate)} 打開的時光膠囊</b>` +
+          `<span>${esc(nameOf(c.by))}寫於 ${esc(dayOf(c.at))}</span></header><p class="letter">${esc(c.text)}</p></article>`,
       });
     });
   if (!pool.length) {
@@ -2309,18 +2327,36 @@ function renderCalDetail() {
     return;
   }
   const dt = fromKey(k),
-    label = `${dt.getMonth() + 1}/${dt.getDate()}（${"日一二三四五六"[dt.getDay()]}）`;
+    label = `${dt.getMonth() + 1}/${dt.getDate()}（${"日一二三四五六"[dt.getDay()]}）`,
+    tk = key(today());
   const es = entries.filter((e) => e.date === k).sort(byAt),
     ps = calAllPhotos().filter((p) => p.date === k && !p.entry),
-    ws = store.wishes.filter((w) => w.done && w.doneDate === k);
-  if (!es.length && !ps.length && !ws.length) {
+    ws = store.wishes.filter((w) => w.done && w.doneDate === k),
+    rs = store.rounds.filter((r) => roundDay(r) === k && pairOf(r.id).length >= need()).sort(byAt),
+    revs = store.reviews.filter((r) => r.date === k).sort(byAt),
+    caps = store.capsules.filter((c) => c.openDate === k && c.openDate <= tk);
+  if (!es.length && !ps.length && !ws.length && !rs.length && !revs.length && !caps.length) {
     box.innerHTML = `<div class="empty">${label} 還沒有紀錄。</div>`;
     return;
   }
   box.innerHTML =
-    `<article class="entry"><header><b>📅 ${label}</b>` +
-    `</header>${ws.map((w) => `<div>🌠 達成願望：${esc(w.text)}</div>`).join("")}` +
+    `<article class="entry"><header><b>📅 ${label}</b></header>` +
+    `${ws.map((w) => `<div>🌠 達成願望：${esc(w.text)}</div>`).join("")}` +
+    `${caps.map((c) => `<div>💌 打開時光膠囊（${esc(nameOf(c.by))}）：${esc(c.text)}</div>`).join("")}` +
     `${ps.length ? `<div class="wall-grid">${ps.map((p) => photoBtn(p, "")).join("")}</div>` : ""}</article>` +
+    rs
+      .map(
+        (r) =>
+          `<article class="entry"><header><b>🎲 ${esc(r.q)}</b></header>` +
+          `<dl>${pairOf(r.id)
+            .map((a) => `<dt>${esc(nameOf(a.by))}</dt><dd>${esc(a.text)}</dd>`)
+            .join("")}</dl></article>`,
+      )
+      .join("") +
+    (revs.length
+      ? `<article class="entry"><header><b>📝 這週回顧</b></header>` +
+        `<dl>${revs.map((r) => `<dt>${esc(nameOf(r.by))}</dt><dd>${esc(r.text)}</dd>`).join("")}</dl></article>`
+      : "") +
     es
       .map(
         (e) =>
@@ -2331,7 +2367,7 @@ function renderCalDetail() {
           `${entryExtras(e, "cal")}</article>`,
       )
       .join("");
-  attachReply("cal");
+  bindEntryActs(box, "cal");
 }
 function shiftCal(n) {
   const [y, m] = calMonth.split("-").map(Number);
@@ -2404,10 +2440,12 @@ function backupHtml(b) {
       .sort(byAt);
   const diary = live(b.data.diary).sort((x, y) => (String(x.date) + x.at).localeCompare(String(y.date) + y.at)),
     photos = live(b.data.photos).sort(byAt),
+    pics = b.data.pics || {},
+    imgSrc = (p) => pics[p.id]?.img || p.th,
     replies = xs("replies"),
     repliesByEntry = new Map(),
     photosByEntry = new Map(),
-    dailyPhotoByKey = new Map(),
+    dailyPhotosByKey = new Map(),
     firstIds = new Set(),
     seenFirst = new Set();
   replies.forEach((r) => {
@@ -2420,9 +2458,11 @@ function backupHtml(b) {
       photosByEntry.get(p.entry).push(p);
     } else if (p.date && p.by) {
       const k = p.date + "_" + p.by;
-      if (!dailyPhotoByKey.has(k) || p.id === k) dailyPhotoByKey.set(k, p);
+      if (!dailyPhotosByKey.has(k)) dailyPhotosByKey.set(k, []);
+      dailyPhotosByKey.get(k).push(p);
     }
   });
+  for (const [k, list] of dailyPhotosByKey) list.sort((x, y) => (y.id === k) - (x.id === k) || byAt(x, y));
   diary.forEach((e) => {
     const k = e.date + "_" + e.by;
     if (!seenFirst.has(k)) {
@@ -2442,9 +2482,7 @@ function backupHtml(b) {
       rs = repliesByEntry.get(e.id) || [],
       texts = rs.filter((r) => r.kind === "text"),
       first = firstIds.has(e.id);
-    const phs = [first ? dailyPhotoByKey.get(e.date + "_" + e.by) : null, ...(photosByEntry.get(e.id) || [])].filter(
-      Boolean,
-    );
+    const phs = [...(first ? dailyPhotosByKey.get(e.date + "_" + e.by) || [] : []), ...(photosByEntry.get(e.id) || [])];
     return (
       `<article><h3>${esc(e.date)}（${wk[dt.getDay()]}）<span>${esc(e.by || "未署名")}` +
       `${e.happy ? ` · ⭐ ${esc(e.happy)}/10` : ""}</span></h3>` +
@@ -2458,7 +2496,7 @@ function backupHtml(b) {
         .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
         .join("")}` +
       `</dl>${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
-      `${phs.map((p) => `<img src="${esc(p.th)}" alt="當天的照片">`).join("")}` +
+      `${phs.map((p) => `<img src="${esc(imgSrc(p))}" alt="當天的照片" loading="lazy" decoding="async">`).join("")}` +
       `${texts.map((r) => `<p class="re"><b>${esc(r.by)}</b> ${esc(r.text)}</p>`).join("")}</article>`
     );
   };
@@ -2527,7 +2565,7 @@ ${part(
   passed
     .map(
       (r) =>
-        `<article><h3>${esc(r.q)}<span>${esc(dayOf(r.at))}</span></h3>` +
+        `<article><h3>${esc(r.q)}<span>${esc(roundDay(r))}</span></h3>` +
         `<dl>${[...new Map((ansByRound.get(r.id) || []).sort(byAt).map((a) => [a.by, a])).values()]
           .map((a) => `<dt>${esc(a.by)}</dt><dd>${esc(a.text)}</dd>`)
           .join("")}` +
@@ -2538,7 +2576,7 @@ ${part(
     `
 ${part("caps", "時光膠囊", caps.map((c) => `<article><h3>${c.openDate > tk ? "🔒 封存中" : "💌 已打開"}<span>${esc(c.by)} · ${esc(c.openDate)} 打開</span>` + `</h3>${c.openDate > tk ? "" : `<p style="margin:0;white-space:pre-wrap">${esc(c.text)}</p>`}</article>`).join(""))}` +
     `
-${part("wall", "照片", wall.length ? `<div class="grid">${wall.map((p) => `<figure><img src="${esc(p.th)}" alt="${esc(p.by)} 的照片" loading="lazy" decoding="async">${esc(p.date)} · ${esc(p.by)}` + `${p.cap ? `<br>${esc(p.cap)}` : ""}</figure>`).join("")}` + `</div>` : "")}` +
+${part("wall", "照片", wall.length ? `<div class="grid">${wall.map((p) => `<figure><img src="${esc(imgSrc(p))}" alt="${esc(p.by)} 的照片" loading="lazy" decoding="async">${esc(p.date)} · ${esc(p.by)}` + `${p.cap ? `<br>${esc(p.cap)}` : ""}</figure>`).join("")}` + `</div>` : "")}` +
     `
 </main>${BK_TAG}${json}<${"/"}script></body></html>`
   );
@@ -2612,11 +2650,18 @@ async function prepRestore(text) {
   }
   bkMsg("比對中…");
   try {
+    let trashedPhotos = new Set();
     for (const c of BK_COLLS) {
       if (!b.data[c]) continue;
-      const s = await db.collection(c).get(),
-        have = new Set(s.docs.map((d) => d.id));
-      for (const [id, v] of Object.entries(b.data[c])) if (!have.has(id)) bkPending.push([c, id, v]);
+      const s = await db.collection(c).get();
+      if (c === "photos") trashedPhotos = new Set(s.docs.filter((d) => d.data()?.trashed).map((d) => d.id));
+      const have = new Set(
+        s.docs.filter((d) => !d.data()?.trashed && !(c === "pics" && trashedPhotos.has(d.id))).map((d) => d.id),
+      );
+      for (const [id, v] of Object.entries(b.data[c])) {
+        if (v?.trashed || (c === "pics" && b.data.photos?.[id]?.trashed)) continue;
+        if (!have.has(id)) bkPending.push([c, id, v]);
+      }
     }
   } catch (e) {
     bkMsg("比對失敗，請確認網路後再試一次。");
@@ -2953,19 +2998,18 @@ function renderAway() {
     return;
   }
   const me = myName(),
-    fresh = (x) => x.by && x.by !== me && x.at && new Date(x.at).getTime() > seenMs;
+    tk = key(today()),
+    fresh = (x) => x.by && x.by !== me && x.at && new Date(x.at).getTime() > seenMs,
+    freshReplies = store.replies.filter(fresh).filter((r) => entries.find((e) => e.id === r.entry)?.by === me),
+    replyTarget = freshReplies.some((r) => entries.find((e) => e.id === r.entry)?.date === tk) ? "diary" : "diaryMore";
   const groups = [
     [entries.filter(fresh), (n) => `💌 寫了 ${n} 篇日記`, "diary"],
     [photos.filter(fresh), (n) => `📷 傳了 ${n} 張照片`, "photos"],
     [store.answers.filter(fresh), (n) => `🎲 回答了 ${n} 題抽題`, "draw"],
     [store.wishes.filter(fresh), (n) => `🌠 許了 ${n} 個願望`, "wishes"],
     [store.capsules.filter(fresh), (n) => `⏳ 封存了 ${n} 顆膠囊`, "capsule"],
-    [
-      store.replies.filter(fresh).filter((r) => entries.find((e) => e.id === r.entry)?.by === me),
-      (n) => `💬 回應了你的日記（${n}）`,
-      "calendar",
-    ],
-    [store.reviews.filter(fresh), () => "📝 寫了這週回顧", "memories"],
+    [freshReplies, (n) => `💬 回應了你的日記（${n}）`, replyTarget],
+    [store.reviews.filter(fresh), () => "📝 寫了這週回顧", dow(today()) === 6 ? "todayBox" : "reviewBox"],
     [store.hugs.filter(fresh), () => "🤗 來討抱抱", "hugCard"],
     [
       store.hugs.filter((h) => h.by === me && h.backBy && new Date(h.backAt).getTime() > seenMs),
@@ -2973,7 +3017,17 @@ function renderAway() {
       "hugCard",
     ],
   ].filter(
-    (g) => g[0].length && !layout.hidden.includes(g[2] === "diary" ? "quests" : g[2] === "capsule" ? "memories" : g[2]),
+    (g) =>
+      g[0].length &&
+      !layout.hidden.includes(
+        ["diary", "todayBox"].includes(g[2])
+          ? "quests"
+          : ["capsule", "reviewBox"].includes(g[2])
+            ? "memories"
+            : g[2] === "diaryMore"
+              ? "calendar"
+              : g[2],
+      ),
   );
   if (!groups.length) {
     card.hidden = true;
@@ -3081,9 +3135,6 @@ bindForm(
     notifyPartner("🤗 討抱抱", `${myName()}想要你的抱抱${txt ? `：「${txt}」` : ""}`, "#hugCard", "hug-ask");
   },
 );
-$("hugForm").addEventListener("keydown", (ev) => {
-  if (ev.key === "Enter" && (ev.isComposing || ev.keyCode === 229)) ev.preventDefault();
-});
 
 // 今天還差什麼
 function renderTodo() {
@@ -3111,9 +3162,10 @@ function renderTodo() {
     `</div>${items.map(([ok, label, id]) => `<a class="todo-i ${ok ? "ok" : ""}" href="#${id}"><span class="tick" aria-hidden="true">✓</span>${label}${ok ? '<span class="sr-only">（已完成）</span>' : ""}</a>`).join("")}`;
 }
 function syncNotices() {
-  $("notices").hidden = ["bkNudge", "picNudge", "awayCard"].every((id) => $(id).hidden);
+  $("notices").hidden = ["capNudge", "bkNudge", "picNudge", "awayCard"].every((id) => $(id).hidden);
 }
 function renderToday() {
+  renderCapNudge();
   renderBackupNudge();
   renderPicNudge();
   renderAway();
@@ -3728,12 +3780,11 @@ function renderDiaryToday() {
         `<span>${e.happy ? "⭐ " + esc(e.happy) + "/10" : ""}</span></header>` +
         `<dl>${diaryDl(e)}` +
         `</dl>${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
-        `${entryExtras(e, "today", !e.by || e.by === me ? `<div class="acts"><button class="btn ghost" type="button" data-editday="${esc(e.id)}">✏️ 編輯</button></div>` : "")}` +
+        `${entryExtras(e, "today")}` +
         `</article>`,
     )
     .join("");
-  attachReply("today");
-  box.querySelectorAll("[data-editday]").forEach((b) => (b.onclick = () => startEdit(b.dataset.editday)));
+  bindEntryActs(box, "today");
 }
 $("diaryMore").addEventListener("toggle", () => {
   if ($("diaryMore").open) renderEntries();
@@ -3760,7 +3811,7 @@ function entryMetaMap() {
   if (_entryMeta) return _entryMeta;
   const repliesByEntry = new Map(),
     photosByEntry = new Map(),
-    dailyPhotoByKey = new Map(),
+    dailyPhotosByKey = new Map(),
     firstEntryIds = new Set(),
     seenFirst = new Set();
   [...store.replies].sort(byAt).forEach((r) => {
@@ -3774,10 +3825,12 @@ function entryMetaMap() {
       photosByEntry.get(p.entry).push(p);
     } else if (p.date && p.by) {
       const k = p.date + "_" + p.by;
-      if (!dailyPhotoByKey.has(k) || p.id === k) dailyPhotoByKey.set(k, p);
+      if (!dailyPhotosByKey.has(k)) dailyPhotosByKey.set(k, []);
+      dailyPhotosByKey.get(k).push(p);
     }
   });
   for (const list of photosByEntry.values()) list.sort(byAt);
+  for (const [k, list] of dailyPhotosByKey) list.sort((a, b) => (b.id === k) - (a.id === k) || byAt(a, b));
   [...entries]
     .sort((a, b) => (String(a.date) + a.at).localeCompare(String(b.date) + b.at))
     .forEach((e) => {
@@ -3787,7 +3840,7 @@ function entryMetaMap() {
         firstEntryIds.add(e.id);
       }
     });
-  _entryMeta = { repliesByEntry, photosByEntry, dailyPhotoByKey, firstEntryIds };
+  _entryMeta = { repliesByEntry, photosByEntry, dailyPhotosByKey, firstEntryIds };
   return _entryMeta;
 }
 function entryPhotos(id, all) {
@@ -3902,7 +3955,7 @@ const REACTS = ["❤️", "😂", "🥺", "🥰", "👏"];
 let replyTo = null;
 const replyFormEl = $("replyForm"),
   replyTextEl = $("replyText");
-function entryExtras(e, where, acts = "") {
+function entryExtras(e, where) {
   const me = myName(),
     meta = entryMetaMap(),
     rs = meta.repliesByEntry.get(e.id) || [],
@@ -3910,12 +3963,15 @@ function entryExtras(e, where, acts = "") {
     emos = rs.filter((r) => r.kind === "emo"),
     first = meta.firstEntryIds.has(e.id);
   const own = meta.photosByEntry.get(e.id) || [],
-    phs = [where === "list" && first ? meta.dailyPhotoByKey.get(e.date + "_" + e.by) : null, ...own].filter(Boolean);
+    phs = [...(where === "list" && first ? meta.dailyPhotosByKey.get(e.date + "_" + e.by) || [] : []), ...own];
   const canAdd = db && !photoErr && e.by === me && own.length < DIARY_PH_MAX;
   const addBtn = canAdd
     ? `<button type="button" class="btn ghost" data-addph="${esc(e.id)}" ${diaryUp === e.id ? "disabled" : ""}` +
       `>${diaryUp === e.id ? "上傳中…" : "📷 加照片"}</button>`
     : "";
+  const acts =
+    `<div class="acts">${!e.by || e.by === me ? `<button class="btn ghost edit" type="button" data-id="${esc(e.id)}">✏️ 編輯</button>` : ""}` +
+    `<button class="btn ghost del" type="button" data-id="${esc(e.id)}">刪除</button></div>`;
   const reactBtns = REACTS.map((em) => {
     const who = [
         ...new Set(
@@ -3955,6 +4011,11 @@ function attachReply(where) {
   slot.append(replyFormEl);
   replyTextEl.focus({ preventScroll: true });
 }
+function bindEntryActs(box, where) {
+  attachReply(where);
+  box.querySelectorAll(".edit").forEach((b) => (b.onclick = () => startEdit(b.dataset.id)));
+  armDelete(box, "diary", delEntry, "確定刪除？再按一次");
+}
 async function dropReply(id) {
   const old = store.replies;
   store.replies = old.filter((r) => r.id !== id);
@@ -3978,8 +4039,9 @@ document.addEventListener("click", (ev) => {
       dropReply(hit.id);
     } else {
       popFloat(rc, text);
+      const target = entries.find((e) => e.id === entry)?.date === key(today()) ? "#quests" : "#diaryMore";
       addDoc("replies", { entry, kind: "emo", text, by: me, at: nowIso() })
-        .then(() => notifyPartner("💗 日記貼圖", `${me}對日記按了 ${text}`, "#calendar", "react-" + entry))
+        .then(() => notifyPartner("💗 日記貼圖", `${me}對日記按了 ${text}`, target, "react-" + entry))
         .catch(() => toast(NOSAVE));
     }
     return;
@@ -4000,6 +4062,12 @@ document.addEventListener("click", (ev) => {
     else {
       d.dataset.confirm = 1;
       d.textContent = "確定刪除？";
+      setTimeout(() => {
+        if (d.isConnected) {
+          delete d.dataset.confirm;
+          d.textContent = "✕";
+        }
+      }, 3000);
     }
   }
 });
@@ -4014,15 +4082,64 @@ bindForm(
   },
   () => {
     const txt = replyTextEl.value.trim(),
-      eid = replyTo ? replyTo.entry : "";
+      eid = replyTo ? replyTo.entry : "",
+      target = entries.find((e) => e.id === eid)?.date === key(today()) ? "#quests" : "#diaryMore";
     replyTextEl.value = "";
     closeReply();
     toast("回應送出了 💬");
-    notifyPartner("💬 日記新回應", `${myName()}回應了日記：「${txt.slice(0, 30)}」`, "#calendar", "reply-" + eid);
+    notifyPartner("💬 日記新回應", `${myName()}回應了日記：「${txt.slice(0, 30)}」`, target, "reply-" + eid);
   },
 );
-$("replyForm").addEventListener("keydown", (ev) => {
-  if (ev.key === "Enter" && (ev.isComposing || ev.keyCode === 229)) ev.preventDefault();
+
+// 時光膠囊到期解鎖提醒：已經到打開日期且這台裝置還沒看過時，在首頁提醒
+const CAP_SEEN_KEY = "love-base-cap-seen";
+function seenCaps() {
+  try {
+    return JSON.parse(localStorage.getItem(CAP_SEEN_KEY) || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+function markCapsSeen(ids) {
+  if (!ids.length) return;
+  try {
+    localStorage.setItem(CAP_SEEN_KEY, JSON.stringify([...new Set([...seenCaps(), ...ids])]));
+  } catch (e) {}
+}
+function renderCapNudge() {
+  const box = $("capNudge");
+  if (!box) return;
+  const tk = key(today()),
+    seen = new Set(seenCaps()),
+    ready = store.capsules.filter((c) => c.openDate <= tk && !seen.has(c.id));
+  if (!db || !dataReady || !ready.length || layout.hidden.includes("memories")) {
+    box.hidden = true;
+    syncNotices();
+    return;
+  }
+  box.innerHTML =
+    `<div class="row between"><span>💌 有 ${ready.length} 顆時光膠囊到時間打開了！</span><div class="row">` +
+    `<a class="btn" href="#capsule" id="capGo" style="padding:4px 14px;font-size:13px;text-decoration:none">去看膠囊</a>` +
+    `<button class="btn ghost" type="button" id="capAck" style="padding:4px 14px;font-size:13px">知道了</button>` +
+    `</div></div>`;
+  box.hidden = false;
+  syncNotices();
+  const ack = () => {
+    markCapsSeen(ready.map((c) => c.id));
+    renderCapNudge();
+  };
+  $("capGo").onclick = ack;
+  $("capAck").onclick = ack;
+}
+$("capsule").addEventListener("toggle", () => {
+  if ($("capsule").open) {
+    const tk = key(today()),
+      ids = store.capsules.filter((c) => c.openDate <= tk).map((c) => c.id);
+    if (ids.length) {
+      markCapsSeen(ids);
+      renderCapNudge();
+    }
+  }
 });
 
 // 備份提醒：任何一人備份過都算，超過 30 天才提醒，按「之後再說」隔 7 天
@@ -4217,6 +4334,7 @@ function runMonthlyBackup() {
         "</h3>" +
         (e.mood ? "<p><b>心情：</b>" + escHtml(e.mood) + "</p>" : "") +
         (e.food ? "<p><b>吃了：</b>" + escHtml(e.food) + "</p>" : "") +
+        (e.funny ? "<p><b>最好笑：</b>" + escHtml(e.funny) + "</p>" : "") +
         (e.say ? "<p>" + escHtml(e.say) + "</p>" : "") +
         (e.s1 || e.s2
           ? "<blockquote>今天雖然" + escHtml(e.s1 || "＿＿") + "，但因為有你" + escHtml(e.s2 || "＿＿") + "。</blockquote>"
@@ -4474,6 +4592,12 @@ $("picPack").onclick = async () => {
   if (!b.dataset.confirm) {
     b.dataset.confirm = 1;
     b.textContent = "無法還原，再按一次開始";
+    setTimeout(() => {
+      if (b.isConnected && !b.disabled && packList.length) {
+        delete b.dataset.confirm;
+        b.textContent = `壓縮 ${packList.length} 張舊照片`;
+      }
+    }, 3000);
     return;
   }
   delete b.dataset.confirm;
@@ -4571,7 +4695,15 @@ function bookCount() {
 }
 function bookMonths() {
   const list = [];
-  const start = new Date(LOVE_START.getFullYear(), LOVE_START.getMonth(), 1);
+  const earliest = [
+    key(LOVE_START).slice(0, 7),
+    ...entries.map((e) => String(e.date).slice(0, 7)),
+    ...calAllPhotos().map((p) => String(p.date).slice(0, 7)),
+  ]
+    .filter((m) => /^\d{4}-\d{2}$/.test(m))
+    .sort()[0];
+  const [y0, m0] = earliest.split("-").map(Number);
+  const start = new Date(y0, m0 - 1, 1);
   const nowM = key(today()).slice(0, 7);
   for (let d = start; key(d).slice(0, 7) <= nowM; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
     list.push(key(d).slice(0, 7));
@@ -4593,10 +4725,10 @@ function bookSummaryData(es, ps, inR) {
     ["日記", es.length + " 篇"],
     ["照片", ps.length + " 張"],
     ["一起完成", togetherDays().filter(inR).length + " 天"],
+    ["抽題過關", store.rounds.filter((r) => inR(roundDay(r)) && pairOf(r.id).length >= need()).length + " 題"],
     ["達成願望", doneWishes.length + " 個"],
-    ["抽題過關", store.rounds.filter((r) => inR(dayOf(r.at)) && pairOf(r.id).length >= need()).length + " 題"],
     ["抱抱", store.hugs.filter((h) => h.backAt && inR(dayOf(h.backAt))).length + " 次"],
-    ["回應日記", store.replies.filter((r) => r.kind === "text" && esIds.has(r.entry)).length + " 則"],
+    ["回應與貼圖", store.replies.filter((r) => esIds.has(r.entry)).length + " 則"],
     ["平均幸福", avg],
   ];
   const best = [...rated].sort((x, y) => y.happy - x.happy || String(y.date).localeCompare(String(x.date)))[0];
@@ -4694,12 +4826,14 @@ function renderYearBook() {
   const ps = calAllPhotos()
     .filter((p) => inR(p.date))
     .sort(byAt);
-  if (!es.length && !ps.length) {
+  const { tiles, best, doneWishes } = bookSummaryData(es, ps, inR);
+  const hasActivity =
+    es.length || ps.length || doneWishes.length || tiles.some(([k, v]) => k !== "平均幸福" && parseInt(v, 10) > 0);
+  if (!hasActivity) {
     $("bookBody").innerHTML = '<div class="empty">這一年還沒有回憶，寫下第一篇日記吧。</div>';
     return;
   }
   const dayN = Math.round((Math.min(to, today()) - from) / 864e5) + 1;
-  const { tiles, best } = bookSummaryData(es, ps, inR);
   const pages = months
     .map((m) => {
       const me = es.filter((e) => e.date.startsWith(m));
@@ -4723,11 +4857,16 @@ function renderYearBook() {
       );
     })
     .join("");
+  const wishesHtml = doneWishes.length
+    ? `<article class="entry book-m"><header><b>🌠 這一年達成的願望</b><span>${doneWishes.length} 個</span></header>` +
+      doneWishes.map((w) => `<div>✅ ${esc(w.text)} <small>(${esc(w.doneDate || "")})</small></div>`).join("") +
+      `</article>`
+    : "";
   $("bookBody").innerHTML =
     `<div class="book-cover"><b>第 ${keep} 年</b><span>一起走過 ${dayN} 天</span><span>${a} ～ ${b}</span></div>` +
     `<div class="stats">${tiles.map(([x, v]) => `<div class="stat"><span>${x}</span><b>${v}</b></div>`).join("")}</div>` +
     `${best ? `<div class="note">⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(bookSay(best))}</div>` : ""}` +
-    `${pages}`;
+    `${pages}${wishesHtml}`;
 }
 function renderBook() {
   if (!$("book").classList.contains("open")) return;
@@ -4789,6 +4928,12 @@ window.addEventListener("online", () => {
   reconnect();
 });
 $("status").addEventListener("click", () => reconnect(true));
+$("status").addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" || ev.key === " ") {
+    ev.preventDefault();
+    reconnect(true);
+  }
+});
 
 // 跨午夜 00:00 或從手機背景切回時自動換日
 let lastDayKey = key(today());
@@ -4942,6 +5087,8 @@ function renderWeekRecap(t) {
     to = key(t),
     inW = (d) => String(d) >= from && String(d) <= to,
     wk = "日一二三四五六";
+  loadCalPhotos(from.slice(0, 7));
+  loadCalPhotos(to.slice(0, 7));
   const es = entries.filter((e) => inW(e.date)).sort((a, b) => (a.date + a.at).localeCompare(b.date + b.at)),
     ps = calAllPhotos()
       .filter((p) => inW(p.date))
