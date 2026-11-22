@@ -75,11 +75,13 @@ button:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
 .bar i{display:block;height:100%;width:0;background:linear-gradient(110deg,var(--pink) 25%,color-mix(in srgb,var(--gold) 78%,#fff) 50%,var(--gold) 68%,var(--pink) 92%);border-radius:99px;box-shadow:inset 0 1.5px 1px rgba(255,255,255,.78),0 0 12px rgba(235,69,126,.42);transition:width .65s cubic-bezier(.22,1,.36,1)}
 .hud .next{font-size:13px;color:var(--muted)}
 .status{font-size:12px;color:var(--muted);cursor:pointer}
+#logout{background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px}
 
 /* 側邊選單：桌機固定在左邊可縮成圖示列，手機平常收起、按按鈕滑出 */
 :root{--side-w:216px;--rail-w:64px}
 #trash{scroll-margin-top:12px}
 .side{position:fixed;inset:0 auto 0 0;z-index:16;width:var(--side-w);background:var(--glass-bg);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);border-right:.5px solid var(--line);display:flex;flex-direction:column;gap:4px;padding:calc(12px + env(safe-area-inset-top,0px)) 10px calc(12px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));overflow-y:auto;transition:width .2s ease,transform .2s ease,visibility .2s}
+#sideNav{display:flex;flex-direction:column;gap:2px}
 .side-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px 8px}
 .side-head b{font-weight:800;font-size:15px;white-space:nowrap}
 .side-toggle{flex:none;width:34px;height:34px;border:0;background:var(--sunk);color:var(--fg);border-radius:10px;padding:0;font-size:15px;line-height:1}
@@ -102,12 +104,14 @@ button:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:calc(14px + env(safe-area-inset-top,0px));z-index:10;background:linear-gradient(180deg,var(--bg) 0%,var(--bg) env(safe-area-inset-top,0px),transparent 100%);pointer-events:none}
 
 /* quests & iOS 26 Liquid Glass buttons */
-.today{background:var(--pink-soft);border:1.5px solid color-mix(in srgb,var(--pink) 48%,var(--line));box-shadow:var(--card-shadow);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:10px}
+.today,#todayCard{display:flex;flex-direction:column;gap:10px}
+.today{background:var(--pink-soft);border:1.5px solid color-mix(in srgb,var(--pink) 48%,var(--line));box-shadow:var(--card-shadow);border-radius:var(--r);padding:18px}
 .today .tag{font-size:12px;font-weight:700;color:var(--pink);letter-spacing:.06em}
 .today h3{font-size:19px;font-weight:800}
 .today p{margin:0;font-size:15px}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;line-height:1.25;border:1px solid rgba(255,255,255,.5);border-radius:99px;padding:10px 20px;font-weight:700;background:linear-gradient(145deg,color-mix(in srgb,var(--pink) 92%,#fff),color-mix(in srgb,var(--pink) 82%,var(--gold)));color:#fff;box-shadow:inset 0 1.5px 1px rgba(255,255,255,.72),0 6px 16px -3px color-mix(in srgb,var(--pink) 45%,transparent)}
+.row>input{flex:1;min-width:180px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;line-height:1.25;text-decoration:none;border:1px solid rgba(255,255,255,.5);border-radius:99px;padding:10px 20px;font-weight:700;background:linear-gradient(145deg,color-mix(in srgb,var(--pink) 92%,#fff),color-mix(in srgb,var(--pink) 82%,var(--gold)));color:#fff;box-shadow:inset 0 1.5px 1px rgba(255,255,255,.72),0 6px 16px -3px color-mix(in srgb,var(--pink) 45%,transparent)}
 .btn.ghost{background:var(--sunk);color:var(--fg);border:1px solid var(--line);padding:8px 14px;font-weight:600;box-shadow:var(--glass-rim)}
 .btn.dark{background:linear-gradient(145deg,color-mix(in srgb,var(--pink) 88%,var(--ink)),var(--pink));color:#fff;border:1px solid rgba(255,255,255,.42);box-shadow:inset 0 1.5px 1px rgba(255,255,255,.6),0 8px 20px -4px color-mix(in srgb,var(--pink) 45%,transparent)}
 .btn:disabled{opacity:.42;cursor:default}
@@ -234,7 +238,7 @@ form.wishform{display:flex;gap:8px}
 .entry .letter{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .panel{background:var(--glass-bg);border:.5px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--card-shadow)}
 .panel h3{font-size:15px;font-weight:800}
-.panel select{width:auto}
+.panel select,#bookTools select{width:auto}
 .between{justify-content:space-between}
 .chart{position:relative}
 .chart svg{display:block;width:100%;height:auto}
@@ -261,6 +265,8 @@ details.month[open]>summary{border-color:color-mix(in srgb,var(--pink) 36%,var(-
 details.month summary span{margin-left:auto;margin-right:4px;font-size:13px;font-weight:500;color:var(--muted)}
 details.month summary::after{margin-left:4px}
 .month-body{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.month-body ol{margin:0;padding-left:1.4em}
+.month-body a{color:var(--pink)}
 
 /* calendar, search */
 .cal,.cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
@@ -389,6 +395,10 @@ details.month[open]>.month-body,details.rules[open]>.custom,details.rules[open]>
 }
 
 .diary-block{display:flex;flex-direction:column;gap:14px;scroll-margin-top:12px}
+#hugState,#todayPhotos{display:flex;flex-direction:column;gap:8px}
+#dNew{align-self:flex-start}
+#appVer{text-align:center;opacity:.65;margin:4px 0 0}
+#gateMsg{color:var(--pink)}
 
 /* 提示合併成一張卡；照片格縮小 */
 .notices{background:var(--glass-bg);border:.5px solid var(--line);box-shadow:var(--card-shadow);border-radius:var(--r);padding:2px 16px;display:flex;flex-direction:column}
@@ -398,7 +408,7 @@ details.month[open]>.month-body,details.rules[open]>.custom,details.rules[open]>
 @media (max-width:859px){.wrap{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 
 .hug.mini{background:none;border:0;box-shadow:none;padding:0;flex-direction:row;align-items:center;justify-content:space-between}
-#hugOpen{align-self:flex-start;font-size:13px;padding:6px 14px}
+#hugOpen,#otdBtn{align-self:flex-start;font-size:13px;padding:6px 14px}
 #hugClose{padding:0 14px}
 .btn.ghost.small{font-size:12px;padding:5px 11px}
 
@@ -449,10 +459,6 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 .lightbox form{display:flex;gap:8px;width:100%;max-width:26em}
 .lightbox form input{flex:1;min-width:0;background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.24)}
 .lightbox .cap{color:#fff;text-align:center;max-width:36em;font-size:15px;white-space:pre-wrap}
+.lightbox .row{justify-content:center}
 .lightbox .btn.ghost{background:rgba(255,255,255,.16);-webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);color:#fff}
-.ph-queue{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.ph-queue .qi{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;background:var(--sunk)}
-.ph-queue .qi img{width:100%;height:100%;object-fit:cover;display:block}
-.ph-queue .qi button{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:12px;line-height:22px;padding:0}
-.ph-queue .add{width:64px;height:64px;border-radius:10px;border:1.5px dashed var(--line);background:var(--sunk);color:var(--muted);font-size:22px;padding:0}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}

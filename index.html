@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
-<link rel="manifest" href="manifest.webmanifest?v=90">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=90">
+<link rel="manifest" href="manifest.webmanifest?v=91">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=91">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -14,7 +14,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d0811">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap">
-<link rel="stylesheet" href="style.css?v=90">
+<link rel="stylesheet" href="style.css?v=91">
 </head>
 <body>
 
@@ -31,7 +31,7 @@
 </script>
 <aside class="side" id="side">
   <div class="side-head"><b>戀愛基地</b><button class="side-toggle" type="button" id="sideToggle" aria-controls="sideNav"></button></div>
-  <nav id="sideNav" aria-label="主選單" style="display:flex;flex-direction:column;gap:2px">
+  <nav id="sideNav" aria-label="主選單">
     <a href="#today" data-c="today" title="今天"><span class="ic" aria-hidden="true">🏠</span><span class="lb">今天</span></a>
     <a href="#quests" data-c="diary" title="日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">日記</span></a>
     <a href="#draw" data-c="play" title="互動"><span class="ic" aria-hidden="true">🎲</span><span class="lb">互動</span></a>
@@ -55,13 +55,13 @@
     <div class="anniv" id="anniv"></div>
     <div class="bdays" id="bdays"></div>
     <div class="lvl">
-      <div><div class="next" style="opacity:.7">目前稱號</div><div class="title" id="curTitle">尚未解鎖</div></div>
+      <div><div class="next">目前稱號</div><div class="title" id="curTitle">尚未解鎖</div></div>
       <div class="xp num"><span id="xp">0</span><small>XP</small></div>
     </div>
     <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
-    <div class="row" style="justify-content:space-between">
+    <div class="row between">
       <div class="next" id="nextText">再 50 XP 解鎖「🐣 戀愛新手村」</div>
-      <div class="status"><span id="meLabel" hidden></span> <span id="status" role="button" tabindex="0" title="點一下重新同步" style="cursor:pointer">連線中…</span> <button type="button" id="logout" hidden style="background:none;border:0;color:inherit;text-decoration:underline;font-size:12px;opacity:.8;padding:0 0 0 6px">登出</button></div>
+      <div class="status"><span id="meLabel" hidden></span> <span id="status" role="button" tabindex="0" title="點一下重新同步">連線中…</span> <button type="button" id="logout" hidden>登出</button></div>
     </div>
   </header>
 
@@ -75,10 +75,10 @@
       <div class="away" id="awayCard" hidden></div>
     </div>
     <div class="hug" id="hugCard" hidden>
-      <div id="hugState" style="display:flex;flex-direction:column;gap:8px"></div>
-      <div class="row" style="gap:8px">
+      <div id="hugState"></div>
+      <div class="row">
         <button class="btn ghost" type="button" id="hugOpen">🤗 討抱抱</button>
-        <a class="btn ghost" id="otdBtn" href="#onThisDay" hidden style="text-decoration:none;font-size:13px;padding:6px 14px">🕰️ 一週前的今天</a>
+        <a class="btn ghost" id="otdBtn" href="#onThisDay" hidden>🕰️ 一週前的今天</a>
       </div>
       <form class="wishform" id="hugForm" autocomplete="off" hidden>
         <input id="hugText" maxlength="40" placeholder="今天怎麼了（可不填）" aria-label="想對對方說的話">
@@ -94,7 +94,7 @@
   <section id="quests">
     <div><h2>💌 今天的日記</h2></div>
     <div class="today" id="todayBox" hidden>
-      <div id="todayCard" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div id="todayCard"></div>
       <details class="month" id="weekRecap" open>
         <summary>這週的你們<span id="weekRecapN"></span></summary>
         <div class="month-body" id="weekRecapBody"></div>
@@ -106,14 +106,14 @@
       </form>
     </div>
     <div class="diary-block" id="diary">
-      <p class="sub" style="margin:0">兩個人都傳今天的照片 +10 XP；日記想寫的時候隨時寫。</p>
-      <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
+      <p class="sub">兩個人都傳今天的照片 +10 XP；日記想寫的時候隨時寫。</p>
+      <div id="todayPhotos"></div>
       <form class="wishform" id="photoCapForm" autocomplete="off" hidden>
         <input id="photoCap" maxlength="60" placeholder="幫照片寫一句話（可不填）" aria-label="照片說明">
         <button class="btn" type="submit">存</button>
       </form>
       <div class="entries" id="diaryToday"></div>
-      <button class="btn ghost" type="button" id="dNew" hidden style="align-self:flex-start"></button>
+      <button class="btn ghost" type="button" id="dNew" hidden></button>
       <form class="diary" id="diaryForm" autocomplete="off">
         <div class="full editbar" id="editBar" hidden><span id="editText">✏️ 正在編輯</span><button class="btn ghost" type="button" id="editCancel">取消編輯</button></div>
         <label>📅 日期<input type="date" id="dDate" required></label>
@@ -121,7 +121,7 @@
         <label class="full">🍜 午餐／晚餐吃了什麼<input id="dFood" maxlength="100" placeholder="例：午餐咖哩飯、晚餐火鍋"></label>
         <label hidden>🤪 今天最好笑的事情<textarea id="dFunny" maxlength="200" rows="1"></textarea></label>
         <div class="full field">
-          <div class="row between" style="flex-wrap:nowrap"><label for="dSay">💞 今天想記下的事</label><button class="btn ghost small" type="button" id="dPromptBtn">💡 靈感</button></div>
+          <div class="row between"><label for="dSay">💞 今天想記下的事</label><button class="btn ghost small" type="button" id="dPromptBtn">💡 靈感</button></div>
           <textarea id="dSay" maxlength="1000" rows="3" placeholder="寫下今天發生的事，或按右上「💡 靈感」"></textarea>
         </div>
         <div class="full field"><span id="heartsLbl">⭐ 今天的幸福指數（1～10）</span>
@@ -131,10 +131,7 @@
           <label>今天雖然……<textarea id="dS1" maxlength="200" rows="2"></textarea></label>
           <label>但因為有你……<textarea id="dS2" maxlength="200" rows="2"></textarea></label>
         </div>
-        <div class="full field" id="dPhotoBox" hidden><span>📷 照片（可以選很多張，一篇最多 9 張）</span>
-          <div class="ph-queue" id="dPhotos"></div>
-        </div>
-        <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span><button class="btn ghost" type="button" id="dDraftClear" hidden style="font-size:12px;padding:4px 10px">清除草稿</button></div>
+        <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span><button class="btn ghost small" type="button" id="dDraftClear" hidden>清除草稿</button></div>
       </form>
     </div>
     <input type="file" id="photoFile" accept="image/*" hidden>
@@ -235,7 +232,7 @@
       <div class="best" id="mBest"></div>
     </div>
     <details class="month" id="capsule"><summary>⏳ 時光膠囊<span id="capN"></span></summary><div class="month-body">
-      <p class="sub" style="margin:0">寫給未來的你們，到了指定日期才打得開。</p>
+      <p class="sub">寫給未來的你們，到了指定日期才打得開。</p>
       <form class="diary" id="capForm" autocomplete="off">
         <label class="full">💌 想對未來說的話<textarea id="capText" maxlength="1000" rows="3" required></textarea></label>
         <label>📅 打開的日期<input type="date" id="capDate" required></label>
@@ -252,7 +249,7 @@
   <section id="book" class="fold">
     <div><h2>📖 回憶書</h2><p class="sub">每月總結和年度總結都在這裡，把日記和照片整理成一本。</p></div>
     <div class="filter" id="bookMode" role="group" aria-label="總結範圍"><button type="button" data-m="month" aria-pressed="true">每月總結</button><button type="button" data-m="year" aria-pressed="false">年度總結</button></div>
-    <div class="row between" id="bookTools"><select id="bookMonth" aria-label="選擇月份" style="width:auto"></select><select id="bookYear" aria-label="選擇第幾年" style="width:auto" hidden></select><button class="btn ghost" type="button" id="bookPrint">列印／存成 PDF</button></div>
+    <div class="row between" id="bookTools"><select id="bookMonth" aria-label="選擇月份"></select><select id="bookYear" aria-label="選擇第幾年" hidden></select><button class="btn ghost" type="button" id="bookPrint">列印／存成 PDF</button></div>
     <div class="book" id="bookBody"></div>
   </section>
 
@@ -285,8 +282,8 @@
           <summary>⚙️ 設定推播小郵差<span id="pushUrlSt">尚未設定</span></summary>
           <div class="month-body">
             <p class="sub">只要設定一次，兩個人就能共用（完全免費、不用綁卡）：</p>
-            <ol class="sub" style="margin:0;padding-left:1.4em">
-              <li>打開 <a href="https://script.google.com" target="_blank" rel="noopener" style="color:var(--pink)">script.google.com</a>，點左上角「新專案」。</li>
+            <ol class="sub">
+              <li>打開 <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>，點左上角「新專案」。</li>
               <li>把裡面原本的程式碼全選刪掉，點下方「📋 複製郵差程式碼」貼進去。</li>
               <li>點右上角「部署 → 新增部署作業」，類型選「網頁應用程式」，<b>誰可以存取選「所有人」</b>，按部署並授權。</li>
               <li>複製拿到的「網頁應用程式網址（…/exec）」貼在下面按儲存就完成了！</li>
@@ -295,7 +292,7 @@
               <button class="btn ghost small" type="button" id="pushCopyCode">📋 複製郵差程式碼</button>
             </div>
             <div class="row">
-              <input id="pushUrl" placeholder="貼上 https://script.google.com/macros/s/.../exec" aria-label="推播郵差網址" style="flex:1;min-width:180px">
+              <input id="pushUrl" placeholder="貼上 https://script.google.com/macros/s/.../exec" aria-label="推播郵差網址">
               <button class="btn" type="button" id="pushUrlSave">儲存網址</button>
             </div>
           </div>
@@ -335,8 +332,8 @@
           <summary>☁️ 設定 Google 雲端每月自動備份</summary>
           <div class="month-body">
             <p class="sub">設定一次後，每個月 1 號會自動把日記和原圖存進你的 Google 雲端硬碟「戀愛基地備份」資料夾，並寄信通知空間用量（Android 和 iPhone 都通用，完全免費）：</p>
-            <ol class="sub" style="margin:0;padding-left:1.4em">
-              <li>打開 <a href="https://script.google.com" target="_blank" rel="noopener" style="color:var(--pink)">script.google.com</a>，點左上角「新專案」。</li>
+            <ol class="sub">
+              <li>打開 <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>，點左上角「新專案」。</li>
               <li>把裡面原本的程式碼全選刪掉，點下方「📋 複製自動備份程式碼」貼進去（會自動帶入目前的暗號，請勿分享給別人），按儲存。</li>
               <li>在上方函式選單選擇 <b>setupMonthlyTrigger</b>，點「▶ 執行」並允許存取 Google 雲端硬碟與寄信權限。</li>
               <li>完成！系統會立刻先幫你備份一次，之後每個月 1 號自動備份。</li>
@@ -360,11 +357,11 @@
       <summary>🔐 更換基地暗號</summary>
       <div class="custom">
         <p class="sub">想換更長、更安全的暗號時，在這裡輸入新暗號。系統會把目前所有的日記、照片、願望和分數完整複製過去（舊暗號裡的資料也會保留，不怕不見）。搬完後請告訴對方也改用新暗號登入。</p>
-        <div class="row"><input id="newRoomCode" maxlength="64" placeholder="新暗號（8～64 個英數、- 或 _）" aria-label="新暗號" style="flex:1;min-width:180px"><button class="btn" type="button" id="moveRoomBtn">搬家到新暗號</button></div>
+        <div class="row"><input id="newRoomCode" maxlength="64" placeholder="新暗號（8～64 個英數、- 或 _）" aria-label="新暗號"><button class="btn" type="button" id="moveRoomBtn">搬家到新暗號</button></div>
         <p class="sub" id="moveRoomMsg"></p>
       </div>
     </details>
-    <p class="sub" id="appVer" style="text-align:center;opacity:.65;margin:4px 0 0"></p>
+    <p class="sub" id="appVer"></p>
   </section>
 
   <section id="rules">
@@ -392,12 +389,12 @@
   <div class="stage"><img id="lbImg" alt="" draggable="false"><button type="button" class="nav prev" id="lbPrev" aria-label="上一張">‹</button><button type="button" class="nav next" id="lbNext" aria-label="下一張">›</button></div>
   <div class="cap" id="lbCap"></div>
   <form id="lbCapForm" hidden autocomplete="off"><input id="lbCapText" maxlength="60" placeholder="幫照片寫一句話" aria-label="照片說明"><button class="btn" type="submit">存</button></form>
-  <div class="row" style="justify-content:center"><button class="btn ghost" type="button" id="lbCapEdit" hidden>✏️ 寫一句話</button><button class="btn ghost" type="button" id="lbSave">⬇️ 存到手機</button><button class="btn ghost" type="button" id="lbDel" hidden>刪除這張</button><button class="btn" type="button" id="lbClose">關閉</button></div>
+  <div class="row"><button class="btn ghost" type="button" id="lbCapEdit" hidden>✏️ 寫一句話</button><button class="btn ghost" type="button" id="lbSave">⬇️ 存到手機</button><button class="btn ghost" type="button" id="lbDel" hidden>刪除這張</button><button class="btn" type="button" id="lbClose">關閉</button></div>
 </div>
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=90" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=91" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -406,7 +403,7 @@
       <input type="hidden" id="gateName">
     </div>
     <button class="btn" type="submit">進入基地</button>
-    <p class="sub" id="gateMsg" style="color:var(--pink)"></p>
+    <p class="sub" id="gateMsg"></p>
   </form>
 </div>
 
@@ -423,6 +420,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=90"></script>
+<script src="app.js?v=91"></script>
 </body>
 </html>

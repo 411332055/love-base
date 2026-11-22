@@ -259,21 +259,26 @@ async function delDoc(c, id) {
     toast("刪除失敗");
   }
 }
+function confirmTap(b, label, resetLabel = b.textContent, ms = 3000) {
+  if (b.dataset.confirm) {
+    delete b.dataset.confirm;
+    b.textContent = typeof resetLabel === "function" ? resetLabel() : resetLabel;
+    return true;
+  }
+  b.dataset.confirm = 1;
+  b.textContent = label;
+  setTimeout(() => {
+    if (b.isConnected && b.dataset.confirm) {
+      delete b.dataset.confirm;
+      b.textContent = typeof resetLabel === "function" ? resetLabel() : resetLabel;
+    }
+  }, ms);
+  return false;
+}
 function armDelete(box, c, fn = (id) => delDoc(c, id), label = "再按一次") {
   box.querySelectorAll(".del").forEach((b) => {
     b.onclick = () => {
-      if (b.dataset.confirm) {
-        fn(b.dataset.id);
-      } else {
-        b.dataset.confirm = 1;
-        b.textContent = label;
-        setTimeout(() => {
-          if (b.isConnected) {
-            delete b.dataset.confirm;
-            b.textContent = "刪除";
-          }
-        }, 3000);
-      }
+      if (confirmTap(b, label, "刪除")) fn(b.dataset.id);
     };
   });
 }
@@ -325,7 +330,7 @@ function renderStreak() {
   $("streak").innerHTML =
     `<span>🔥 連續<span class="num">${n}</span>天</span><span class="muted">再 ${STREAK_STEP - (n % STREAK_STEP)}` +
     ` 天 +${STREAK_BONUS} XP</span><span>🎫 補簽卡 ${Math.max(0, cards)}` +
-    ` 張</span><span class="muted">今日打卡：${NAMES.map((nm) => `${nm === "寒冰" ? "🧊" : "🍃"} ${nm} ${todayWho.has(nm) ? "✓" : "還沒"}`).join(" · ")}</span>` +
+    ` 張</span><span class="muted">今日打卡：${NAMES.map((nm) => `${NAME_IC[nm]} ${nm} ${todayWho.has(nm) ? "✓" : "還沒"}`).join(" · ")}</span>` +
     `${repair ? `<button class="btn" type="button" id="fixBtn">補上 ${gap.length > 1 ? `${md(gap[gap.length - 1])}～${md(gap[0])}（用 ${gap.length} 張）` : md(c)}</button>` : ""}`;
   if (repair)
     $("fixBtn").onclick = async () => {
@@ -1054,18 +1059,7 @@ document.addEventListener("keydown", (ev) => {
 $("lbDel").onclick = async () => {
   const b = $("lbDel"),
     id = lbId;
-  if (!id) return;
-  if (!b.dataset.confirm) {
-    b.dataset.confirm = 1;
-    b.textContent = "確定刪除？再按一次";
-    setTimeout(() => {
-      if (b.isConnected && lbId === id) {
-        delete b.dataset.confirm;
-        b.textContent = "刪除這張";
-      }
-    }, 3000);
-    return;
-  }
+  if (!id || !confirmTap(b, "確定刪除？再按一次", "刪除這張")) return;
   try {
     await commit(db.collection("photos").doc(id).update({ trashed: trashMark() }));
     picCache.delete(id);
@@ -1104,7 +1098,8 @@ function subPhotos() {
 }
 
 const NAME_KEY = "love-base-name",
-  NAMES = ["寒冰", "夏夏"];
+  NAMES = ["寒冰", "夏夏"],
+  NAME_IC = { 寒冰: "🧊", 夏夏: "🍃" };
 function myName() {
   try {
     return localStorage.getItem(NAME_KEY) || "";
@@ -1116,7 +1111,7 @@ let who = "all";
 function byChip(n) {
   if (!n) return '<span class="by">未署名</span>';
   const me = n === myName(),
-    ic = n === "寒冰" ? "🧊" : n === "夏夏" ? "🍃" : "✍️";
+    ic = NAME_IC[n] || "✍️";
   return `<span class="by ${me ? "me" : "them"}">${ic} ${esc(n)}${me ? "（我）" : ""}</span>`;
 }
 function diaryDl(e) {
@@ -1129,6 +1124,11 @@ function diaryDl(e) {
     .filter((r) => r[1])
     .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
     .join("");
+}
+function diaryQuote(e) {
+  return e.s1 || e.s2
+    ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>`
+    : "";
 }
 
 let monthOpen = {}; // 月份 -> 使用者手動開合的狀態
@@ -1168,7 +1168,7 @@ function renderEntries() {
     `</div>
   <dl>${diaryDl(e)}` +
     `</dl>
-  ${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
+  ${diaryQuote(e)}` +
     `
   ${entryExtras(e, "list")}` +
     `</article>`;
@@ -1253,6 +1253,13 @@ async function delEntry(id) {
 let happy = 0,
   editId = null;
 const FIELDS = { dMood: "mood", dFood: "food", dFunny: "funny", dSay: "say", dS1: "s1", dS2: "s2" };
+function resetDiaryFields() {
+  for (const el of Object.keys(FIELDS)) $(el).value = "";
+  $("dDate").value = key(today());
+  happy = 0;
+  renderHearts();
+  growAll();
+}
 function startEdit(id) {
   const e = entries.find((x) => x.id === id);
   if (!e) return;
@@ -1269,21 +1276,15 @@ function startEdit(id) {
   $("dSave").textContent = "儲存修改";
   $("dMsg").textContent = "";
   $("dDraftClear").hidden = true;
-  clearQueue();
   openFor("diaryForm");
   growAll();
 }
 function endEdit() {
-  clearQueue();
   editId = null;
   $("editBar").hidden = true;
   $("diaryForm").classList.remove("editing");
   $("dSave").textContent = "寫進日記";
-  for (const el of Object.keys(FIELDS)) $(el).value = "";
-  $("dDate").value = key(today());
-  happy = 0;
-  renderHearts();
-  growAll();
+  resetDiaryFields();
   restoreDraft();
   renderDiaryToday();
 }
@@ -1391,7 +1392,6 @@ $("dPromptBtn").onclick = () => {
 
 $("diaryForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  const queued = dQueue.slice();
   const e = {
     date: $("dDate").value,
     mood: $("dMood").value.trim(),
@@ -1404,7 +1404,7 @@ $("diaryForm").addEventListener("submit", async (ev) => {
     at: new Date().toISOString(),
     by: myName(),
   };
-  if (!e.mood && !e.food && !e.funny && !e.say && !e.s1 && !e.s2 && !queued.length) {
+  if (!e.mood && !e.food && !e.funny && !e.say && !e.s1 && !e.s2) {
     $("dMsg").textContent = "至少寫一格再存喔";
     return;
   }
@@ -1426,11 +1426,9 @@ $("diaryForm").addEventListener("submit", async (ev) => {
         saveLocal();
       }
       Object.assign(old, upd);
-      const eid = editId;
       endEdit();
-      const n = await uploadQueue(eid, upd.date, queued);
       renderAll();
-      toast(n ? `修改好了 ✏️ 加了 ${n} 張照片` : "修改好了 ✏️");
+      toast("修改好了 ✏️");
     } catch (err) {
       $("dMsg").textContent = "沒存到，請再試一次";
     }
@@ -1438,10 +1436,8 @@ $("diaryForm").addEventListener("submit", async (ev) => {
     return;
   }
   try {
-    let newId;
     if (db) {
       const ref = db.collection("diary").doc();
-      newId = ref.id;
       await commit(ref.set(e));
       if (!entries.find((x) => x.id === ref.id)) entries.push({ id: ref.id, ...e });
     } else {
@@ -1449,15 +1445,10 @@ $("diaryForm").addEventListener("submit", async (ev) => {
       entries.push(e);
       saveLocal();
     }
-    clearQueue();
     diaryFormOpen = false;
-    $("dDate").value = key(today());
     clearDraft();
     $("dMsg").textContent = "";
-    ["dMood", "dFood", "dFunny", "dSay", "dS1", "dS2"].forEach((i) => ($(i).value = ""));
-    happy = 0;
-    renderHearts();
-    growAll();
+    resetDiaryFields();
     renderAll();
     toast("寫好了 💌");
     const preview = (e.mood || e.say || e.food || e.funny || "").slice(0, 24);
@@ -1467,10 +1458,6 @@ $("diaryForm").addEventListener("submit", async (ev) => {
       "#quests",
       "diary-" + e.date,
     );
-    if (newId && queued.length) {
-      const n = await uploadQueue(newId, e.date, queued);
-      if (n) toast(`日記寫好了，放了 ${n} 張照片 💌`);
-    }
   } catch (err) {
     $("dMsg").textContent = "沒存到，請確認你有這個頁面的編輯權限";
   }
@@ -2026,8 +2013,7 @@ function renderOnThisDay() {
               .map(
                 (e) =>
                   `<div>${byChip(e.by)}${e.happy ? ` <span class="edited">⭐ ${esc(e.happy)}/10</span>` : ""}</div>` +
-                  `<dl>${diaryDl(e)}</dl>` +
-                  `${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}`,
+                  `<dl>${diaryDl(e)}</dl>${diaryQuote(e)}`,
               )
               .join("")}` +
             `${ps.length ? `<div class="wall-grid">${ps.map((p) => photoBtn(p, "")).join("")}</div>` : ""}</article>`,
@@ -2154,8 +2140,7 @@ $("gachaBtn").onclick = () => {
         html:
           `<article class="entry"><header><b>💌 ${esc(e.date)} 的日記</b>` +
           `<span>${esc(e.by || "")}${e.happy ? ` · ⭐ ${esc(e.happy)}/10` : ""}</span></header>` +
-          `<dl>${diaryDl(e)}</dl>` +
-          `${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
+          `<dl>${diaryDl(e)}</dl>${diaryQuote(e)}` +
           `${phs.length ? `<div class="wall-grid">${phs.map((p) => photoBtn(p, "")).join("")}</div>` : ""}</article>`,
       });
   });
@@ -2362,8 +2347,7 @@ function renderCalDetail() {
         (e) =>
           `<article class="entry ${e.by ? (e.by === myName() ? "me" : "them") : ""}"><header><div>${byChip(e.by)}</div>` +
           `<span>${e.happy ? "⭐ " + esc(e.happy) + "/10" : ""}</span></header>` +
-          `<dl>${diaryDl(e)}` +
-          `</dl>${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
+          `<dl>${diaryDl(e)}</dl>${diaryQuote(e)}` +
           `${entryExtras(e, "cal")}</article>`,
       )
       .join("");
@@ -2495,7 +2479,7 @@ function backupHtml(b) {
         .filter((r) => r[1])
         .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
         .join("")}` +
-      `</dl>${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
+      `</dl>${diaryQuote(e)}` +
       `${phs.map((p) => `<img src="${esc(imgSrc(p))}" alt="當天的照片" loading="lazy" decoding="async">`).join("")}` +
       `${texts.map((r) => `<p class="re"><b>${esc(r.by)}</b> ${esc(r.text)}</p>`).join("")}</article>`
     );
@@ -2742,18 +2726,7 @@ function renderTrash() {
     .forEach((b) => (b.onclick = () => restoreItem(b.dataset.restore, b.dataset.id)));
   box.querySelectorAll("[data-purge]").forEach((b) => {
     b.onclick = () => {
-      if (b.dataset.confirm) {
-        purgeItem(b.dataset.purge, b.dataset.id);
-      } else {
-        b.dataset.confirm = 1;
-        b.textContent = "無法復原，再按一次";
-        setTimeout(() => {
-          if (b.isConnected) {
-            delete b.dataset.confirm;
-            b.textContent = "永久刪除";
-          }
-        }, 3000);
-      }
+      if (confirmTap(b, "無法復原，再按一次", "永久刪除")) purgeItem(b.dataset.purge, b.dataset.id);
     };
   });
 }
@@ -2953,24 +2926,9 @@ function restoreDraft() {
 }
 $("diaryForm").addEventListener("input", saveDraft);
 $("dDraftClear").onclick = () => {
-  const b = $("dDraftClear");
-  if (!b.dataset.confirm) {
-    b.dataset.confirm = 1;
-    b.textContent = "再按一次";
-    setTimeout(() => {
-      delete b.dataset.confirm;
-      b.textContent = "清除草稿";
-    }, 3000);
-    return;
-  }
-  delete b.dataset.confirm;
-  b.textContent = "清除草稿";
+  if (!confirmTap($("dDraftClear"), "再按一次", "清除草稿")) return;
   clearDraft();
-  for (const el of Object.keys(FIELDS)) $(el).value = "";
-  $("dDate").value = key(today());
-  happy = 0;
-  renderHearts();
-  growAll();
+  resetDiaryFields();
   $("dMsg").textContent = "";
 };
 
@@ -3778,8 +3736,7 @@ function renderDiaryToday() {
       (e) =>
         `<article class="entry ${e.by ? (e.by === me ? "me" : "them") : ""}"><header><div>${byChip(e.by)}</div>` +
         `<span>${e.happy ? "⭐ " + esc(e.happy) + "/10" : ""}</span></header>` +
-        `<dl>${diaryDl(e)}` +
-        `</dl>${e.s1 || e.s2 ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>` : ""}` +
+        `<dl>${diaryDl(e)}</dl>${diaryQuote(e)}` +
         `${entryExtras(e, "today")}` +
         `</article>`,
     )
@@ -3803,8 +3760,7 @@ const shrinkFull = (im) => shrink(im, 1280, PHOTO_MAX, 0.76),
 
 // 日記照片：一篇最多 9 張，每張存成 photos/pics 各一筆，用 entry 欄位指回日記
 const DIARY_PH_MAX = 9;
-let dQueue = [],
-  diaryUp = null,
+let diaryUp = null,
   addTarget = null,
   _entryMeta = null;
 function entryMetaMap() {
@@ -3843,80 +3799,32 @@ function entryMetaMap() {
   _entryMeta = { repliesByEntry, photosByEntry, dailyPhotosByKey, firstEntryIds };
   return _entryMeta;
 }
-function entryPhotos(id, all) {
-  if (!all) return entryMetaMap().photosByEntry.get(id) || [];
-  return all.filter((p) => p.entry === id && !p.trashed).sort((a, b) => String(a.at).localeCompare(String(b.at)));
-}
-function renderQueue() {
-  const box = $("dPhotos");
-  $("dPhotoBox").hidden = true;
-  const have = editId ? entryPhotos(editId).length : 0,
-    room = DIARY_PH_MAX - have - dQueue.length;
-  box.innerHTML =
-    dQueue
-      .map(
-        (q, i) =>
-          `<div class="qi"><img src="${q.url}" alt=""><button type="button" data-unq="${i}" aria-label="拿掉這張">✕</button></div>`,
-      )
-      .join("") +
-    (room > 0 ? `<button type="button" class="add" id="dPhotoAdd" aria-label="加照片">＋</button>` : "") +
-    (editId && have ? `<span class="ph-note">這篇已經有 ${have} 張</span>` : "");
-}
-function clearQueue() {
-  dQueue.forEach((q) => URL.revokeObjectURL(q.url));
-  dQueue = [];
-  renderQueue();
-}
+const entryPhotos = (id) => entryMetaMap().photosByEntry.get(id) || [];
 function pickFiles(files, max) {
   return [...files]
     .filter((f) => /^image\//.test(f.type) || /\.(heic|heif|jpe?g|png|webp|gif)$/i.test(f.name))
     .slice(0, Math.max(0, max));
 }
 $("dPhotoFile").addEventListener("change", async () => {
-  const files = $("dPhotoFile").files;
-  if (!files || !files.length) return;
-  if (addTarget) {
-    // 直接加到已經寫好的日記
-    const e = entries.find((x) => x.id === addTarget);
-    addTarget = null;
-    if (!e) return;
-    const list = pickFiles(files, DIARY_PH_MAX - entryPhotos(e.id).length);
-    if (list.length < files.length) toast(`一篇最多 ${DIARY_PH_MAX} 張，只放前 ${list.length} 張`);
-    const n = await uploadQueue(
-      e.id,
-      e.date,
-      list.map((f) => ({ file: f })),
-    );
-    if (n) {
-      toast(`加了 ${n} 張照片 📷`);
-      notifyPartner("📷 日記新照片", `${myName()}在日記加了 ${n} 張照片`, "#quests", "dphoto-" + e.id);
-    }
-    return;
+  const files = $("dPhotoFile").files,
+    target = addTarget;
+  addTarget = null;
+  if (!files || !files.length || !target) return;
+  const e = entries.find((x) => x.id === target);
+  if (!e) return;
+  const list = pickFiles(files, DIARY_PH_MAX - entryPhotos(e.id).length);
+  if (list.length < files.length) toast(`一篇最多 ${DIARY_PH_MAX} 張，只放前 ${list.length} 張`);
+  const n = await uploadQueue(
+    e.id,
+    e.date,
+    list.map((f) => ({ file: f })),
+  );
+  if (n) {
+    toast(`加了 ${n} 張照片 📷`);
+    notifyPartner("📷 日記新照片", `${myName()}在日記加了 ${n} 張照片`, "#quests", "dphoto-" + e.id);
   }
-  const have = editId ? entryPhotos(editId).length : 0;
-  const list = pickFiles(files, DIARY_PH_MAX - have - dQueue.length);
-  if (list.length < files.length) toast(`一篇最多 ${DIARY_PH_MAX} 張`);
-  list.forEach((f) => dQueue.push({ file: f, url: URL.createObjectURL(f) }));
-  renderQueue();
 });
 document.addEventListener("click", (ev) => {
-  if (ev.target.closest("#dPhotoAdd")) {
-    if (!navigator.onLine) {
-      toast("沒有網路，連上後再加照片");
-      return;
-    }
-    addTarget = null;
-    $("dPhotoFile").value = "";
-    $("dPhotoFile").click();
-    return;
-  }
-  const u = ev.target.closest("[data-unq]");
-  if (u) {
-    const q = dQueue.splice(+u.dataset.unq, 1)[0];
-    if (q) URL.revokeObjectURL(q.url);
-    renderQueue();
-    return;
-  }
   const a = ev.target.closest("[data-addph]");
   if (a && !a.disabled) {
     if (!navigator.onLine) {
@@ -3985,7 +3893,7 @@ function entryExtras(e, where) {
     return (
       `<button type="button" class="react-btn ${mine ? "on" : ""}" data-react="${esc(e.id)}" data-em="${em}" ` +
       `aria-pressed="${mine}" title="${who.length ? esc(who.join("、")) : "按表情"}">${em}` +
-      `${who.length ? `<small>${who.map((n) => (n === "寒冰" ? "🧊" : n === "夏夏" ? "🍃" : esc(n))).join("")}</small>` : ""}</button>`
+      `${who.length ? `<small>${who.map((n) => NAME_IC[n] || esc(n)).join("")}</small>` : ""}</button>`
     );
   }).join("");
   return (
@@ -4057,19 +3965,7 @@ document.addEventListener("click", (ev) => {
     return;
   }
   const d = ev.target.closest("[data-replydel]");
-  if (d) {
-    if (d.dataset.confirm) dropReply(d.dataset.replydel);
-    else {
-      d.dataset.confirm = 1;
-      d.textContent = "確定刪除？";
-      setTimeout(() => {
-        if (d.isConnected) {
-          delete d.dataset.confirm;
-          d.textContent = "✕";
-        }
-      }, 3000);
-    }
-  }
+  if (d && confirmTap(d, "確定刪除？", "✕")) dropReply(d.dataset.replydel);
 });
 bindForm(
   "replyForm",
@@ -4091,7 +3987,24 @@ bindForm(
   },
 );
 
-// 時光膠囊到期解鎖提醒：已經到打開日期且這台裝置還沒看過時，在首頁提醒
+// 首頁提醒列共用產生器（時光膠囊到期、備份提醒、照片空間提醒）
+function setNudge(id, show, text, href, goLabel, laterLabel, onLater, onGo) {
+  const box = $(id);
+  if (!box) return;
+  if (!show) {
+    box.hidden = true;
+    syncNotices();
+    return;
+  }
+  box.innerHTML =
+    `<div class="row between"><span>${text}</span><div class="row">` +
+    `<a class="btn" href="#${href}">${goLabel}</a>` +
+    `<button class="btn ghost" type="button">${laterLabel}</button></div></div>`;
+  box.hidden = false;
+  syncNotices();
+  if (onGo) box.querySelector("a").onclick = onGo;
+  box.querySelector("button").onclick = onLater;
+}
 const CAP_SEEN_KEY = "love-base-cap-seen";
 function seenCaps() {
   try {
@@ -4107,29 +4020,24 @@ function markCapsSeen(ids) {
   } catch (e) {}
 }
 function renderCapNudge() {
-  const box = $("capNudge");
-  if (!box) return;
   const tk = key(today()),
     seen = new Set(seenCaps()),
-    ready = store.capsules.filter((c) => c.openDate <= tk && !seen.has(c.id));
-  if (!db || !dataReady || !ready.length || layout.hidden.includes("memories")) {
-    box.hidden = true;
-    syncNotices();
-    return;
-  }
-  box.innerHTML =
-    `<div class="row between"><span>💌 有 ${ready.length} 顆時光膠囊到時間打開了！</span><div class="row">` +
-    `<a class="btn" href="#capsule" id="capGo" style="padding:4px 14px;font-size:13px;text-decoration:none">去看膠囊</a>` +
-    `<button class="btn ghost" type="button" id="capAck" style="padding:4px 14px;font-size:13px">知道了</button>` +
-    `</div></div>`;
-  box.hidden = false;
-  syncNotices();
-  const ack = () => {
-    markCapsSeen(ready.map((c) => c.id));
-    renderCapNudge();
-  };
-  $("capGo").onclick = ack;
-  $("capAck").onclick = ack;
+    ready = store.capsules.filter((c) => c.openDate <= tk && !seen.has(c.id)),
+    show = !!(db && dataReady && ready.length && !layout.hidden.includes("memories")),
+    ack = () => {
+      markCapsSeen(ready.map((c) => c.id));
+      renderCapNudge();
+    };
+  setNudge(
+    "capNudge",
+    show,
+    `💌 有 ${ready.length} 顆時光膠囊到時間打開了！`,
+    "capsule",
+    "去看膠囊",
+    "知道了",
+    ack,
+    ack,
+  );
 }
 $("capsule").addEventListener("toggle", () => {
   if ($("capsule").open) {
@@ -4146,79 +4054,60 @@ $("capsule").addEventListener("toggle", () => {
 const BK_SNOOZE = "love-base-backup-snooze";
 let dataReady = false;
 function renderBackupNudge() {
-  const box = $("bkNudge");
   let snooze = 0;
   try {
     snooze = +localStorage.getItem(BK_SNOOZE) || 0;
   } catch (e) {}
   const last = store.backups.reduce((a, b) => (String(b.at) > a ? String(b.at) : a), ""),
-    days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 864e5) : null;
-  const started = entries.reduce((a, e) => Math.min(a, new Date(e.at).getTime() || a), Date.now());
-  if (
-    !db ||
-    !dataReady ||
-    !entries.length ||
-    (days === null && Date.now() - started < 7 * 864e5) ||
-    (days !== null && days < 30) ||
-    Date.now() < snooze
-  ) {
-    box.hidden = true;
-    syncNotices();
-    return;
-  }
-  box.innerHTML =
-    `<div class="row between"><span>💾 ${days === null ? "你們的日記還沒備份過" : `已經 ${days} 天沒備份了`}</span><div class="row">` +
-    `<a class="btn" href="#bkBox" style="padding:4px 14px;font-size:13px;text-decoration:none">去備份</a>` +
-    `<button class="btn ghost" type="button" id="bkLater" style="padding:4px 14px;font-size:13px">之後再說</button>` +
-    `</div></div>`;
-  box.hidden = false;
-  syncNotices();
-  $("bkLater").onclick = () => {
-    try {
-      localStorage.setItem(BK_SNOOZE, Date.now() + 7 * 864e5);
-    } catch (e) {}
-    renderBackupNudge();
-  };
+    days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 864e5) : null,
+    started = entries.reduce((a, e) => Math.min(a, new Date(e.at).getTime() || a), Date.now()),
+    show = !!(
+      db &&
+      dataReady &&
+      entries.length &&
+      (days === null ? Date.now() - started >= 7 * 864e5 : days >= 30) &&
+      Date.now() >= snooze
+    );
+  setNudge(
+    "bkNudge",
+    show,
+    `💾 ${days === null ? "你們的日記還沒備份過" : `已經 ${days} 天沒備份了`}`,
+    "bkBox",
+    "去備份",
+    "之後再說",
+    () => {
+      try {
+        localStorage.setItem(BK_SNOOZE, Date.now() + 7 * 864e5);
+      } catch (e) {}
+      renderBackupNudge();
+    },
+  );
 }
 
 // 照片空間提醒：每半年（180 天）提醒一次，按「之後再說」隔 14 天
 const PIC_SCAN_KEY = "love-base-last-pic-scan",
   PIC_SNOOZE = "love-base-pic-snooze";
 function renderPicNudge() {
-  const box = $("picNudge");
-  if (!box) return;
   let last = 0,
     snooze = 0;
   try {
     last = +localStorage.getItem(PIC_SCAN_KEY) || 0;
     snooze = +localStorage.getItem(PIC_SNOOZE) || 0;
   } catch (e) {}
-  const started = photos.reduce((a, p) => Math.min(a, new Date(p.at).getTime() || a), Date.now());
-  if (
-    !db ||
-    !dataReady ||
-    !photos.length ||
-    (!last && Date.now() - started < 180 * 864e5) ||
-    (last && Date.now() - last < 180 * 864e5) ||
-    Date.now() < snooze
-  ) {
-    box.hidden = true;
-    syncNotices();
-    return;
-  }
-  box.innerHTML =
-    `<div class="row between"><span>🗜️ 已經半年沒檢查照片空間囉</span><div class="row">` +
-    `<a class="btn" href="#picBox" style="padding:4px 14px;font-size:13px;text-decoration:none">去檢查</a>` +
-    `<button class="btn ghost" type="button" id="picLater" style="padding:4px 14px;font-size:13px">之後再說</button>` +
-    `</div></div>`;
-  box.hidden = false;
-  syncNotices();
-  $("picLater").onclick = () => {
+  const started = photos.reduce((a, p) => Math.min(a, new Date(p.at).getTime() || a), Date.now()),
+    show = !!(
+      db &&
+      dataReady &&
+      photos.length &&
+      Date.now() - (last || started) >= 180 * 864e5 &&
+      Date.now() >= snooze
+    );
+  setNudge("picNudge", show, "🗜️ 已經半年沒檢查照片空間囉", "picBox", "去檢查", "之後再說", () => {
     try {
       localStorage.setItem(PIC_SNOOZE, Date.now() + 14 * 864e5);
     } catch (e) {}
     renderPicNudge();
-  };
+  });
 }
 
 // Google 雲端每月自動備份程式碼（貼到個人 Google Apps Script 使用）
@@ -4589,18 +4478,7 @@ $("picScan").onclick = async () => {
 };
 $("picPack").onclick = async () => {
   const b = $("picPack");
-  if (!b.dataset.confirm) {
-    b.dataset.confirm = 1;
-    b.textContent = "無法還原，再按一次開始";
-    setTimeout(() => {
-      if (b.isConnected && !b.disabled && packList.length) {
-        delete b.dataset.confirm;
-        b.textContent = `壓縮 ${packList.length} 張舊照片`;
-      }
-    }, 3000);
-    return;
-  }
-  delete b.dataset.confirm;
+  if (!confirmTap(b, "無法還原，再按一次開始", () => `壓縮 ${packList.length} 張舊照片`)) return;
   b.disabled = true;
   let ok = 0,
     saved = 0;
@@ -5559,7 +5437,6 @@ function renderOpen() {
   if (needRender("quests")) {
     renderQuests();
     renderDiaryToday();
-    renderQueue();
     growAll();
   }
   if (needRender("photos")) renderWall();
@@ -5709,16 +5586,7 @@ $("gateForm").addEventListener("submit", (ev) => {
   location.reload();
 });
 $("logout").onclick = () => {
-  const b = $("logout");
-  if (!b.dataset.confirm) {
-    b.dataset.confirm = 1;
-    b.textContent = "記得暗號嗎？再按一次登出";
-    setTimeout(() => {
-      delete b.dataset.confirm;
-      b.textContent = "登出";
-    }, 4000);
-    return;
-  }
+  if (!confirmTap($("logout"), "記得暗號嗎？再按一次登出", "登出", 4000)) return;
   try {
     localStorage.removeItem(ROOM_KEY);
     localStorage.removeItem(NAME_KEY);
