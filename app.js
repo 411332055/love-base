@@ -340,7 +340,8 @@ function renderStreak() {
 }
 
 // 所有 XP 都要兩個人一起達成：日期 -> 誰寫了日記、誰傳了照片、誰當天就完成
-let _dayRecs = null;
+let _dayRecs = null,
+  _totalXP = null;
 function dayRecords() {
   if (_dayRecs) return _dayRecs;
   const m = new Map(),
@@ -374,6 +375,7 @@ function togetherDays() {
   return [...dayRecords()].filter(([, r]) => whoDid(r).size >= need()).map(([d]) => d);
 }
 function totalXP() {
+  if (_totalXP !== null) return _totalXP;
   let xp = 0;
   for (const [d, r] of dayRecords()) {
     if (d < DIARY_XP_END && r.diary.size >= need()) xp += DIARY_XP;
@@ -391,7 +393,8 @@ function totalXP() {
     if (pairOf(r.id).length >= need()) passed.add(r.id);
   });
   xp += passed.size * DRAW_XP;
-  return xp + streakBonus();
+  _totalXP = xp + streakBonus();
+  return _totalXP;
 }
 
 function nextAnniv() {
@@ -661,9 +664,20 @@ function renderPhotosAll() {
 
 function loadImg(file) {
   return new Promise((res, rej) => {
+    if (typeof createImageBitmap === "function") {
+      createImageBitmap(file)
+        .then((bm) => res({ im: bm, url: "", close: () => bm.close && bm.close() }))
+        .catch(() => loadImgTag(file).then(res, rej));
+      return;
+    }
+    loadImgTag(file).then(res, rej);
+  });
+}
+function loadImgTag(file) {
+  return new Promise((res, rej) => {
     const url = URL.createObjectURL(file);
     const im = new Image();
-    im.onload = () => res({ im, url });
+    im.onload = () => res({ im, url, close: () => URL.revokeObjectURL(url) });
     im.onerror = () => {
       URL.revokeObjectURL(url);
       rej(new Error("decode"));
@@ -672,20 +686,24 @@ function loadImg(file) {
   });
 }
 function shrink(im, side, maxLen, q) {
+  const iw = im.naturalWidth || im.width,
+    ih = im.naturalHeight || im.height;
+  const c = document.createElement("canvas"),
+    ctx = c.getContext("2d");
   let out = "";
   for (let n = 0; n < 10; n++) {
-    const s = Math.min(1, side / Math.max(im.naturalWidth, im.naturalHeight));
-    const w = Math.max(1, Math.round(im.naturalWidth * s)),
-      h = Math.max(1, Math.round(im.naturalHeight * s));
-    const c = document.createElement("canvas");
+    const s = Math.min(1, side / Math.max(iw, ih));
+    const w = Math.max(1, Math.round(iw * s)),
+      h = Math.max(1, Math.round(ih * s));
     c.width = w;
     c.height = h;
-    c.getContext("2d").drawImage(im, 0, 0, w, h);
+    ctx.drawImage(im, 0, 0, w, h);
     out = c.toDataURL("image/jpeg", q);
-    if (out.length <= maxLen) return out;
+    if (out.length <= maxLen) break;
     if (q > 0.55) q -= 0.1;
     else side *= 0.8;
   }
+  c.width = c.height = 0;
   return out;
 }
 $("wallMore").onclick = () => {
@@ -716,10 +734,11 @@ document.addEventListener("click", (ev) => {
 // opt.id 不給就用「日期_名字_亂數」；opt.entry 是所屬日記；opt.replace 表示蓋掉同 id 的舊照片（舊的先進垃圾桶）
 const newPhotoId = (date) => `${date}_${myName()}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 async function savePhoto(file, date, opt = {}) {
-  const { im, url } = await loadImg(file);
+  const { im, url, close } = await loadImg(file);
   const img = shrinkFull(im),
     th = shrinkThumb(im);
-  URL.revokeObjectURL(url);
+  if (close) close();
+  else if (url) URL.revokeObjectURL(url);
   const id = opt.id || newPhotoId(date);
   const meta = { date, by: myName(), th, cap: "", at: new Date().toISOString() };
   if (opt.entry) meta.entry = opt.entry;
@@ -1665,7 +1684,11 @@ async function drawQ() {
   if (t && pairOf(t.id).length) return;
   // 這個月的題目裡，挑抽過次數最少的
   const all = allQuestions(),
-    cnt = (q) => store.rounds.filter((x) => x.q === q && x.id !== t?.id).length,
+    cntMap = new Map();
+  store.rounds.forEach((x) => {
+    if (x.id !== t?.id) cntMap.set(x.q, (cntMap.get(x.q) || 0) + 1);
+  });
+  const cnt = (q) => cntMap.get(q) || 0,
     min = Math.min(...all.map(cnt));
   let pool = all.filter((q) => cnt(q) === min && q !== t?.q);
   if (!pool.length) pool = all.filter((q) => q !== t?.q);
@@ -2074,6 +2097,7 @@ function renderMonth() {
   pick.value = months.includes(keep) ? keep : cur;
   const m = pick.value,
     es = entries.filter((e) => String(e.date).startsWith(m)),
+    esIds = new Set(es.map((e) => e.id)),
     rated = es.filter((e) => e.happy);
   loadCalPhotos(m);
   const avg = rated.length ? (rated.reduce((a, e) => a + +e.happy, 0) / rated.length).toFixed(1) : "—";
@@ -2084,7 +2108,7 @@ function renderMonth() {
     ["抽題過關", store.rounds.filter((r) => roundDay(r).startsWith(m) && pairOf(r.id).length >= need()).length + " 題"],
     ["達成願望", store.wishes.filter((w) => w.done && String(w.doneDate).startsWith(m)).length + " 個"],
     ["抱抱", store.hugs.filter((h) => h.backAt && dayOf(h.backAt).startsWith(m)).length + " 次"],
-    ["回應與貼圖", store.replies.filter((r) => es.some((e) => e.id === r.entry)).length + " 則"],
+    ["回應與貼圖", store.replies.filter((r) => esIds.has(r.entry)).length + " 則"],
     ["平均幸福", avg],
   ];
   $("mStats").innerHTML = tiles.map(([a, b]) => `<div class="stat"><span>${a}</span><b>${b}</b></div>`).join("");
@@ -2398,7 +2422,32 @@ function backupHtml(b) {
       .sort(byAt);
   const diary = live(b.data.diary).sort((x, y) => (String(x.date) + x.at).localeCompare(String(y.date) + y.at)),
     photos = live(b.data.photos).sort(byAt),
-    replies = xs("replies");
+    replies = xs("replies"),
+    repliesByEntry = new Map(),
+    photosByEntry = new Map(),
+    dailyPhotoByKey = new Map(),
+    firstIds = new Set(),
+    seenFirst = new Set();
+  replies.forEach((r) => {
+    if (!repliesByEntry.has(r.entry)) repliesByEntry.set(r.entry, []);
+    repliesByEntry.get(r.entry).push(r);
+  });
+  photos.forEach((p) => {
+    if (p.entry) {
+      if (!photosByEntry.has(p.entry)) photosByEntry.set(p.entry, []);
+      photosByEntry.get(p.entry).push(p);
+    } else if (p.date && p.by) {
+      const k = p.date + "_" + p.by;
+      if (!dailyPhotoByKey.has(k) || p.id === k) dailyPhotoByKey.set(k, p);
+    }
+  });
+  diary.forEach((e) => {
+    const k = e.date + "_" + e.by;
+    if (!seenFirst.has(k)) {
+      seenFirst.add(k);
+      firstIds.add(e.id);
+    }
+  });
   const wk = "日一二三四五六",
     tk = key(today());
   const months = [...new Set(diary.map((e) => String(e.date).slice(0, 7)))];
@@ -2408,13 +2457,12 @@ function backupHtml(b) {
   };
   const article = (e) => {
     const dt = fromKey(e.date),
-      rs = replies.filter((r) => r.entry === e.id),
+      rs = repliesByEntry.get(e.id) || [],
       texts = rs.filter((r) => r.kind === "text"),
-      first = diary.find((x) => x.date === e.date && x.by === e.by).id === e.id;
-    const phs = [
-      first ? photos.find((p) => !p.entry && p.date === e.date && p.by === e.by) : null,
-      ...photos.filter((p) => p.entry === e.id).sort((a, b) => String(a.at).localeCompare(String(b.at))),
-    ].filter(Boolean);
+      first = firstIds.has(e.id);
+    const phs = [first ? dailyPhotoByKey.get(e.date + "_" + e.by) : null, ...(photosByEntry.get(e.id) || [])].filter(
+      Boolean,
+    );
     return (
       `<article><h3>${esc(e.date)}（${wk[dt.getDay()]}）<span>${esc(e.by || "未署名")}` +
       `${e.happy ? ` · ⭐ ${esc(e.happy)}/10` : ""}</span></h3>` +
@@ -2436,9 +2484,14 @@ function backupHtml(b) {
     caps = xs("capsules"),
     rounds = xs("rounds"),
     answers = xs("answers"),
+    ansByRound = new Map(),
     wall = photos.filter((p) => !p.entry),
     reviews = xs("reviews");
-  const passed = rounds.filter((r) => new Set(answers.filter((a) => a.round === r.id).map((a) => a.by)).size >= 2);
+  answers.forEach((a) => {
+    if (!ansByRound.has(a.round)) ansByRound.set(a.round, []);
+    ansByRound.get(a.round).push(a);
+  });
+  const passed = rounds.filter((r) => new Set((ansByRound.get(r.id) || []).map((a) => a.by)).size >= 2);
   const part = (id, title, body) => (body ? `<section id="${id}"><h2>${title}</h2>${body}</section>` : "");
   const json = JSON.stringify(b).replace(/</g, "\\u003c");
   return (
@@ -2493,14 +2546,7 @@ ${part(
     .map(
       (r) =>
         `<article><h3>${esc(r.q)}<span>${esc(dayOf(r.at))}</span></h3>` +
-        `<dl>${[
-          ...new Map(
-            answers
-              .filter((a) => a.round === r.id)
-              .sort(byAt)
-              .map((a) => [a.by, a]),
-          ).values(),
-        ]
+        `<dl>${[...new Map((ansByRound.get(r.id) || []).sort(byAt).map((a) => [a.by, a])).values()]
           .map((a) => `<dt>${esc(a.by)}</dt><dd>${esc(a.text)}</dd>`)
           .join("")}` +
         `</dl></article>`,
@@ -4623,6 +4669,7 @@ function bookSummaryData(es, ps, inR) {
   const rated = es.filter((e) => e.happy);
   const avg = rated.length ? (rated.reduce((s, e) => s + +e.happy, 0) / rated.length).toFixed(1) : "—";
   const doneWishes = store.wishes.filter((w) => w.done && inR(w.doneDate));
+  const esIds = new Set(es.map((e) => e.id));
   const tiles = [
     ["日記", es.length + " 篇"],
     ["照片", ps.length + " 張"],
@@ -4630,7 +4677,7 @@ function bookSummaryData(es, ps, inR) {
     ["達成願望", doneWishes.length + " 個"],
     ["抽題過關", store.rounds.filter((r) => inR(dayOf(r.at)) && pairOf(r.id).length >= need()).length + " 題"],
     ["抱抱", store.hugs.filter((h) => h.backAt && inR(dayOf(h.backAt))).length + " 次"],
-    ["回應日記", store.replies.filter((r) => r.kind === "text" && es.some((e) => e.id === r.entry)).length + " 則"],
+    ["回應日記", store.replies.filter((r) => r.kind === "text" && esIds.has(r.entry)).length + " 則"],
     ["平均幸福", avg],
   ];
   const best = [...rated].sort((x, y) => y.happy - x.happy || String(y.date).localeCompare(String(x.date)))[0];
@@ -4945,6 +4992,7 @@ async function markRoundPassed(r) {
   if (store.passed.some((p) => p.id === r.id) || bonusSyncing.has(tag)) return;
   const doc = { day: roundDay(r), xp: DRAW_XP, by: myName() || r.by || "", at: nowIso() };
   store.passed.push({ id: r.id, ...doc });
+  _totalXP = null;
   renderHUD();
   if (!db) {
     saveLocal();
@@ -5472,6 +5520,7 @@ function renderOpen() {
 let renderRaf = 0;
 function renderAll() {
   _dayRecs = null;
+  _totalXP = null;
   _pairsMap = null;
   _entryMeta = null;
   renderVer++;
