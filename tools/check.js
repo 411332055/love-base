@@ -82,9 +82,16 @@ try {
 }
 
 // 6. 不能把暗號寫進公開的 repo：檢查程式裡有沒有寫死 love-base-room 的值
-const src = fs.readFileSync("app.js", "utf8") + fs.readFileSync("index.html", "utf8");
+const htmlSrc = fs.readFileSync("index.html", "utf8");
+const src = fs.readFileSync("app.js", "utf8") + htmlSrc;
 if (/localStorage\.setItem\(\s*["']love-base-room["']\s*,\s*["'][^"']+["']/.test(src)) fail("程式裡寫死了暗號");
 else ok("沒有寫死暗號");
+
+// 7. index.html 沒有重複的 id
+const ids = [...htmlSrc.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
+const dupIds = [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))];
+if (dupIds.length) fail(`index.html 有重複的 id：${dupIds.join("、")}`);
+else ok("index.html 的 id 沒有重複");
 
 console.log(bad ? `\n共 ${bad} 項沒過` : "\n全部通過");
 process.exit(bad ? 1 : 0);

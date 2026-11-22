@@ -55,7 +55,6 @@ const DIARY_XP = 10,
 const NOSAVE = "沒存到，請再試一次";
 
 const $ = (id) => document.getElementById(id);
-let done = {}; // dateKey -> {dow,xp}
 let entries = []; // diary docs
 // 新功能的資料存在 done/x~集合~id，沿用現有的 Firebase 規則，不用另外開權限
 const store = {
@@ -77,8 +76,7 @@ const store = {
 };
 // 刪除時在原本的資料上標記 trashed，30 天後才真的清掉
 const trash = { diary: [], photos: [], wishes: [], capsules: [], custom: [] };
-let db = null,
-  local = false;
+let db = null;
 const LS = "love-base-v1";
 
 function pad(n) {
@@ -730,7 +728,7 @@ document.addEventListener("click", (ev) => {
   }
   const o = ev.target.closest("[data-open]");
   if (o) {
-    const box = o.closest("#wall") || o.closest(".wall-grid,.ph-pair,.thumbs") || o.parentElement;
+    const box = o.closest("#wall") || o.closest(".wall-grid,.ph-pair") || o.parentElement;
     openPhoto(
       o.dataset.open,
       [...box.querySelectorAll("[data-open]")].map((x) => x.dataset.open),
@@ -1130,6 +1128,15 @@ function diaryQuote(e) {
     ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>`
     : "";
 }
+function diaryCard(e, where, n) {
+  const me = myName(),
+    cls = e.by ? (e.by === me ? "me" : "them") : "",
+    star = e.happy ? `⭐ ${esc(e.happy)}/10` : "";
+  const head = n
+    ? `<header><b>📖 我們的第 ${n} 篇日記</b><span>${esc(e.date)}${star ? " · " + star : ""}</span></header><div>${byChip(e.by)}</div>`
+    : `<header><div>${byChip(e.by)}</div><span>${star}</span></header>`;
+  return `<article class="entry ${cls}">${head}<dl>${diaryDl(e)}</dl>${diaryQuote(e)}${entryExtras(e, where)}</article>`;
+}
 
 let monthOpen = {}; // 月份 -> 使用者手動開合的狀態
 const SEARCH_PAGE = 30;
@@ -1161,17 +1168,6 @@ function renderEntries() {
     box.innerHTML = `<div class="empty">${q ? `找不到「${esc(q)}」的日記。` : who === "me" ? "你還沒寫過日記。" : "對方還沒寫過日記。"}</div>`;
     return;
   }
-  const card = (e) =>
-    `<article class="entry ${e.by ? (e.by === me ? "me" : "them") : ""}"><header><b>📖 我們的第 ${num.get(e.id)} 篇日記</b>` +
-    `<span>${esc(e.date)}${e.happy ? " · ⭐ " + esc(e.happy) + "/10" : ""}</span></header>
-  <div>${byChip(e.by)}` +
-    `</div>
-  <dl>${diaryDl(e)}` +
-    `</dl>
-  ${diaryQuote(e)}` +
-    `
-  ${entryExtras(e, "list")}` +
-    `</article>`;
   const groups = new Map();
   shown.forEach((e) => {
     const m = String(e.date).slice(0, 7);
@@ -1196,7 +1192,7 @@ function renderEntries() {
         if (open) {
           const part = list.slice(0, budget);
           budget -= part.length;
-          body = part.map(card).join("");
+          body = part.map((e) => diaryCard(e, "list", num.get(e.id))).join("");
         }
         return (
           `<details class="month" data-m="${esc(m)}" ${open ? "open" : ""}><summary>${y} 年 ${mo} 月<span>${list.length}` +
@@ -2342,15 +2338,7 @@ function renderCalDetail() {
       ? `<article class="entry"><header><b>📝 這週回顧</b></header>` +
         `<dl>${revs.map((r) => `<dt>${esc(nameOf(r.by))}</dt><dd>${esc(r.text)}</dd>`).join("")}</dl></article>`
       : "") +
-    es
-      .map(
-        (e) =>
-          `<article class="entry ${e.by ? (e.by === myName() ? "me" : "them") : ""}"><header><div>${byChip(e.by)}</div>` +
-          `<span>${e.happy ? "⭐ " + esc(e.happy) + "/10" : ""}</span></header>` +
-          `<dl>${diaryDl(e)}</dl>${diaryQuote(e)}` +
-          `${entryExtras(e, "cal")}</article>`,
-      )
-      .join("");
+    es.map((e) => diaryCard(e, "cal")).join("");
   bindEntryActs(box, "cal");
 }
 function shiftCal(n) {
@@ -3731,16 +3719,7 @@ function renderDiaryToday() {
   $("dNew").textContent = diaryFormOpen ? "收起" : "✏️ 再寫一篇";
   $("diaryN").textContent = `${entries.length} 篇`;
   const box = $("diaryToday");
-  box.innerHTML = list
-    .map(
-      (e) =>
-        `<article class="entry ${e.by ? (e.by === me ? "me" : "them") : ""}"><header><div>${byChip(e.by)}</div>` +
-        `<span>${e.happy ? "⭐ " + esc(e.happy) + "/10" : ""}</span></header>` +
-        `<dl>${diaryDl(e)}</dl>${diaryQuote(e)}` +
-        `${entryExtras(e, "today")}` +
-        `</article>`,
-    )
-    .join("");
+  box.innerHTML = list.map((e) => diaryCard(e, "today")).join("");
   bindEntryActs(box, "today");
 }
 $("diaryMore").addEventListener("toggle", () => {
@@ -4610,7 +4589,22 @@ function bookSummaryData(es, ps, inR) {
     ["平均幸福", avg],
   ];
   const best = [...rated].sort((x, y) => y.happy - x.happy || String(y.date).localeCompare(String(x.date)))[0];
-  return { tiles, best, doneWishes };
+  const hasActivity =
+    es.length || ps.length || doneWishes.length || tiles.some(([k, v]) => k !== "平均幸福" && parseInt(v, 10) > 0);
+  return { tiles, best, doneWishes, hasActivity };
+}
+function renderBookShell(title, sub, range, summary, bodyHtml) {
+  const { tiles, best, doneWishes } = summary;
+  const wishesHtml = doneWishes.length
+    ? `<article class="entry book-m"><header><b>🌠 達成的願望</b><span>${doneWishes.length} 個</span></header>` +
+      doneWishes.map((w) => `<div>✅ ${esc(w.text)} <small>(${esc(w.doneDate || "")})</small></div>`).join("") +
+      `</article>`
+    : "";
+  $("bookBody").innerHTML =
+    `<div class="book-cover"><b>${title}</b><span>${sub}</span><span>${range}</span></div>` +
+    `<div class="stats">${tiles.map(([x, v]) => `<div class="stat"><span>${x}</span><b>${v}</b></div>`).join("")}</div>` +
+    `${best ? `<div class="note">⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(bookSay(best))}</div>` : ""}` +
+    `${bodyHtml}${wishesHtml}`;
 }
 function renderMonthBook() {
   const pick = $("bookMonth");
@@ -4632,10 +4626,8 @@ function renderMonthBook() {
   const ps = calAllPhotos()
     .filter((p) => inR(p.date))
     .sort(byAt);
-  const { tiles, best, doneWishes } = bookSummaryData(es, ps, inR);
-  const hasActivity =
-    es.length || ps.length || doneWishes.length || tiles.some(([k, v]) => k !== "平均幸福" && parseInt(v, 10) > 0);
-  if (!hasActivity) {
+  const summary = bookSummaryData(es, ps, inR);
+  if (!summary.hasActivity) {
     $("bookBody").innerHTML = '<div class="empty">這個月還沒有回憶，寫下第一篇日記吧。</div>';
     return;
   }
@@ -4666,16 +4658,7 @@ function renderMonthBook() {
       funs.map((e) => `<div>🤪 ${esc(e.funny)} <small>(${esc(e.by || "")} · ${esc(e.date)})</small></div>`).join("") +
       `</article>`
     : "";
-  const wishesHtml = doneWishes.length
-    ? `<article class="entry book-m"><header><b>🌠 這個月達成的願望</b><span>${doneWishes.length} 個</span></header>` +
-      doneWishes.map((w) => `<div>✅ ${esc(w.text)} <small>(${esc(w.doneDate || "")})</small></div>`).join("") +
-      `</article>`
-    : "";
-  $("bookBody").innerHTML =
-    `<div class="book-cover"><b>${yy} 年 ${mm} 月</b><span>月底總結</span><span>${a} ～ ${b}</span></div>` +
-    `<div class="stats">${tiles.map(([x, v]) => `<div class="stat"><span>${x}</span><b>${v}</b></div>`).join("")}</div>` +
-    `${best ? `<div class="note">⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(bookSay(best))}</div>` : ""}` +
-    `${photosHtml}${quotesHtml}${funsHtml}${wishesHtml}`;
+  renderBookShell(`${yy} 年 ${mm} 月`, "月底總結", `${a} ～ ${b}`, summary, `${photosHtml}${quotesHtml}${funsHtml}`);
 }
 function renderYearBook() {
   const pick = $("bookYear");
@@ -4704,10 +4687,8 @@ function renderYearBook() {
   const ps = calAllPhotos()
     .filter((p) => inR(p.date))
     .sort(byAt);
-  const { tiles, best, doneWishes } = bookSummaryData(es, ps, inR);
-  const hasActivity =
-    es.length || ps.length || doneWishes.length || tiles.some(([k, v]) => k !== "平均幸福" && parseInt(v, 10) > 0);
-  if (!hasActivity) {
+  const summary = bookSummaryData(es, ps, inR);
+  if (!summary.hasActivity) {
     $("bookBody").innerHTML = '<div class="empty">這一年還沒有回憶，寫下第一篇日記吧。</div>';
     return;
   }
@@ -4735,16 +4716,7 @@ function renderYearBook() {
       );
     })
     .join("");
-  const wishesHtml = doneWishes.length
-    ? `<article class="entry book-m"><header><b>🌠 這一年達成的願望</b><span>${doneWishes.length} 個</span></header>` +
-      doneWishes.map((w) => `<div>✅ ${esc(w.text)} <small>(${esc(w.doneDate || "")})</small></div>`).join("") +
-      `</article>`
-    : "";
-  $("bookBody").innerHTML =
-    `<div class="book-cover"><b>第 ${keep} 年</b><span>一起走過 ${dayN} 天</span><span>${a} ～ ${b}</span></div>` +
-    `<div class="stats">${tiles.map(([x, v]) => `<div class="stat"><span>${x}</span><b>${v}</b></div>`).join("")}</div>` +
-    `${best ? `<div class="note">⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(bookSay(best))}</div>` : ""}` +
-    `${pages}${wishesHtml}`;
+  renderBookShell(`第 ${keep} 年`, `一起走過 ${dayN} 天`, `${a} ～ ${b}`, summary, pages);
 }
 function renderBook() {
   if (!$("book").classList.contains("open")) return;
@@ -5475,7 +5447,7 @@ function renderAll() {
 }
 function saveLocal() {
   try {
-    localStorage.setItem(LS, JSON.stringify({ done, entries, ...store, trash }));
+    localStorage.setItem(LS, JSON.stringify({ entries, ...store, trash }));
   } catch (e) {
     toast("這台裝置的儲存空間滿了，剛剛的內容沒有存到");
   }
@@ -5484,11 +5456,9 @@ function loadLocal() {
   try {
     const s = JSON.parse(localStorage.getItem(LS) || "null");
     if (s) {
-      done = s.done || {};
       entries = s.entries || [];
       Object.keys(store).forEach((c) => (store[c] = s[c] || []));
       if (s.trash) Object.assign(trash, s.trash);
-      delete done["draw-state"];
     }
   } catch (e) {}
 }
@@ -5597,7 +5567,6 @@ $("logout").onclick = () => {
 (async () => {
   const configured = FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("請貼上");
   if (!configured || !window.firebase) {
-    local = true;
     loadLocal();
     renderAll();
     $("status").textContent = configured ? "連不上伺服器 · 先存在這台裝置" : "尚未設定伺服器 · 只存在這台裝置";
@@ -5648,18 +5617,13 @@ $("logout").onclick = () => {
         return;
       }
       hasSnap.done = true;
-      done = {};
       Object.keys(store).forEach((c) => (store[c] = []));
       ["wishes", "capsules", "custom"].forEach((c) => (trash[c] = []));
       s.docs.forEach((d) => {
-        if (d.id === "draw-state") return;
-        if (d.id.startsWith("x~")) {
-          const [, c, id] = d.id.split("~");
-          const v = d.data();
-          if (store[c]) (v.trashed ? trash[c] : store[c]).push({ id, ...v });
-          return;
-        }
-        done[d.id] = d.data();
+        if (!d.id.startsWith("x~")) return;
+        const [, c, id] = d.id.split("~");
+        const v = d.data();
+        if (store[c]) (v.trashed ? trash[c] : store[c]).push({ id, ...v });
       });
       if (!s.metadata?.fromCache) got.done = true;
       ready();

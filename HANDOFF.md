@@ -71,7 +71,7 @@
 
 ### 存在手機裡的設定（localStorage）
 
-`love-base-room`（暗號）、`love-base-name`（名字）、`love-base-theme`、`love-base-haptic`（震動開關 on/off）、`love-base-haptic-level`（震動強度 light/mid/strong）、`love-base-layout`、`love-base-draft`（日記草稿）、`love-base-seen`、`love-base-side`，以及沒連伺服器時的整份資料 `love-base-v1`。
+`love-base-room`（暗號）、`love-base-name`（名字）、`love-base-theme`、`love-base-font`、`love-base-haptic`（震動開關 on/off）、`love-base-haptic-level`（震動強度 light/mid/strong）、`love-base-layout`、`love-base-draft`（日記草稿）、`love-base-seen`、`love-base-cap-seen`（已看過到期提醒的膠囊）、`love-base-last-backup`、`love-base-backup-snooze`、`love-base-last-pic-scan`、`love-base-pic-snooze`、`love-base-side`，以及沒連伺服器時的整份資料 `love-base-v1`。
 
 ## 四、程式在哪裡（`app.js`，用函式名稱搜尋）
 
@@ -82,14 +82,14 @@
 | 每日照片、照片牆 | `renderTodayPhotos`、`renderWall`、`myPhotos`、`subPhotos` |
 | 照片上傳、壓縮 | `savePhoto`、`shrink`、`loadImg`、`uploadQueue`（日記照片排隊上傳） |
 | 照片大圖（左右滑、存到手機、寫一句話） | `openPhoto`、`lbStep`、`closePhoto` |
-| 寫日記、編輯、草稿 | `renderDiaryToday`、`startEdit`、`endEdit`、`saveDraft`、`restoreDraft` |
+| 寫日記、編輯、草稿 | `renderDiaryToday`、`diaryCard`、`diaryDl`、`diaryQuote`、`startEdit`、`endEdit`、`resetDiaryFields`、`saveDraft`、`restoreDraft` |
 | 全部日記、搜尋 | `renderEntries`（只畫打開的月份，搜尋一次顯示 30 篇） |
-| 日記回應与表情貼圖 | `entryExtras`、`attachReply`、`REACTS`、`popFloat` |
+| 日記回應與表情貼圖 | `entryExtras`、`bindEntryActs`、`attachReply`、`REACTS`、`popFloat` |
 | 抽題 | `monthBank`、`turnOf`、`todayRound`、`shownRound`、`drawQ`、`renderDraw`、`renderLog` |
 | 願望 | `renderWishes`、`toggleWish`，分類 `WCATS` |
-| 月曆、回顧、那年今天、時光膠囊、回憶書 | `renderCalendar`、`renderCalDetail`、`onThisDayHits`、`renderOnThisDay`、`renderTodayFlashback`、`renderMemories`、`renderCapsules`、`renderCapNudge`、`renderBook` |
+| 月曆、回顧、那年今天、時光膠囊、回憶書 | `renderCalendar`、`renderCalDetail`、`onThisDayHits`、`renderOnThisDay`、`renderTodayFlashback`、`renderMemories`、`renderCapsules`、`renderCapNudge`、`setNudge`、`renderBook`、`renderBookShell` |
 | 星期日這週回顧 | `renderWeekRecap` |
-| 垃圾桶 | `renderTrash`、`restoreItem`、`archivePhoto`、`restoreReplaced`、`hardDelete`、`purgeExpired` |
+| 垃圾桶、二次確認 | `confirmTap`、`armDelete`、`renderTrash`、`restoreItem`、`archivePhoto`、`restoreReplaced`、`hardDelete`、`purgeExpired` |
 | 備份、補回、更換暗號 | `exportBackup`、`backupHtml`、`prepRestore`、`applyRestore`、`moveRoomBtn` |
 | 選單、區塊順序、外觀 | `CATS`、`SEC_META`、`renderNav`、`applyLayout`、`setView` |
 | 震動回饋 | `haptic`（Android 用 `navigator.vibrate`，iPhone 用 `iosHaptic` 點隱藏的 iOS 18 開關元件）、`HAPTIC_LV`、`dragEndTick`、設定頁的「測試震動」 |
