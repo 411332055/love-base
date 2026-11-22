@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
-<link rel="manifest" href="manifest.webmanifest?v=88">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=88">
+<link rel="manifest" href="manifest.webmanifest?v=89">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=89">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -14,7 +14,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d0811">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap">
-<link rel="stylesheet" href="style.css?v=88">
+<link rel="stylesheet" href="style.css?v=89">
 </head>
 <body>
 
@@ -40,11 +40,11 @@
   </nav>
 </aside>
 <nav class="tabbar" id="tabBar" aria-label="主選單">
-    <a href="#today" data-c="today" title="今天"><span class="ic" aria-hidden="true">🏠</span><span class="lb">今天</span></a>
-    <a href="#quests" data-c="diary" title="日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">日記</span></a>
-    <a href="#draw" data-c="play" title="互動"><span class="ic" aria-hidden="true">🎲</span><span class="lb">互動</span></a>
-    <a href="#calendar" data-c="memory" title="回憶"><span class="ic" aria-hidden="true">🕰️</span><span class="lb">回憶</span></a>
-    <a href="#ladder" data-c="more" title="更多"><span class="ic" aria-hidden="true">⚙️</span><span class="lb">更多</span></a>
+  <a href="#today" data-c="today" title="今天"><span class="ic" aria-hidden="true">🏠</span><span class="lb">今天</span></a>
+  <a href="#quests" data-c="diary" title="日記"><span class="ic" aria-hidden="true">💌</span><span class="lb">日記</span></a>
+  <a href="#draw" data-c="play" title="互動"><span class="ic" aria-hidden="true">🎲</span><span class="lb">互動</span></a>
+  <a href="#calendar" data-c="memory" title="回憶"><span class="ic" aria-hidden="true">🕰️</span><span class="lb">回憶</span></a>
+  <a href="#ladder" data-c="more" title="更多"><span class="ic" aria-hidden="true">⚙️</span><span class="lb">更多</span></a>
 </nav>
 
 <div class="wrap">
@@ -104,7 +104,7 @@
         <button class="btn" type="submit" id="reviewSave">送出回顧</button>
       </form>
     </div>
-  <div class="diary-block" id="diary">
+    <div class="diary-block" id="diary">
       <p class="sub" style="margin:0">兩個人都傳今天的照片 +10 XP；日記想寫的時候隨時寫。</p>
       <div id="todayPhotos" style="display:flex;flex-direction:column;gap:8px"></div>
       <form class="wishform" id="photoCapForm" autocomplete="off" hidden>
@@ -135,7 +135,7 @@
         </div>
         <div class="full row"><button class="btn" type="submit" id="dSave">寫進日記</button><span class="sub" id="dMsg"></span><button class="btn ghost" type="button" id="dDraftClear" hidden style="font-size:12px;padding:4px 10px">清除草稿</button></div>
       </form>
-      </div>
+    </div>
     <input type="file" id="photoFile" accept="image/*" hidden>
     <input type="file" id="dPhotoFile" accept="image/*" multiple hidden>
   </section>
@@ -162,15 +162,15 @@
       <div class="cal-legend"><span><i class="d-diary"></i>日記</span><span><i class="d-photo"></i>照片</span><span><i class="d-task"></i>一起完成</span></div>
     </div>
     <div class="entries" id="calDetail"></div>
-      <details class="month" id="diaryMore">
-        <summary>全部日記<span id="diaryN"></span></summary>
-        <div class="month-body">
-      <input type="search" id="dSearch" placeholder="🔍 搜尋日記，例：拉麵" aria-label="搜尋日記" autocomplete="off">
-      <div class="sub" id="dSearchN"></div>
-      <div class="filter" id="filter" role="group" aria-label="篩選日記"><button type="button" data-w="all" aria-pressed="true">全部</button><button type="button" data-w="me" aria-pressed="false">✍️ 我寫的</button><button type="button" data-w="them" aria-pressed="false">💌 對方寫的</button></div>
-      <div class="entries" id="entries"><div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div></div>
-        </div>
-      </details>
+    <details class="month" id="diaryMore">
+      <summary>全部日記<span id="diaryN"></span></summary>
+      <div class="month-body">
+        <input type="search" id="dSearch" placeholder="🔍 搜尋日記，例：拉麵" aria-label="搜尋日記" autocomplete="off">
+        <div class="sub" id="dSearchN"></div>
+        <div class="filter" id="filter" role="group" aria-label="篩選日記"><button type="button" data-w="all" aria-pressed="true">全部</button><button type="button" data-w="me" aria-pressed="false">✍️ 我寫的</button><button type="button" data-w="them" aria-pressed="false">💌 對方寫的</button></div>
+        <div class="entries" id="entries"><div class="empty">還沒有日記。寫下第一篇，就是「我們的第 1 篇日記」。</div></div>
+      </div>
+    </details>
   </section>
 
   <section id="wishes" class="fold">
@@ -205,7 +205,7 @@
       <div class="log">
         <input type="search" id="lSearch" placeholder="🔍 搜尋題目或答案，例：旅行" aria-label="搜尋過關紀錄" autocomplete="off">
         <div class="sub" id="lSearchN"></div>
-        <div class="log" id="logList" style="margin-top:0"></div>
+        <div class="log" id="logList"></div>
       </div>
     </details>
     <details class="rules">
@@ -266,7 +266,7 @@
         <div class="field">震動強度（只有 Android 有差別）<div class="filter" id="segHapticLv" role="group" aria-label="震動強度"><button type="button" data-v="light">輕</button><button type="button" data-v="mid">中</button><button type="button" data-v="strong">強</button></div></div>
         <div class="row"><button class="btn ghost" type="button" id="hapticTest">📳 測試震動</button><span class="sub" id="hapticInfo"></span></div>
         <div class="field">區塊順序與顯示（在同一個分類裡排序）</div>
-        <div class="log" id="layoutList" style="margin-top:0"></div>
+        <div class="log" id="layoutList"></div>
         <div class="row between"><span class="sub">這些設定只影響你這台裝置，對方的畫面不會變。</span><button class="btn ghost" type="button" id="layoutReset">恢復預設版面</button></div>
       </div>
     </details>
@@ -305,7 +305,7 @@
       <summary>🎂 生日</summary>
       <div class="custom">
         <p class="sub">填好之後，首頁會顯示距離生日還有幾天。兩個人都可以填。</p>
-        <div class="log" id="bdayForm" style="margin-top:0"></div>
+        <div class="log" id="bdayForm"></div>
       </div>
     </details>
     <details class="rules" id="trash">
@@ -396,7 +396,7 @@
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=88" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=89" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -422,6 +422,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=88"></script>
+<script src="app.js?v=89"></script>
 </body>
 </html>

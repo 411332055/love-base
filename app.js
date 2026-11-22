@@ -326,8 +326,7 @@ function renderStreak() {
     `<span>🔥 連續<span class="num">${n}</span>天</span><span class="muted">再 ${STREAK_STEP - (n % STREAK_STEP)}` +
     ` 天 +${STREAK_BONUS} XP</span><span>🎫 補簽卡 ${Math.max(0, cards)}` +
     ` 張</span><span class="muted">今日打卡：${NAMES.map((nm) => `${nm === "寒冰" ? "🧊" : "🍃"} ${nm} ${todayWho.has(nm) ? "✓" : "還沒"}`).join(" · ")}</span>` +
-    `${repair ? `<button class="btn" type="button" id="fixBtn">補上 ${gap.length > 1 ? `${md(gap[gap.length - 1])}～${md(gap[0])}（用 ${gap.length} 張）` : md(c)}` + `</button>` : ""}` +
-    ``;
+    `${repair ? `<button class="btn" type="button" id="fixBtn">補上 ${gap.length > 1 ? `${md(gap[gap.length - 1])}～${md(gap[0])}（用 ${gap.length} 張）` : md(c)}</button>` : ""}`;
   if (repair)
     $("fixBtn").onclick = async () => {
       try {
@@ -661,9 +660,6 @@ function renderWall() {
     .join("");
   $("wallMore").hidden = photos.length < photoLimit;
 }
-function renderPhotosAll() {
-  renderAll();
-}
 
 function loadImg(file) {
   return new Promise((res, rej) => {
@@ -783,7 +779,7 @@ $("photoFile").addEventListener("change", async () => {
   }
   if (!files.length) return;
   uploading = date;
-  renderPhotosAll();
+  renderAll();
   const earned = !store.bonus.some((b) => b.id === mainId),
     partner = store.bonus.some((b) => b.date === date && b.by !== myName());
   if (earned) {
@@ -801,7 +797,7 @@ $("photoFile").addEventListener("change", async () => {
       const asMain = pendingSwap || (!hasMain && i === 0);
       await savePhoto(files[i], date, asMain ? { id: mainId, replace: pendingSwap && hasMain } : {});
       ok++;
-      if (files.length > 1) renderPhotosAll();
+      if (files.length > 1) renderAll();
     } catch (e) {
       msg = photoErrMsg(e);
     }
@@ -820,7 +816,7 @@ $("photoFile").addEventListener("change", async () => {
     );
     notifyPartner("📷 今日照片", `${myName()}傳了${ok > 1 ? ` ${ok} 張` : ""}今天的照片`, "#quests", "photo-" + date);
   } else if (msg) toast(msg);
-  renderPhotosAll();
+  renderAll();
 });
 let lbId = null,
   lbList = [],
@@ -1004,7 +1000,7 @@ $("lbCapForm").addEventListener("submit", async (ev) => {
       if (x) x.cap = cap;
     });
     openPhoto(id);
-    renderPhotosAll();
+    renderAll();
     toast("寫好了 ✏️");
   } catch (e) {
     toast(NOSAVE);
@@ -1067,7 +1063,7 @@ $("lbDel").onclick = async () => {
     photos = photos.filter((p) => p.id !== id);
     calPhotos = calPhotos.filter((p) => p.id !== id);
     closePhoto();
-    renderPhotosAll();
+    renderAll();
     toast(TRASHED);
   } catch (e) {
     toast("刪除失敗，請再試一次");
@@ -1088,12 +1084,12 @@ function subPhotos() {
         if (photos.length && typeof s.docChanges === "function" && !s.docChanges().length) return;
         photos = s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => !p.trashed);
         photoErr = "";
-        renderPhotosAll();
+        renderAll();
         syncPhotoBonus();
       },
       (e) => {
         photoErr = e && e.code === "permission-denied" ? "rules" : "net";
-        renderPhotosAll();
+        renderAll();
       },
     );
 }
@@ -3112,8 +3108,7 @@ function renderTodo() {
     all = n === items.length;
   $("todoCard").innerHTML =
     `<div class="row between"><h3>${all ? "今天都完成了 🎉" : "今天還差什麼"}</h3><span class="num">${n} / ${items.length}</span>` +
-    `</div>${items.map(([ok, label, id]) => `<a class="todo-i ${ok ? "ok" : ""}" href="#${id}"><span class="tick" aria-hidden="true">✓</span>${label}` + `${ok ? '<span class="sr-only">（已完成）</span>' : ""}</a>`).join("")}` +
-    ``;
+    `</div>${items.map(([ok, label, id]) => `<a class="todo-i ${ok ? "ok" : ""}" href="#${id}"><span class="tick" aria-hidden="true">✓</span>${label}${ok ? '<span class="sr-only">（已完成）</span>' : ""}</a>`).join("")}`;
 }
 function syncNotices() {
   $("notices").hidden = ["bkNudge", "picNudge", "awayCard"].every((id) => $(id).hidden);
@@ -3256,10 +3251,9 @@ $("layoutReset").onclick = () => {
     localStorage.removeItem(LAYOUT_KEY);
   } catch (e) {}
   layout = loadLayout();
-  commitLayout();
-  try {
-    localStorage.removeItem(LAYOUT_KEY);
-  } catch (e) {}
+  applyLayout();
+  renderLayoutList();
+  renderAll();
   toast("版面恢復預設了");
 };
 function bindSeg(id, store_, get, apply) {
@@ -3740,7 +3734,6 @@ function renderDiaryToday() {
     .join("");
   attachReply("today");
   box.querySelectorAll("[data-editday]").forEach((b) => (b.onclick = () => startEdit(b.dataset.editday)));
-  syncNotices();
 }
 $("diaryMore").addEventListener("toggle", () => {
   if ($("diaryMore").open) renderEntries();
@@ -4771,9 +4764,6 @@ function updateSyncStatus() {
   }
   if (dataReady) $("status").textContent = "● 兩人同步中 ✓";
 }
-function showOffline() {
-  updateSyncStatus();
-}
 window.addEventListener("offline", updateSyncStatus);
 // 手機把網站放到背景一段時間後，Android 會讓即時連線睡著，切回來時可能一直停在舊資料。
 // 回到前景、網路恢復、或點最上面的同步狀態時，重新接一次線（只會重抓有變動的資料）。
@@ -4798,10 +4788,6 @@ window.addEventListener("online", () => {
   updateSyncStatus();
   reconnect();
 });
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) hiddenAt = Date.now();
-  else if (hiddenAt && Date.now() - hiddenAt > 15000) reconnect();
-});
 $("status").addEventListener("click", () => reconnect(true));
 
 // 跨午夜 00:00 或從手機背景切回時自動換日
@@ -4822,7 +4808,11 @@ function checkRollover() {
   renderAll();
 }
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) checkRollover();
+  if (document.hidden) hiddenAt = Date.now();
+  else {
+    checkRollover();
+    if (hiddenAt && Date.now() - hiddenAt > 15000) reconnect();
+  }
 });
 window.addEventListener("focus", checkRollover);
 setInterval(checkRollover, 30000);
@@ -4978,8 +4968,7 @@ function renderWeekRecap(t) {
         : ""
     }` +
     `${best ? `<div class="recap-i">⭐ 最幸福的一天：${label(best.date)} ${esc(best.by || "")} ${esc(best.happy)}/10</div>` : ""}` +
-    `${es.map((e) => `<div class="recap-i"><b>${label(e.date)}</b>${esc(e.by || "")}：${esc(String(say(e)).slice(0, 60))}</div>`).join("")}` +
-    ``;
+    `${es.map((e) => `<div class="recap-i"><b>${label(e.date)}</b>${esc(e.by || "")}：${esc(String(say(e)).slice(0, 60))}</div>`).join("")}`;
 }
 $("reviewForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
@@ -5611,7 +5600,7 @@ $("logout").onclick = () => {
   const fs = firebase.firestore();
   fs.enablePersistence({ synchronizeTabs: true }).catch(() => {});
   db = fs.collection("rooms").doc(room);
-  showOffline();
+  updateSyncStatus();
   $("logout").hidden = false;
   initSeen();
   let got = { done: false, diary: false };
