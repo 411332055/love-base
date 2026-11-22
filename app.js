@@ -1932,6 +1932,7 @@ bindForm(
 function renderCapsules() {
   const box = $("capList"),
     tk = key(today());
+  if ($("capN")) $("capN").textContent = `${store.capsules.length} 顆`;
   if (!store.capsules.length) {
     box.innerHTML = '<div class="empty">還沒有膠囊。封存第一封寫給未來的信。</div>';
     return;
@@ -2139,6 +2140,7 @@ function renderReviewsPast() {
 function renderMemories() {
   renderOnThisDay();
   renderReviewsPast();
+  renderCapsules();
   renderChart();
   renderMonth();
 }
@@ -2967,7 +2969,9 @@ function renderAway() {
       () => "💞 抱了你",
       "hugCard",
     ],
-  ].filter((g) => g[0].length && !layout.hidden.includes(g[2] === "diary" ? "quests" : g[2]));
+  ].filter(
+    (g) => g[0].length && !layout.hidden.includes(g[2] === "diary" ? "quests" : g[2] === "capsule" ? "memories" : g[2]),
+  );
   if (!groups.length) {
     card.hidden = true;
     return;
@@ -3121,7 +3125,7 @@ const CATS = [
   { id: "today", secs: ["today"] },
   { id: "diary", secs: ["quests"] },
   { id: "play", secs: ["draw", "wishes"] },
-  { id: "memory", secs: ["calendar", "photos", "memories", "capsule", "book"] },
+  { id: "memory", secs: ["calendar", "photos", "memories", "book"] },
   { id: "more", secs: ["ladder", "rules", "tools"] },
 ];
 const SEC_META = {
@@ -3130,7 +3134,6 @@ const SEC_META = {
   calendar: ["月曆", "📅"],
   photos: ["照片", "📷"],
   memories: ["回顧", "🕰️"],
-  capsule: ["膠囊", "⏳"],
   book: ["回憶書", "📖"],
   ladder: ["成就", "🏆"],
   rules: ["規則", "🧸"],
@@ -5479,7 +5482,6 @@ function renderOpen() {
     renderDraw();
     renderCustom();
   }
-  if (needRender("capsule")) renderCapsules();
   if (needRender("memories")) renderMemories();
   if (needRender("tools")) {
     renderTrash();
