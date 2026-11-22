@@ -2060,12 +2060,14 @@ function renderChart() {
     T = 20,
     B = 22;
   const x = (i) => L + (i / 29) * (W - L - R),
-    y = (v) => T + ((10 - v) / 9) * (H - T - B);
+    y = (v) => T + ((10 - v) / 9) * (H - T - B),
+    polyPts = pts.map((p) => x(p.i) + "," + y(p.v)).join(" "),
+    areaPts = `${x(pts[0].i)},${H - B} ${polyPts} ${x(pts[pts.length - 1].i)},${H - B}`;
   box.innerHTML =
     `<svg viewBox="0 0 ${W} ${H}` +
-    `" role="img" aria-label="最近 30 天幸福指數曲線">${[1, 5, 10].map((v) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 6}" y="${y(v) + 4}` + `" text-anchor="end">${v}</text>`).join("")}` +
+    `" role="img" aria-label="最近 30 天幸福指數曲線"><defs><linearGradient id="hGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--pink)" stop-opacity=".34"/><stop offset="100%" stop-color="var(--pink)" stop-opacity="0"/></linearGradient></defs>${[1, 5, 10].map((v) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 6}" y="${y(v) + 4}` + `" text-anchor="end">${v}</text>`).join("")}` +
     `<text class="axis" x="${L}" y="${H - 4}">${fmt(days[0])}</text><text class="axis" x="${W - R}" y="${H - 4}` +
-    `" text-anchor="end">今天</text><polyline class="line" points="${pts.map((p) => x(p.i) + "," + y(p.v)).join(" ")}` +
+    `" text-anchor="end">今天</text><polygon points="${areaPts}" fill="url(#hGrad)"/><polyline class="line" points="${polyPts}` +
     `"/>${pts.map((p) => `<circle class="dot" cx="${x(p.i)}" cy="${y(p.v)}" r="5"/>`).join("")}</svg>` +
     `<div class="tip" hidden></div>`;
   const svg = box.querySelector("svg"),
