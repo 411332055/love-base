@@ -259,14 +259,14 @@ async function delDoc(c, id) {
     toast("刪除失敗");
   }
 }
-function armDelete(box, c) {
+function armDelete(box, c, fn = (id) => delDoc(c, id), label = "再按一次") {
   box.querySelectorAll(".del").forEach((b) => {
     b.onclick = () => {
       if (b.dataset.confirm) {
-        delDoc(c, b.dataset.id);
+        fn(b.dataset.id);
       } else {
         b.dataset.confirm = 1;
-        b.textContent = "再按一次";
+        b.textContent = label;
         setTimeout(() => {
           if (b.isConnected) {
             delete b.dataset.confirm;
@@ -1219,22 +1219,7 @@ function renderEntries() {
   box.querySelectorAll("details.month[open]").forEach((d) => loadCalPhotos(d.dataset.m));
   attachReply("list");
   box.querySelectorAll(".edit").forEach((b) => (b.onclick = () => startEdit(b.dataset.id)));
-  box.querySelectorAll(".del").forEach((b) => {
-    b.onclick = () => {
-      if (b.dataset.confirm) {
-        delEntry(b.dataset.id);
-      } else {
-        b.dataset.confirm = 1;
-        b.textContent = "確定刪除？再按一次";
-        setTimeout(() => {
-          if (b.isConnected) {
-            delete b.dataset.confirm;
-            b.textContent = "刪除";
-          }
-        }, 3000);
-      }
-    };
-  });
+  armDelete(box, "diary", delEntry, "確定刪除？再按一次");
 }
 async function delEntry(id) {
   const item = entries.find((e) => e.id === id);
@@ -3360,7 +3345,7 @@ function openFor(id, noScroll) {
     return;
   }
   setView(sec.id);
-  if (el.tagName === "DETAILS") el.open = true;
+  for (let d = el.closest("details"); d; d = d.parentElement?.closest("details")) d.open = true;
   if (noScroll) return;
   if (el === sec) scrollTo(0, 0);
   else el.scrollIntoView({ block: "start" });
@@ -3387,184 +3372,125 @@ function activateCat(cid, noScroll) {
   history.replaceState(null, "", "#" + id);
 }
 // 拖曳選單時頁面是在手指移動中切換的，iPhone 只在手指放開時才允許震動，所以放開時補震一下
-let dragFrom = null,
-  tabDragTimer = 0,
-  pendingCat = null,
-  tbRect = null,
-  tbCats = null,
-  tbIdx = -1,
-  tbRaf = 0,
-  tbX = 0;
-$("tabBar").addEventListener(
-  "touchstart",
-  () => {
-    dragFrom = view;
-    tbRect = $("tabBar").getBoundingClientRect();
-    tbCats = CATS.filter((x) => catSecs(x).length);
-    tbIdx = -1;
-  },
-  { passive: true },
-);
-$("tabBar").addEventListener(
-  "touchmove",
-  (ev) => {
-    const t = ev.touches[0];
-    if (!t) return;
-    ev.preventDefault();
-    tbX = t.clientX;
-    if (tbRaf) return;
-    tbRaf = requestAnimationFrame(() => {
-      tbRaf = 0;
-      const tb = $("tabBar"),
-        r = tbRect || (tbRect = tb.getBoundingClientRect()),
-        visCats = tbCats || (tbCats = CATS.filter((x) => catSecs(x).length)),
-        n = visCats.length || 1,
-        w = (r.width - 10) / n,
-        pos = Math.max(0, Math.min(n - 1, (tbX - r.left - 5 - w / 2) / w)),
-        idx = Math.max(0, Math.min(n - 1, Math.floor((tbX - r.left - 5) / w)));
-      tb.classList.add("dragging");
-      tb.style.setProperty("--tab-i", pos.toFixed(3));
-      if (idx !== tbIdx) {
-        tbIdx = idx;
-        const c = visCats[idx];
-        if (c) {
-          tb.querySelectorAll("a[data-c]").forEach((a) => a.setAttribute("aria-current", a.dataset.c === c.id));
-          if (pendingCat !== c.id) {
-            pendingCat = c.id;
-            clearTimeout(tabDragTimer);
-            tabDragTimer = setTimeout(() => {
-              tabDragTimer = 0;
-              if (pendingCat) activateCat(pendingCat, true);
-            }, 45);
-          }
-        }
-      }
-    });
-  },
-  { passive: false },
-);
+let dragFrom = null;
 function dragEndTick() {
   sliderDragEndTick(dragFrom !== null && dragFrom !== view);
   dragFrom = null;
 }
-["touchend", "touchcancel"].forEach((evName) =>
-  $("tabBar").addEventListener(
-    evName,
+function bindNavDrag(navId, padPx, itemSel, itemAttr, propI, getItems, onHover, onEndExtra) {
+  const nav = $(navId);
+  let timer = 0,
+    pending = null,
+    rect = null,
+    items = null,
+    lastIdx = -1,
+    raf = 0,
+    curX = 0;
+  nav.addEventListener(
+    "touchstart",
     () => {
-      const moved = dragFrom !== null;
-      if (tbRaf) {
-        cancelAnimationFrame(tbRaf);
-        tbRaf = 0;
-      }
-      tbRect = null;
-      tbCats = null;
-      tbIdx = -1;
-      if (tabDragTimer) {
-        clearTimeout(tabDragTimer);
-        tabDragTimer = 0;
-      }
-      if (pendingCat) activateCat(pendingCat, true);
-      pendingCat = null;
-      const changed = moved && dragFrom !== view;
-      dragEndTick();
-      const tb = $("tabBar");
-      if (tb.classList.contains("dragging")) {
-        tb.classList.remove("dragging");
-        renderNav();
-      }
-      if (changed) scrollTo(0, 0);
+      dragFrom = view;
+      rect = nav.getBoundingClientRect();
+      items = getItems();
+      lastIdx = -1;
     },
     { passive: true },
-  ),
-);
-let subDragTimer = 0,
-  pendingSub = null,
-  subRect = null,
-  subSecs = null,
-  subIdx = -1,
-  subRaf = 0,
-  subX = 0;
-$("subNav").addEventListener(
-  "touchstart",
-  () => {
-    dragFrom = view;
-    subRect = $("subNav").getBoundingClientRect();
-    const cur = CATS.find((c) => c.secs.includes(view));
-    subSecs = cur ? catSecs(cur) : [];
-    subIdx = -1;
-  },
-  { passive: true },
-);
-$("subNav").addEventListener(
-  "touchmove",
-  (ev) => {
-    const t = ev.touches[0];
-    if (!t) return;
-    ev.preventDefault();
-    subX = t.clientX;
-    if (subRaf) return;
-    subRaf = requestAnimationFrame(() => {
-      subRaf = 0;
-      const sub = $("subNav"),
-        r = subRect || (subRect = sub.getBoundingClientRect()),
-        secs = subSecs || (subSecs = catSecs(CATS.find((c) => c.secs.includes(view)))),
-        n = secs.length || 1,
-        w = (r.width - 8) / n,
-        pos = Math.max(0, Math.min(n - 1, (subX - r.left - 4 - w / 2) / w)),
-        idx = Math.max(0, Math.min(n - 1, Math.floor((subX - r.left - 4) / w)));
-      sub.classList.add("dragging");
-      sub.style.setProperty("--sub-i", pos.toFixed(3));
-      if (idx !== subIdx) {
-        subIdx = idx;
-        const id = secs[idx];
-        if (id) {
-          sub.querySelectorAll("a[data-sub]").forEach((a) => a.setAttribute("aria-current", a.dataset.sub === id));
-          if (pendingSub !== id) {
-            pendingSub = id;
-            clearTimeout(subDragTimer);
-            subDragTimer = setTimeout(() => {
-              subDragTimer = 0;
-              if (pendingSub && pendingSub !== view) {
-                setView(pendingSub);
-                history.replaceState(null, "", "#" + pendingSub);
-              }
-            }, 45);
+  );
+  nav.addEventListener(
+    "touchmove",
+    (ev) => {
+      const t = ev.touches[0];
+      if (!t) return;
+      ev.preventDefault();
+      curX = t.clientX;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const r = rect || (rect = nav.getBoundingClientRect()),
+          list = items || (items = getItems()),
+          n = list.length || 1,
+          w = (r.width - padPx * 2) / n,
+          pos = Math.max(0, Math.min(n - 1, (curX - r.left - padPx - w / 2) / w)),
+          idx = Math.max(0, Math.min(n - 1, Math.floor((curX - r.left - padPx) / w)));
+        nav.classList.add("dragging");
+        nav.style.setProperty(propI, pos.toFixed(3));
+        if (idx !== lastIdx) {
+          lastIdx = idx;
+          const id = list[idx];
+          if (id) {
+            nav.querySelectorAll(itemSel).forEach((a) => a.setAttribute("aria-current", a.dataset[itemAttr] === id));
+            if (pending !== id) {
+              pending = id;
+              clearTimeout(timer);
+              timer = setTimeout(() => {
+                timer = 0;
+                if (pending) onHover(pending);
+              }, 45);
+            }
           }
         }
-      }
-    });
-  },
-  { passive: false },
-);
-["touchend", "touchcancel"].forEach((evName) =>
-  $("subNav").addEventListener(
-    evName,
-    () => {
-      if (subRaf) {
-        cancelAnimationFrame(subRaf);
-        subRaf = 0;
-      }
-      subRect = null;
-      subSecs = null;
-      subIdx = -1;
-      if (subDragTimer) {
-        clearTimeout(subDragTimer);
-        subDragTimer = 0;
-      }
-      if (pendingSub && pendingSub !== view) {
-        setView(pendingSub);
-        history.replaceState(null, "", "#" + pendingSub);
-      }
-      pendingSub = null;
-      dragEndTick();
-      const sub = $("subNav");
-      if (sub.classList.contains("dragging")) {
-        sub.classList.remove("dragging");
-        renderNav();
-      }
+      });
     },
-    { passive: true },
-  ),
+    { passive: false },
+  );
+  ["touchend", "touchcancel"].forEach((evName) =>
+    nav.addEventListener(
+      evName,
+      () => {
+        const moved = dragFrom !== null;
+        if (raf) {
+          cancelAnimationFrame(raf);
+          raf = 0;
+        }
+        rect = null;
+        items = null;
+        lastIdx = -1;
+        if (timer) {
+          clearTimeout(timer);
+          timer = 0;
+        }
+        if (pending) onHover(pending);
+        pending = null;
+        const changed = moved && dragFrom !== view;
+        dragEndTick();
+        if (nav.classList.contains("dragging")) {
+          nav.classList.remove("dragging");
+          renderNav();
+        }
+        if (onEndExtra) onEndExtra(changed);
+      },
+      { passive: true },
+    ),
+  );
+}
+bindNavDrag(
+  "tabBar",
+  5,
+  "a[data-c]",
+  "c",
+  "--tab-i",
+  () => CATS.filter((x) => catSecs(x).length).map((x) => x.id),
+  (cid) => activateCat(cid, true),
+  (changed) => {
+    if (changed) scrollTo(0, 0);
+  },
+);
+bindNavDrag(
+  "subNav",
+  4,
+  "a[data-sub]",
+  "sub",
+  "--sub-i",
+  () => {
+    const cur = CATS.find((c) => c.secs.includes(view));
+    return cur ? catSecs(cur) : [];
+  },
+  (sid) => {
+    if (sid !== view) {
+      setView(sid);
+      history.replaceState(null, "", "#" + sid);
+    }
+  },
 );
 
 // 所有 .filter 分段切換槽都支援滑塊動畫、手指／滑鼠左右拖曳切換與統一震動回饋
