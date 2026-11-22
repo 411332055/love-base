@@ -536,7 +536,11 @@ function renderQuests() {
       renderQuests();
       if (reviewEditing) {
         $("reviewText").value = myRev.text;
+        grow($("reviewText"));
         $("reviewText").focus();
+      } else {
+        $("reviewText").value = "";
+        grow($("reviewText"));
       }
     };
   renderTodayPhotos();
@@ -604,16 +608,18 @@ function renderTodayPhotos() {
     h +=
       `<div class="row"><button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
       `>${up ? "上傳中…" : mineAll.length > 1 ? "換第一張" : "換一張"}</button>` +
-      `<button class="btn ghost small" type="button" id="capEdit">✏️ ${mine.cap ? "改這句話" : "寫一句話"}` +
+      `<button class="btn ghost small" type="button" id="capEdit">${capEditing ? "✕ 取消" : `✏️ ${mine.cap ? "改這句話" : "寫一句話"}`}` +
       `</button>${mine.cap ? `<span class="ph-note">「${esc(mine.cap)}」</span>` : ""}</div>`;
   box.innerHTML = h;
   if (mine)
     $("capEdit").onclick = () => {
       capEditing = !capEditing;
-      const c = $("photoCap");
-      c.value = mine.cap || "";
-      $("photoCapForm").hidden = !capEditing;
-      if (capEditing) c.focus();
+      renderTodayPhotos();
+      if (capEditing) {
+        const c = $("photoCap");
+        c.value = mine.cap || "";
+        c.focus();
+      }
     };
 }
 function renderWall() {
@@ -1261,6 +1267,7 @@ function startEdit(id) {
   $("dDraftClear").hidden = true;
   clearQueue();
   openFor("diaryForm");
+  growAll();
 }
 function endEdit() {
   clearQueue();
@@ -1350,9 +1357,9 @@ function grow(t) {
   else t.style.height = "";
 }
 function growAll() {
-  document.querySelectorAll("#diaryForm textarea").forEach(grow);
+  document.querySelectorAll("textarea").forEach(grow);
 }
-$("diaryForm").addEventListener("input", (ev) => {
+document.addEventListener("input", (ev) => {
   if (ev.target.tagName === "TEXTAREA") grow(ev.target);
 });
 // 單行欄位按 Enter 不要送出（中文選字的 Enter 也不會）
@@ -1584,6 +1591,8 @@ function renderDraw() {
   c.textContent = r.q;
   if (lastRound && r.id !== lastRound) {
     ansEditing = false;
+    $("ansText").value = "";
+    grow($("ansText"));
     c.classList.remove("flip");
     void c.offsetWidth;
     c.classList.add("flip");
@@ -1616,7 +1625,11 @@ function renderDraw() {
         renderDraw();
         if (ansEditing) {
           $("ansText").value = mine.text;
+          grow($("ansText"));
           $("ansText").focus();
+        } else {
+          $("ansText").value = "";
+          grow($("ansText"));
         }
       };
   }
@@ -1733,12 +1746,14 @@ $("ansForm").addEventListener("submit", async (ev) => {
       await updDoc("answers", mine.id, { text });
       ansEditing = false;
       $("ansText").value = "";
+      grow($("ansText"));
       renderAll();
       toast("答案改好了 ✏️");
     } else {
       await addDoc("answers", { round: r.id, text, by: myName(), at: nowIso() });
       ansEditing = false;
       $("ansText").value = "";
+      grow($("ansText"));
       if (pairOf(r.id).length >= need()) {
         await markRoundPassed(r);
         toast(`過關！+${DRAW_XP} XP 🎲`);
@@ -1785,6 +1800,7 @@ function renderWishes() {
     q = $("wSearch").value.trim().toLowerCase();
   $("wSearch").hidden = !store.wishes.length;
   if (!store.wishes.length) {
+    $("wCatFilter").innerHTML = "";
     $("wSearchN").textContent = "";
     box.innerHTML = '<div class="empty">還沒有願望。寫下第一件想一起完成的事。</div>';
     return;
@@ -1957,6 +1973,7 @@ bindForm(
   },
   () => {
     $("capText").value = "";
+    grow($("capText"));
     toast("封存好了 ⏳");
     notifyPartner("⏳ 時光膠囊", `${myName()}封存了一顆寫給未來的時光膠囊`, "#capsule", "cap-new");
   },
@@ -3732,6 +3749,7 @@ $("dNew").onclick = () => {
   diaryFormOpen = !diaryFormOpen;
   if (!diaryFormOpen) $("dDate").value = key(today());
   renderDiaryToday();
+  if (diaryFormOpen) growAll();
 };
 
 // 照片壓縮尺寸：原圖最多約 300KB，放得下原本兩倍以上的張數
@@ -4980,6 +4998,7 @@ $("reviewForm").addEventListener("submit", async (ev) => {
     if (!db) saveLocal();
     reviewEditing = false;
     $("reviewText").value = "";
+    grow($("reviewText"));
     renderAll();
     toast(
       !first
