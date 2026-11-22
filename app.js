@@ -460,17 +460,14 @@ function renderAnniv() {
     n = Math.round((t - LOVE_START) / 864e5) + 1;
   const isDay = t > LOVE_START && t.getMonth() === LOVE_START.getMonth() && t.getDate() === LOVE_START.getDate();
   const special = [30, 50, 100, 200, 300, 500, 520, 600, 700, 800, 900, 1000, 1314];
-  const next100 = Math.ceil((n + 1) / 100) * 100;
-  const mile = [...new Set([...special, next100])].sort((a, b) => a - b).find((m) => m > n);
   const isMile = special.includes(n) || (n >= 100 && n % 100 === 0);
-  const mileText = mile && mile - n < left ? `距離 ${mile} 天還有 ${mile - n} 天 · ` : "";
   $("anniv").innerHTML =
     (isDay
       ? `🎉 今天是我們的 ${t.getFullYear() - LOVE_START.getFullYear()} 週年！`
       : isMile
         ? `🎉 今天是在一起第<span class="num">${n}</span>天紀念日！`
         : `💝 在一起第<span class="num">${n}</span>天`) +
-    `<span class="left">${mileText}距離 ${LOVE_START.getMonth() + 1}/${LOVE_START.getDate()} 週年還有 ${left} 天</span>`;
+    `<span class="left">距離 ${LOVE_START.getMonth() + 1}/${LOVE_START.getDate()} 週年還有 ${left} 天</span>`;
 }
 
 function renderHUD() {
