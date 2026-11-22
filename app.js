@@ -2000,8 +2000,12 @@ function onThisDayHits() {
     .filter(([, , es, ps]) => es.length || ps.length);
 }
 function renderOnThisDay() {
-  const hits = onThisDayHits();
-  $("onThisDay").innerHTML = hits.length
+  const hits = onThisDayHits(),
+    title = hits.length === 1 ? `🕰️ ${hits[0][0]}` : "🕰️ 那年的今天",
+    n = hits.reduce((s, [, , es, ps]) => s + es.length + ps.length, 0);
+  if ($("otdTitle"))
+    $("otdTitle").innerHTML = `${title}<span id="otdN">${hits.length ? `${hits[0][1]} · ${n} 則` : "尚無紀錄"}</span>`;
+  $("otdBody").innerHTML = hits.length
     ? hits
         .map(
           ([label, k, es, ps]) =>

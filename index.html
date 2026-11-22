@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
-<link rel="manifest" href="manifest.webmanifest?v=79">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=79">
+<link rel="manifest" href="manifest.webmanifest?v=80">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=80">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -14,7 +14,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f0913">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap">
-<link rel="stylesheet" href="style.css?v=79">
+<link rel="stylesheet" href="style.css?v=80">
 </head>
 <body>
 
@@ -222,12 +222,17 @@
 
   <section id="memories" class="fold">
     <div><h2>🕰️ 回顧</h2><p class="sub">從日記裡翻出來的你們。</p></div>
-    <div class="panel" id="gachaPanel">
-      <div class="row between"><h3>🎰 回憶扭蛋機</h3><button class="btn ghost small" type="button" id="gachaBtn">🎲 抽一個回憶</button></div>
-      <div id="gachaBox"><div class="sub">按右上角「🎲 抽一個回憶」，隨機翻出以前的一天、一張照片或一題問答！</div></div>
-    </div>
-    <div class="entries" id="onThisDay"></div>
+    <details class="month" id="onThisDay"><summary id="otdTitle">🕰️ 一週前的今天<span id="otdN"></span></summary><div class="month-body"><div class="entries" id="otdBody"></div></div></details>
     <details class="month"><summary>每週回顧<span id="reviewN"></span></summary><div class="month-body"><div class="entries" id="reviewPast"></div></div></details>
+    <div class="panel">
+      <h3>幸福指數 · 最近 30 天</h3>
+      <div class="chart" id="hChart"></div>
+    </div>
+    <div class="panel">
+      <div class="row between"><h3>月度回顧</h3><select id="mPick" aria-label="選擇月份"></select></div>
+      <div class="stats" id="mStats"></div>
+      <div class="best" id="mBest"></div>
+    </div>
     <details class="month" id="capsule"><summary>⏳ 時光膠囊<span id="capN"></span></summary><div class="month-body">
       <p class="sub" style="margin:0">寫給未來的你們，到了指定日期才打得開。</p>
       <form class="diary" id="capForm" autocomplete="off">
@@ -237,14 +242,9 @@
       </form>
       <div class="entries" id="capList"></div>
     </div></details>
-    <div class="panel">
-      <h3>幸福指數 · 最近 30 天</h3>
-      <div class="chart" id="hChart"></div>
-    </div>
-    <div class="panel">
-      <div class="row between"><h3>月度回顧</h3><select id="mPick" aria-label="選擇月份"></select></div>
-      <div class="stats" id="mStats"></div>
-      <div class="best" id="mBest"></div>
+    <div class="panel" id="gachaPanel">
+      <div class="row between"><h3>🎰 回憶扭蛋機</h3><button class="btn ghost small" type="button" id="gachaBtn">🎲 抽一個回憶</button></div>
+      <div id="gachaBox"><div class="sub">按右上角「🎲 抽一個回憶」，隨機翻出以前的一天、一張照片或一題問答！</div></div>
     </div>
   </section>
 
@@ -396,7 +396,7 @@
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=79" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=80" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -422,6 +422,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=79"></script>
+<script src="app.js?v=80"></script>
 </body>
 </html>
