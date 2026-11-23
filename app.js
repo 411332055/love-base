@@ -2106,6 +2106,13 @@ function renderChart() {
   };
   svg.onpointerleave = () => (tip.hidden = true);
 }
+// 統計小卡：數字大、單位小，排在同一行
+function statTile([label, v]) {
+  const m = String(v).match(/^([\d.]+|—|-)\s*(.*)$/),
+    num = m ? m[1] : String(v),
+    unit = m ? m[2] : "";
+  return `<div class="stat"><span>${label}</span><b>${esc(num)}${unit ? `<small>${esc(unit)}</small>` : ""}</b></div>`;
+}
 function renderMonth() {
   const pick = $("mPick"),
     keep = pick.value,
@@ -2119,7 +2126,7 @@ function renderMonth() {
     ps = calAllPhotos().filter((p) => inR(p.date));
   loadCalPhotos(m);
   const { tiles, best } = bookSummaryData(es, ps, inR);
-  $("mStats").innerHTML = tiles.map(([a, b]) => `<div class="stat"><span>${a}</span><b>${b}</b></div>`).join("");
+  $("mStats").innerHTML = tiles.map(statTile).join("");
   const funny = es.filter((e) => e.funny).slice(-3);
   $("mBest").innerHTML =
     (best ? `<p>⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(bookSay(best))}</p>` : "") +
@@ -3947,9 +3954,9 @@ async function uploadQueue(entryId, date, list) {
 }
 
 // 回應日記：留言和表情貼圖都存成獨立資料，不佔日記本身的欄位
-const REACTS = ["❤️", "😂", "🥺", "🥰", "👏"];
-// 長按日記跳出的更多表情（出現過才會顯示在那篇日記的表情列）
-const MORE_REACTS = ["😘", "🤗", "🥹", "😭", "😍", "🔥", "🫶", "💯"];
+const REACTS = ["❤️", "😂", "🥺"];
+// 按「＋」才跳出的更多表情（有人用過才會出現在那篇日記的表情列；🥰👏 是舊版常駐的，舊貼圖照樣顯示）
+const MORE_REACTS = ["🥰", "👏", "😘", "🤗", "🥹", "😭", "😍", "🔥", "🫶", "💯"];
 let replyTo = null;
 const replyFormEl = $("replyForm"),
   replyTextEl = $("replyText");
@@ -3991,7 +3998,8 @@ function entryExtras(e, where) {
   return (
     `${phs.length ? `<div class="wall-grid">${phs.map((p) => photoBtn(p, "")).join("")}</div>` : ""}` +
     `${texts.length ? `<div class="replies">${texts.map((r) => `<div class="reply ${r.by === me ? "me" : ""}"><b>${esc(r.by)}</b> ${esc(r.text)}` + `${r.by === me ? ` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>` : ""}` + `</div>`).join("")}` + `</div>` : ""}` +
-    `<div class="reply-bar"><div class="react-bar">${reactBtns}</div><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}` +
+    `<div class="reply-bar"><div class="react-bar">${reactBtns}<button type="button" class="react-btn react-more" ` +
+    `data-reactmore="${esc(e.id)}" aria-label="更多表情" aria-haspopup="menu">＋</button></div><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}` +
     `">💬 回應</button>${addBtn}${acts}</div><div data-replyslot="${where}:${esc(e.id)}"></div>`
   );
 }
@@ -4059,7 +4067,7 @@ document.addEventListener("click", (ev) => {
   const d = ev.target.closest("[data-replydel]");
   if (d && confirmTap(d, "確定刪除？", "✕")) dropReply(d.dataset.replydel);
 });
-// 長按日記卡片（不是按鈕的地方）跳出表情選單，點一下就送出
+// 表情列最後的「＋」：跳出更多表情，點一下就送出
 (() => {
   const pick = document.createElement("div");
   pick.className = "react-pick";
@@ -4067,74 +4075,36 @@ document.addEventListener("click", (ev) => {
   pick.setAttribute("role", "menu");
   pick.setAttribute("aria-label", "選一個表情");
   document.body.append(pick);
-  let timer = 0,
-    sx = 0,
-    sy = 0,
-    opened = false;
-  const cancel = () => {
-    clearTimeout(timer);
-    timer = 0;
-  };
+  let from = null;
   const close = () => {
     pick.hidden = true;
+    from = null;
   };
-  const open = (id) => {
-    pick.innerHTML = [...REACTS, ...MORE_REACTS]
-      .map((em) => `<button type="button" class="react-btn" data-react="${esc(id)}" data-em="${em}">${em}</button>`)
-      .join("");
-    pick.hidden = false;
-    const w = pick.offsetWidth,
-      h = pick.offsetHeight;
-    pick.style.left = Math.max(8, Math.min(innerWidth - w - 8, sx - w / 2)) + "px";
-    pick.style.top = (sy - h - 16 < 8 ? sy + 24 : sy - h - 16) + "px";
-    opened = true;
-    try {
-      getSelection().removeAllRanges();
-    } catch (e) {}
-    haptic();
-  };
-  document.addEventListener(
-    "touchstart",
-    (ev) => {
-      opened = false;
-      cancel();
-      if (!pick.hidden && !ev.target.closest(".react-pick")) close();
-      const card = ev.target.closest("article.entry");
-      if (!card || ev.target.closest("button,a,input,textarea,select,label,.wall-grid,.react-pick")) return;
-      const id = card.querySelector("[data-react]")?.dataset.react;
-      if (!id || ev.touches.length > 1) return;
-      sx = ev.touches[0].clientX;
-      sy = ev.touches[0].clientY;
-      timer = setTimeout(() => {
-        timer = 0;
-        open(id);
-      }, 450);
-    },
-    { passive: true },
-  );
-  document.addEventListener(
-    "touchmove",
-    (ev) => {
-      const t = ev.touches[0];
-      if (timer && t && Math.hypot(t.clientX - sx, t.clientY - sy) > 10) cancel();
-    },
-    { passive: true },
-  );
-  document.addEventListener("touchend", (ev) => {
-    cancel();
-    if (opened) {
-      opened = false;
-      ev.preventDefault();
+  document.addEventListener("click", (ev) => {
+    const more = ev.target.closest("[data-reactmore]");
+    if (more) {
+      if (from === more) {
+        close();
+        return;
+      }
+      const id = more.dataset.reactmore;
+      pick.innerHTML = [...REACTS, ...MORE_REACTS]
+        .map((em) => `<button type="button" class="react-btn" data-react="${esc(id)}" data-em="${em}">${em}</button>`)
+        .join("");
+      pick.hidden = false;
+      from = more;
+      const r = more.getBoundingClientRect(),
+        w = pick.offsetWidth,
+        h = pick.offsetHeight;
+      pick.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + "px";
+      pick.style.top = (r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8) + "px";
+      return;
+    }
+    if (!pick.hidden && (ev.target.closest(".react-pick [data-react]") || !ev.target.closest(".react-pick"))) {
+      setTimeout(close, 0);
     }
   });
-  document.addEventListener("touchcancel", cancel, { passive: true });
-  document.addEventListener("contextmenu", (ev) => {
-    if (!pick.hidden || timer) ev.preventDefault();
-  });
-  pick.addEventListener("click", (ev) => {
-    if (ev.target.closest("[data-react]")) setTimeout(close, 0);
-  });
-  window.addEventListener("scroll", close, { passive: true });
+  window.addEventListener("scroll", () => !pick.hidden && close(), { passive: true });
 })();
 bindForm(
   "replyForm",
@@ -4884,7 +4854,7 @@ function bookSummaryData(es, ps, inR) {
     ["抽題過關", store.rounds.filter((r) => inR(roundDay(r)) && pairOf(r.id).length >= need()).length + " 題"],
     ["達成願望", doneWishes.length + " 個"],
     ["抱抱", store.hugs.filter((h) => h.backAt && inR(dayOf(h.backAt))).length + " 次"],
-    ["回應與貼圖", store.replies.filter((r) => esIds.has(r.entry)).length + " 則"],
+    ["回應貼圖", store.replies.filter((r) => esIds.has(r.entry)).length + " 則"],
     ["平均幸福", avg],
   ];
   const best = [...rated].sort((x, y) => y.happy - x.happy || String(y.date).localeCompare(String(x.date)))[0];
@@ -4901,7 +4871,7 @@ function renderBookShell(title, sub, range, summary, bodyHtml) {
     : "";
   $("bookBody").innerHTML =
     `<div class="book-cover"><b>${title}</b><span>${sub}</span><span>${range}</span></div>` +
-    `<div class="stats">${tiles.map(([x, v]) => `<div class="stat"><span>${x}</span><b>${v}</b></div>`).join("")}</div>` +
+    `<div class="stats">${tiles.map(statTile).join("")}</div>` +
     `${best ? `<div class="note">⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(bookSay(best))}</div>` : ""}` +
     `${bodyHtml}${wishesHtml}`;
 }
