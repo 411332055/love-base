@@ -968,6 +968,7 @@ let lbResetZoom = () => {};
   function applyZoom(animate) {
     im.style.transition = animate ? "transform .22s cubic-bezier(.22,1,.36,1),opacity .2s ease" : "none";
     im.style.opacity = "";
+    im.style.cursor = zScale > 1 ? "grab" : "";
     im.style.transform =
       zScale > 1 ? `translate3d(${zX.toFixed(1)}px,${zY.toFixed(1)}px,0) scale(${zScale.toFixed(3)})` : "";
   }
@@ -979,6 +980,7 @@ let lbResetZoom = () => {};
     im.style.transition = "none";
     im.style.transform = "";
     im.style.opacity = "";
+    im.style.cursor = "";
   };
   function toggleZoomAt(clientX, clientY) {
     sliderTick();
@@ -1165,6 +1167,30 @@ let lbResetZoom = () => {};
     },
     { passive: false },
   );
+  let mousePan = false;
+  im.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "mouse" || e.button !== 0 || zScale <= 1.02) return;
+    mousePan = true;
+    x0 = e.clientX;
+    y0 = e.clientY;
+    pX = zX;
+    pY = zY;
+    im.style.cursor = "grabbing";
+    im.setPointerCapture?.(e.pointerId);
+  });
+  im.addEventListener("pointermove", (e) => {
+    if (!mousePan) return;
+    [zX, zY] = clampPan(pX + e.clientX - x0, pY + e.clientY - y0, zScale);
+    applyZoom(false);
+  });
+  const endMousePan = () => {
+    if (!mousePan) return;
+    mousePan = false;
+    x0 = null;
+    im.style.cursor = zScale > 1 ? "grab" : "";
+  };
+  im.addEventListener("pointerup", endMousePan);
+  im.addEventListener("pointercancel", endMousePan);
 })();
 // 幫自己的照片寫一句話（每日照片和日記照片都可以）
 $("lbCapEdit").onclick = () => {
@@ -3460,14 +3486,19 @@ function renderAway() {
     tk = key(today()),
     fresh = (x) => x.by && x.by !== me && x.at && new Date(x.at).getTime() > seenMs,
     freshReplies = store.replies.filter(fresh).filter((r) => entries.find((e) => e.id === r.entry)?.by === me),
-    replyTarget = freshReplies.some((r) => entries.find((e) => e.id === r.entry)?.date === tk) ? "diary" : "diaryMore";
+    replyDate = freshReplies
+      .map((r) => entries.find((e) => e.id === r.entry)?.date)
+      .filter(Boolean)
+      .sort()
+      .pop(),
+    replyTarget = !replyDate || replyDate === tk ? "diary" : "calendar";
   const groups = [
     [entries.filter(fresh), (n) => `💌 寫了 ${n} 篇日記`, "diary"],
     [photos.filter(fresh), (n) => `📷 傳了 ${n} 張照片`, "photos"],
     [store.answers.filter(fresh), (n) => `🎲 回答了 ${n} 題抽題`, "draw"],
     [store.wishes.filter(fresh), (n) => `🌠 許了 ${n} 個願望`, "wishes"],
     [store.capsules.filter(fresh), (n) => `⏳ 封存了 ${n} 顆膠囊`, "capsule"],
-    [freshReplies, (n) => `💬 回應了你的日記（${n}）`, replyTarget],
+    [freshReplies, (n) => `💬 回應了你的日記（${n}）`, replyTarget, replyTarget === "calendar" ? replyDate : ""],
     [store.reviews.filter(fresh), () => "📝 寫了這週回顧", dow(today()) === 6 ? "todayBox" : "reviewBox"],
     [store.hugs.filter(fresh), () => "🤗 來討抱抱", "hugCard"],
     [
@@ -3498,9 +3529,17 @@ function renderAway() {
   card.innerHTML =
     `<div class="row between"><h3>你不在時，${esc(name)}…</h3>` +
     `<button class="btn ghost" type="button" id="awayOk">知道了</button></div>` +
-    `<div class="away-list">${groups.map((g) => `<a href="#${g[2]}">${g[1](g[0].length)}</a>`).join("")}</div>`;
+    `<div class="away-list">${groups.map((g) => `<a href="#${g[2]}"${g[3] ? ` data-awayday="${esc(g[3])}"` : ""}>${g[1](g[0].length)}</a>`).join("")}</div>`;
   card.hidden = false;
   syncNotices();
+  card.querySelectorAll("[data-awayday]").forEach(
+    (a) =>
+      (a.onclick = () => {
+        const d = a.dataset.awayday;
+        calMonth = d.slice(0, 7);
+        calDay = d;
+      }),
+  );
   $("awayOk").onclick = () => {
     const v = nowIso();
     seenMs = new Date(v).getTime();
