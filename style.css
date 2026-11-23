@@ -373,7 +373,14 @@ details.month[open]>.month-body,details.rules[open]>.custom,details.rules[open]>
 .reply{background:var(--sunk);border:1px solid var(--line);box-shadow:var(--glass-rim);border-radius:14px;padding:8px 12px;font-size:14px;overflow-wrap:anywhere;white-space:pre-wrap}
 .reply.me{background:linear-gradient(135deg,var(--pink-soft),color-mix(in srgb,var(--pink-soft) 55%,var(--surface)));border-color:color-mix(in srgb,var(--pink) 28%,var(--line))}
 .reply-del{border:0;background:none;color:var(--muted);font-size:12px;padding:0 2px}
-.reply-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.reply-bar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:4px}
+.reply-bar .react-bar{min-width:0}
+.reply-bar>.btn{flex:none}
+.entry-acts{display:flex;gap:6px;align-items:center;margin-top:10px;padding-top:9px;border-top:.5px solid var(--line)}
+.entry-acts:empty{display:none}
+.entry-acts .acts{margin-left:auto;gap:6px}
+.entry-acts .btn{font-size:12px;padding:3px 11px;min-height:28px;color:var(--muted);font-weight:600}
+.entry-acts .btn.del{color:color-mix(in srgb,var(--pink) 70%,var(--muted))}
 .reply-bar .btn{font-size:13px;padding:4px 12px}
 .react-bar{display:inline-flex;gap:5px;flex-wrap:wrap}
 .react-btn{border:1px solid var(--line);background:var(--sunk);color:var(--fg);border-radius:99px;padding:4px 9px;font-size:14px;line-height:1.2;display:inline-flex;align-items:center;gap:3px;box-shadow:var(--glass-rim)}
@@ -424,7 +431,7 @@ details.month[open]>.month-body,details.rules[open]>.custom,details.rules[open]>
 
 section.fold>div:first-child h2{display:none}
 section.fold>div:first-child:not(:has(.sub)){display:none}
-.reply-bar .acts{margin-left:auto}
+
 
 details.rules{background:var(--glass-bg);border:.5px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--card-shadow)}
 details.rules ol{margin:10px 0 4px;padding-left:1.4em}

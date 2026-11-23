@@ -4000,7 +4000,7 @@ function entryExtras(e, where) {
     `${texts.length ? `<div class="replies">${texts.map((r) => `<div class="reply ${r.by === me ? "me" : ""}"><b>${esc(r.by)}</b> ${esc(r.text)}` + `${r.by === me ? ` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>` : ""}` + `</div>`).join("")}` + `</div>` : ""}` +
     `<div class="reply-bar"><div class="react-bar">${reactBtns}<button type="button" class="react-btn react-more" ` +
     `data-reactmore="${esc(e.id)}" aria-label="更多表情" aria-haspopup="menu">＋</button></div><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}` +
-    `">💬 回應</button>${addBtn}${acts}</div><div data-replyslot="${where}:${esc(e.id)}"></div>`
+    `">💬 回應</button></div><div class="entry-acts">${addBtn}${acts}</div><div data-replyslot="${where}:${esc(e.id)}"></div>`
   );
 }
 function closeReply() {
