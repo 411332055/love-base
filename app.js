@@ -891,6 +891,7 @@ function openPhoto(id, list) {
   $("lbNext").hidden = !many || i === lbList.length - 1;
   $("lbImg").src = cached || p.th;
   $("lbImg").alt = p.by + " 的照片";
+  lbResetZoom();
   const [, m, d] = p.date.split("-").map(Number),
     mine = p.by === myName();
   $("lbCap").textContent = `${m}/${d} · ${p.by}${mine ? "（我）" : ""}${p.cap ? "\n「" + p.cap + "」" : ""}`;
@@ -931,18 +932,74 @@ function lbStep(n) {
 }
 $("lbPrev").onclick = () => lbStep(-1);
 $("lbNext").onclick = () => lbStep(1);
-// 手指左右滑切換、往下滑關閉大圖（純 GPU 跟手，鎖定單一軸向不卡頓）
+// 大圖手勢：雙指捏合縮放、連點兩下放大／還原、放大時單指拖曳視角、未放大時左右滑換張與下滑關閉
+let lbResetZoom = () => {};
 (() => {
-  let x0 = null,
+  let mode = "",
+    x0 = null,
     y0 = 0,
     dx = 0,
     dy = 0,
     axis = "",
-    raf = 0;
+    raf = 0,
+    zScale = 1,
+    zX = 0,
+    zY = 0,
+    pDist = 0,
+    pMidX = 0,
+    pMidY = 0,
+    pScale = 1,
+    pX = 0,
+    pY = 0,
+    cx0 = 0,
+    cy0 = 0,
+    lastTap = 0,
+    tapX = 0,
+    tapY = 0,
+    moved = false;
   const im = $("lbImg"),
     stage = document.querySelector("#lightbox .stage");
+  function clampPan(x, y, s) {
+    if (s <= 1) return [0, 0];
+    const mx = Math.max(0, (im.offsetWidth * (s - 1)) / 2),
+      my = Math.max(0, (im.offsetHeight * (s - 1)) / 2);
+    return [Math.max(-mx, Math.min(mx, x)), Math.max(-my, Math.min(my, y))];
+  }
+  function applyZoom(animate) {
+    im.style.transition = animate ? "transform .22s cubic-bezier(.22,1,.36,1),opacity .2s ease" : "none";
+    im.style.opacity = "";
+    im.style.transform =
+      zScale > 1 ? `translate3d(${zX.toFixed(1)}px,${zY.toFixed(1)}px,0) scale(${zScale.toFixed(3)})` : "";
+  }
+  lbResetZoom = () => {
+    mode = "";
+    x0 = null;
+    zScale = 1;
+    zX = zY = 0;
+    im.style.transition = "none";
+    im.style.transform = "";
+    im.style.opacity = "";
+  };
+  function toggleZoomAt(clientX, clientY) {
+    sliderTick();
+    if (zScale > 1.05) {
+      zScale = 1;
+      zX = zY = 0;
+    } else {
+      const r = im.getBoundingClientRect(),
+        cX = r.left + r.width / 2,
+        cY = r.top + r.height / 2;
+      zScale = 2.5;
+      [zX, zY] = clampPan((cX - clientX) * (zScale - 1), (cY - clientY) * (zScale - 1), zScale);
+    }
+    applyZoom(true);
+  }
   function paint() {
     raf = 0;
+    if (mode === "pinch" || mode === "pan") {
+      applyZoom(false);
+      return;
+    }
     if (x0 === null) return;
     if (axis === "y") {
       const y = Math.max(-30, dy * 0.72),
@@ -958,23 +1015,66 @@ $("lbNext").onclick = () => lbStep(1);
   stage.addEventListener(
     "touchstart",
     (e) => {
-      if (e.touches.length !== 1 || e.target.closest("button")) return;
+      if (e.target.closest("button")) return;
+      im.style.transition = "none";
+      if (e.touches.length === 2) {
+        const [t0, t1] = e.touches,
+          r = im.getBoundingClientRect();
+        mode = "pinch";
+        moved = true;
+        x0 = null;
+        pDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        pMidX = (t0.clientX + t1.clientX) / 2;
+        pMidY = (t0.clientY + t1.clientY) / 2;
+        pScale = zScale;
+        pX = zX;
+        pY = zY;
+        cx0 = r.left + r.width / 2 - zX;
+        cy0 = r.top + r.height / 2 - zY;
+        return;
+      }
+      if (e.touches.length !== 1) return;
       x0 = e.touches[0].clientX;
       y0 = e.touches[0].clientY;
       dx = dy = 0;
       axis = "";
-      im.style.transition = "none";
+      moved = false;
+      if (zScale > 1.02) {
+        mode = "pan";
+        pX = zX;
+        pY = zY;
+      } else {
+        mode = "swipe";
+      }
     },
     { passive: true },
   );
   stage.addEventListener(
     "touchmove",
     (e) => {
-      if (x0 === null) return;
+      if (mode === "pinch" && e.touches.length === 2) {
+        const [t0, t1] = e.touches,
+          dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY),
+          midX = (t0.clientX + t1.clientX) / 2,
+          midY = (t0.clientY + t1.clientY) / 2,
+          ns = Math.max(1, Math.min(4, pScale * (dist / Math.max(12, pDist)))),
+          ratio = ns / pScale;
+        zScale = ns;
+        [zX, zY] = clampPan(midX - cx0 - (pMidX - cx0 - pX) * ratio, midY - cy0 - (pMidY - cy0 - pY) * ratio, ns);
+        if (!raf) raf = requestAnimationFrame(paint);
+        return;
+      }
+      if (x0 === null || e.touches.length !== 1) return;
       dx = e.touches[0].clientX - x0;
       dy = e.touches[0].clientY - y0;
+      if (Math.hypot(dx, dy) >= 8) moved = true;
+      if (mode === "pan") {
+        [zX, zY] = clampPan(pX + dx, pY + dy, zScale);
+        if (!raf) raf = requestAnimationFrame(paint);
+        return;
+      }
       if (!axis) {
-        if (Math.hypot(dx, dy) < 8) return;
+        if (!moved) return;
         axis = Math.abs(dy) > Math.abs(dx) ? "y" : "x";
       }
       if (!raf) raf = requestAnimationFrame(paint);
@@ -983,18 +1083,56 @@ $("lbNext").onclick = () => lbStep(1);
   );
   stage.addEventListener(
     "touchend",
-    () => {
-      if (x0 === null) return;
-      x0 = null;
+    (e) => {
       if (raf) {
         cancelAnimationFrame(raf);
         raf = 0;
       }
+      if (mode === "pinch") {
+        if (e.touches.length === 1 && zScale > 1.02) {
+          mode = "pan";
+          x0 = e.touches[0].clientX;
+          y0 = e.touches[0].clientY;
+          pX = zX;
+          pY = zY;
+          return;
+        }
+        if (zScale < 1.05) {
+          zScale = 1;
+          zX = zY = 0;
+        } else {
+          [zX, zY] = clampPan(zX, zY, zScale);
+        }
+        applyZoom(true);
+        mode = "";
+        return;
+      }
+      if (e.touches.length > 0 || x0 === null) return;
+      const endX = x0,
+        endY = y0;
+      x0 = null;
+      if (!moved && e.changedTouches.length === 1) {
+        const now = Date.now();
+        if (now - lastTap < 280 && Math.hypot(endX - tapX, endY - tapY) < 40) {
+          lastTap = 0;
+          mode = "";
+          toggleZoomAt(endX, endY);
+          return;
+        }
+        lastTap = now;
+        tapX = endX;
+        tapY = endY;
+      }
+      if (mode === "pan") {
+        mode = "";
+        [zX, zY] = clampPan(zX, zY, zScale);
+        applyZoom(true);
+        return;
+      }
+      mode = "";
       const nextIdx = lbList.indexOf(lbId) + (dx < 0 ? 1 : -1);
       if (axis === "x" && Math.abs(dx) > 45 && nextIdx >= 0 && nextIdx < lbList.length) {
-        im.style.transition = "none";
-        im.style.transform = "";
-        im.style.opacity = "";
+        lbResetZoom();
         lbStep(dx < 0 ? 1 : -1);
       } else if (axis === "y" && dy > 55) {
         sliderTick();
@@ -1002,18 +1140,30 @@ $("lbNext").onclick = () => lbStep(1);
         im.style.transform = "translate3d(0,160px,0) scale(.8)";
         im.style.opacity = "0";
         setTimeout(() => {
-          im.style.transition = "none";
-          im.style.transform = "";
-          im.style.opacity = "";
+          lbResetZoom();
           closePhotoByUser();
         }, 145);
       } else {
-        im.style.transition = "transform .2s cubic-bezier(.22,1,.36,1),opacity .2s ease";
-        im.style.transform = "";
-        im.style.opacity = "";
+        applyZoom(true);
       }
     },
     { passive: true },
+  );
+  im.addEventListener("dblclick", (e) => {
+    e.preventDefault();
+    toggleZoomAt(e.clientX, e.clientY);
+  });
+  stage.addEventListener(
+    "wheel",
+    (e) => {
+      if ($("lightbox").hidden) return;
+      e.preventDefault();
+      const ns = Math.max(1, Math.min(4, zScale * (e.deltaY < 0 ? 1.18 : 0.85)));
+      zScale = ns < 1.05 ? 1 : ns;
+      [zX, zY] = clampPan(zX, zY, zScale);
+      applyZoom(false);
+    },
+    { passive: false },
   );
 })();
 // 幫自己的照片寫一句話（每日照片和日記照片都可以）
@@ -1083,6 +1233,7 @@ $("lbShare").onclick = async () => {
   }
 };
 function closePhoto() {
+  lbResetZoom();
   $("lightbox").hidden = true;
   lbId = null;
   lbList = [];
