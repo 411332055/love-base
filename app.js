@@ -870,6 +870,8 @@ function openPhoto(id, list) {
   del.hidden = !mine;
   delete del.dataset.confirm;
   del.textContent = "刪除這張";
+  $("lbShare").hidden = !canShareFiles();
+  if ($("lightbox").hidden) history.pushState({ lb: 1 }, "", location.hash);
   $("lightbox").hidden = false;
   if (!cached) {
     fetchPicImg(id)
@@ -972,7 +974,7 @@ $("lbNext").onclick = () => lbStep(1);
           im.style.transition = "none";
           im.style.transform = "";
           im.style.opacity = "";
-          closePhoto();
+          closePhotoByUser();
         }, 145);
       } else {
         im.style.transition = "transform .2s cubic-bezier(.22,1,.36,1),opacity .2s ease";
@@ -1012,29 +1014,47 @@ $("lbCapForm").addEventListener("submit", async (ev) => {
     toast(NOSAVE);
   }
 });
-// 存到手機：手機用分享選單（可以選「儲存影像」），電腦直接下載
-$("lbSave").onclick = async () => {
+// 照片大圖：下載（直接存成檔案）和分享（叫出手機的分享選單）
+async function lbFile() {
   const p = calAllPhotos().find((x) => x.id === lbId);
-  if (!p) return;
-  const src = lbFull || p.th,
+  if (!p) return null;
+  const blob = await (await fetch(lbFull || p.th)).blob(),
     name = `love-base-${p.date}-${p.by}.jpg`;
+  return { p, blob, name, file: new File([blob], name, { type: "image/jpeg" }) };
+}
+const canShareFiles = () => {
   try {
-    const blob = await (await fetch(src)).blob(),
-      file = new File([blob], name, { type: "image/jpeg" });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file] });
-      return;
-    }
+    return !!(navigator.canShare && navigator.canShare({ files: [new File([""], "x.jpg", { type: "image/jpeg" })] }));
+  } catch (e) {
+    return false;
+  }
+};
+$("lbSave").onclick = async () => {
+  try {
+    const f = await lbFile();
+    if (!f) return;
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
+    a.href = URL.createObjectURL(f.blob);
+    a.download = f.name;
     document.body.append(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     toast("下載好了 ⬇️");
   } catch (e) {
-    if (!e || e.name !== "AbortError") toast("存不了，可以長按照片再選「儲存」");
+    toast("下載不了，可以長按照片再選「儲存」");
+  }
+};
+$("lbShare").onclick = async () => {
+  try {
+    const f = await lbFile();
+    if (!f) return;
+    const [, m, d] = f.p.date.split("-").map(Number),
+      text = `${m}/${d} ${f.p.by}${f.p.cap ? "：「" + f.p.cap + "」" : ""}`;
+    const data = { files: [f.file], title: "我們的戀愛遊戲基地", text };
+    await navigator.share(navigator.canShare(data) ? data : { files: [f.file] });
+  } catch (e) {
+    if (!e || e.name !== "AbortError") toast("分享不了，可以先下載再分享");
   }
 };
 function closePhoto() {
@@ -1044,13 +1064,18 @@ function closePhoto() {
   lbFull = "";
   $("lbImg").removeAttribute("src");
 }
-$("lbClose").onclick = closePhoto;
+// 使用者自己關大圖時，順便退掉打開時加的那一筆返回紀錄（Android 返回手勢會先關大圖）
+function closePhotoByUser() {
+  if (history.state && history.state.lb) history.back();
+  else closePhoto();
+}
+$("lbClose").onclick = closePhotoByUser;
 $("lightbox").addEventListener("click", (ev) => {
-  if (ev.target.id === "lightbox") closePhoto();
+  if (ev.target.id === "lightbox") closePhotoByUser();
 });
 document.addEventListener("keydown", (ev) => {
   if ($("lightbox").hidden || ev.target.tagName === "INPUT") return;
-  if (ev.key === "Escape") closePhoto();
+  if (ev.key === "Escape") closePhotoByUser();
   else if (ev.key === "ArrowLeft") lbStep(-1);
   else if (ev.key === "ArrowRight") lbStep(1);
 });
@@ -1063,7 +1088,7 @@ $("lbDel").onclick = async () => {
     picCache.delete(id);
     photos = photos.filter((p) => p.id !== id);
     calPhotos = calPhotos.filter((p) => p.id !== id);
-    closePhoto();
+    closePhotoByUser();
     renderAll();
     toast(TRASHED);
   } catch (e) {
@@ -2979,10 +3004,18 @@ function initSeen() {
   }
   seenMs = new Date(v).getTime();
 }
+// 主畫面 App 圖示的數字紅點（Android Chrome、加到主畫面的 iPhone 都支援）
+function setBadge(n) {
+  try {
+    if (!("setAppBadge" in navigator)) return;
+    (n > 0 ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {});
+  } catch (e) {}
+}
 function renderAway() {
   const card = $("awayCard");
   if (!db || !seenMs) {
     card.hidden = true;
+    setBadge(0);
     syncNotices();
     return;
   }
@@ -3018,6 +3051,7 @@ function renderAway() {
               : g[2],
       ),
   );
+  setBadge(groups.reduce((n, g) => n + g[0].length, 0));
   if (!groups.length) {
     card.hidden = true;
     syncNotices();
@@ -3415,7 +3449,13 @@ document.addEventListener("click", (ev) => {
   openFor(id);
   history.pushState(null, "", "#" + id);
 });
-window.addEventListener("popstate", () => openFor(location.hash.slice(1) || "today"));
+window.addEventListener("popstate", () => {
+  if (!$("lightbox").hidden) {
+    closePhoto();
+    return;
+  }
+  openFor(location.hash.slice(1) || "today");
+});
 function activateCat(cid, noScroll) {
   const c = CATS.find((x) => x.id === cid);
   if (!c) return;
