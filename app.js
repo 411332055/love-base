@@ -252,7 +252,7 @@ async function updDoc(c, id, data) {
   Object.assign(w, data);
   renderAll();
   try {
-    db ? await xRef(c, id).update(data) : saveLocal();
+    db ? await commit(xRef(c, id).update(data)) : saveLocal();
   } catch (e) {
     Object.assign(w, old);
     renderAll();
@@ -270,7 +270,7 @@ async function delDoc(c, id) {
   trash[c].push({ ...item, trashed: mark });
   renderAll();
   try {
-    db ? await xRef(c, id).update({ trashed: mark }) : saveLocal();
+    db ? await commit(xRef(c, id).update({ trashed: mark })) : saveLocal();
     toast(TRASHED);
   } catch (e) {
     store[c].push(item);
@@ -586,6 +586,7 @@ let photos = [],
   photoUnsub = null,
   photoErr = "",
   uploading = null,
+  uploadingProg = "",
   pendingDate = null,
   pendingSwap = false;
 function photosOn(d) {
@@ -627,15 +628,16 @@ function renderTodayPhotos() {
     return;
   }
   const others = photosOn(k).filter((p) => p.by !== myName()),
-    up = uploading === k;
+    up = uploading === k,
+    upText = uploadingProg ? `上傳中 ${uploadingProg}…` : "上傳中…";
   let h = '<div class="ph-pair">';
   h += mine
     ? mineAll.map((p) => photoBtn(p, "ph-slot has" + (capEditing === p.id ? " editing" : ""), true)).join("") +
       (mineAll.length < DAY_PH_MAX
-        ? `<button type="button" class="ph-slot" data-up="${k}" ${up ? "disabled" : ""}>${up ? "上傳中…" : "＋<br>再加照片"}</button>`
+        ? `<button type="button" class="ph-slot" data-up="${k}" ${up ? "disabled" : ""}>${up ? upText : "＋<br>再加照片"}</button>`
         : "")
     : `<button type="button" class="ph-slot" data-up="${k}" ${up ? "disabled" : ""}` +
-      `>${up ? "上傳中…" : "📸<br>上傳我的照片<br><small>可以一次選很多張</small>"}</button>`;
+      `>${up ? upText : "📸<br>上傳我的照片<br><small>可以一次選很多張</small>"}</button>`;
   h += others.length
     ? others.map((p) => photoBtn(p, "ph-slot has")).join("")
     : '<div class="ph-slot wait">等對方上傳…</div>';
@@ -643,7 +645,7 @@ function renderTodayPhotos() {
   if (mine) {
     h +=
       `<div class="row"><button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
-      `>${up ? "上傳中…" : mineAll.length > 1 ? "換第一張" : "換一張"}</button></div>`;
+      `>${up ? upText : mineAll.length > 1 ? "換第一張" : "換一張"}</button></div>`;
   }
   const allCaps = [...mineAll, ...others].filter((p) => p.cap);
   if (allCaps.length)
@@ -869,6 +871,7 @@ $("photoFile").addEventListener("change", async () => {
   }
   if (!files.length) return;
   uploading = date;
+  uploadingProg = files.length > 1 ? `1 / ${files.length}` : "";
   renderAll();
   const earned = !store.bonus.some((b) => b.id === mainId),
     partner = store.bonus.some((b) => b.date === date && b.by !== myName());
@@ -882,6 +885,10 @@ $("photoFile").addEventListener("change", async () => {
   let ok = 0,
     msg = "";
   for (let i = 0; i < files.length; i++) {
+    if (files.length > 1) {
+      uploadingProg = `${i + 1} / ${files.length}`;
+      renderTodayPhotos();
+    }
     try {
       // 第一張用固定的 id（日期_名字），其他張加亂數；只有真的要換掉舊照片時才搬進垃圾桶
       const asMain = pendingSwap || (!hasMain && i === 0);
@@ -893,6 +900,7 @@ $("photoFile").addEventListener("change", async () => {
     }
   }
   uploading = null;
+  uploadingProg = "";
   updateSyncStatus();
   if (ok) {
     const n = ok > 1 ? `${ok} 張照片` : "照片";
@@ -938,8 +946,9 @@ function openPhoto(id, list) {
   if (list) lbList = list.filter((i) => calAllPhotos().some((x) => x.id === i));
   if (!lbList.includes(id)) lbList = [id];
   const i = lbList.indexOf(id),
-    many = lbList.length > 1;
-  $("lbCount").textContent = many ? `${i + 1} / ${lbList.length}` : "";
+    many = lbList.length > 1,
+    baseCount = many ? `${i + 1} / ${lbList.length}` : "";
+  $("lbCount").textContent = cached ? baseCount : (baseCount ? baseCount + " · " : "") + "讀取高畫質原圖…";
   $("lbPrev").hidden = !many || i === 0;
   $("lbNext").hidden = !many || i === lbList.length - 1;
   $("lbImg").src = cached || p.th;
@@ -965,15 +974,15 @@ function openPhoto(id, list) {
   if (!cached) {
     fetchPicImg(id)
       .then((img) => {
-        if (lbId === id && img) {
+        if (lbId !== id) return;
+        if (img) {
           lbFull = img;
           $("lbImg").src = img;
         }
+        $("lbCount").textContent = baseCount;
       })
       .catch(() => {
-        if (lbId === id)
-          $("lbCount").textContent =
-            ($("lbCount").textContent ? $("lbCount").textContent + " · " : "") + "原圖沒載到，先顯示縮圖";
+        if (lbId === id) $("lbCount").textContent = (baseCount ? baseCount + " · " : "") + "原圖沒載到，先顯示縮圖";
       });
   }
   [lbList[i - 1], lbList[i + 1]].filter(Boolean).forEach((adj) => fetchPicImg(adj).catch(() => {}));
@@ -1286,7 +1295,18 @@ $("lbCapForm").addEventListener("submit", async (ev) => {
 async function lbFile() {
   const p = calAllPhotos().find((x) => x.id === lbId);
   if (!p) return null;
-  const blob = await (await fetch(lbFull || p.th)).blob(),
+  let src = lbFull;
+  if (!src && db) {
+    const img = await fetchPicImg(p.id).catch(() => "");
+    if (img) {
+      src = img;
+      if (lbId === p.id) {
+        lbFull = img;
+        $("lbImg").src = img;
+      }
+    }
+  }
+  const blob = await (await fetch(src || p.th)).blob(),
     name = `love-base-${p.date}-${p.by}.jpg`;
   return { p, blob, name, file: new File([blob], name, { type: "image/jpeg" }) };
 }
@@ -1298,6 +1318,8 @@ const canShareFiles = () => {
   }
 };
 $("lbSave").onclick = async () => {
+  const b = $("lbSave");
+  b.disabled = true;
   try {
     const f = await lbFile();
     if (!f) return;
@@ -1305,9 +1327,13 @@ $("lbSave").onclick = async () => {
     toast("下載好了 ⬇️");
   } catch (e) {
     toast("下載不了，可以長按照片再選「儲存」");
+  } finally {
+    b.disabled = false;
   }
 };
 $("lbShare").onclick = async () => {
+  const b = $("lbShare");
+  b.disabled = true;
   try {
     const f = await lbFile();
     if (!f) return;
@@ -1319,6 +1345,8 @@ $("lbShare").onclick = async () => {
     await navigator.share(navigator.canShare(data) ? data : { files: [f.file] });
   } catch (e) {
     if (!e || e.name !== "AbortError") toast("分享不了，可以先下載再分享");
+  } finally {
+    b.disabled = false;
   }
 };
 function closePhoto() {
@@ -1541,7 +1569,7 @@ async function delEntry(id) {
   trash.diary.push({ ...item, trashed: mark });
   renderAll();
   try {
-    db ? await db.collection("diary").doc(id).update({ trashed: mark }) : saveLocal();
+    db ? await commit(db.collection("diary").doc(id).update({ trashed: mark })) : saveLocal();
     toast(TRASHED);
   } catch (e) {
     entries = old;
@@ -1577,6 +1605,8 @@ function startEdit(id) {
   growAll();
   $("editBar").hidden = false;
   $("editText").textContent = `✏️ 正在編輯 ${e.date || ""} 的日記`;
+  delete $("editCancel").dataset.confirm;
+  $("editCancel").textContent = "取消編輯";
   $("diaryForm").classList.add("editing");
   $("dSave").textContent = "儲存修改";
   $("dMsg").textContent = "";
@@ -1584,8 +1614,17 @@ function startEdit(id) {
   openFor("diaryForm");
   growAll();
 }
+function editDirty() {
+  const e = entries.find((x) => x.id === editId);
+  if (!e) return false;
+  if ($("dDate").value !== (e.date || "")) return true;
+  if ((happy || 0) !== (Number(e.happy) || 0)) return true;
+  return Object.entries(FIELDS).some(([el, f]) => $(el).value.trim() !== String(e[f] || "").trim());
+}
 function endEdit() {
   editId = null;
+  delete $("editCancel").dataset.confirm;
+  $("editCancel").textContent = "取消編輯";
   $("editBar").hidden = true;
   $("diaryForm").classList.remove("editing");
   $("dSave").textContent = "寫進日記";
@@ -1593,7 +1632,10 @@ function endEdit() {
   restoreDraft();
   renderDiaryToday();
 }
-$("editCancel").onclick = endEdit;
+$("editCancel").onclick = () => {
+  if (editId && editDirty() && !confirmTap($("editCancel"), "確定放棄修改？再按一次", "取消編輯")) return;
+  endEdit();
+};
 let heartDragged = false,
   heartStart = null,
   heartStartVal = 0;
@@ -1760,7 +1802,7 @@ $("diaryForm").addEventListener("submit", async (ev) => {
     notifyPartner(
       "💌 新日記",
       `${myName()}寫了一篇新日記${preview ? `：「${preview}」` : ""}`,
-      "#quests",
+      e.date === key(today()) ? "#quests" : "#calendar",
       "diary-" + e.date,
     );
   } catch (err) {
@@ -1948,6 +1990,9 @@ function renderDraw() {
         : "";
   $("ansHint").textContent = [st, turnLine].filter(Boolean).join(" · ");
 }
+const LOG_PAGE = 24;
+let lastLogQ = "",
+  logShown = LOG_PAGE;
 function renderLog() {
   const all = store.rounds
     .filter((r) => pairOf(r.id).length >= need())
@@ -1955,6 +2000,10 @@ function renderLog() {
     .reverse();
   $("logN").textContent = `${all.length} 題`;
   const q = $("lSearch").value.trim().toLowerCase();
+  if (q !== lastLogQ) {
+    lastLogQ = q;
+    logShown = LOG_PAGE;
+  }
   const hit = (r) =>
     !q ||
     [r.q, roundDay(r), ...pairOf(r.id).flatMap((a) => [a.text, a.by])].some((v) =>
@@ -1969,8 +2018,9 @@ function renderLog() {
     $("logList").innerHTML = `<div class="empty">找不到「${esc(q)}」的過關紀錄。</div>`;
     return;
   }
+  const part = list.slice(0, logShown);
   $("logList").innerHTML = list.length
-    ? list
+    ? part
         .map(
           (r) =>
             `<article class="entry"><header><b>${esc(r.q)}</b><span>${esc(roundDay(r))}</span></header>` +
@@ -1978,8 +2028,16 @@ function renderLog() {
               .map((a) => `<dt>${esc(nameOf(a.by))}</dt><dd>${esc(a.text)}</dd>`)
               .join("")}</dl></article>`,
         )
-        .join("")
+        .join("") +
+      (list.length > logShown
+        ? `<button class="btn ghost" type="button" id="logMore">看更早的紀錄（還有 ${list.length - logShown} 題）</button>`
+        : "")
     : '<div class="empty">還沒有過關的題目。</div>';
+  if (list.length > logShown)
+    $("logMore").onclick = () => {
+      logShown += LOG_PAGE;
+      renderLog();
+    };
 }
 async function drawQ() {
   if (!myTurn()) return;
@@ -3351,7 +3409,7 @@ async function restoreItem(c, id) {
   list.push({ id, ...data });
   renderAll();
   try {
-    db ? await trashRef(c, id).set(data) : saveLocal();
+    db ? await commit(trashRef(c, id).set(data)) : saveLocal();
     if (c === "photos") calLoaded.delete(String(data.date).slice(0, 7));
     renderAll();
     toast("復原了 ♻️");
@@ -3517,6 +3575,13 @@ function renderAway() {
   const me = myName(),
     tk = key(today()),
     fresh = (x) => x.by && x.by !== me && x.at && new Date(x.at).getTime() > seenMs,
+    freshEntries = entries.filter(fresh),
+    entryDate = freshEntries
+      .map((e) => e.date)
+      .filter(Boolean)
+      .sort()
+      .pop(),
+    entryTarget = !entryDate || entryDate === tk ? "diary" : "calendar",
     freshReplies = store.replies.filter(fresh).filter((r) => entries.find((e) => e.id === r.entry)?.by === me),
     replyDate = freshReplies
       .map((r) => entries.find((e) => e.id === r.entry)?.date)
@@ -3525,7 +3590,7 @@ function renderAway() {
       .pop(),
     replyTarget = !replyDate || replyDate === tk ? "diary" : "calendar";
   const groups = [
-    [entries.filter(fresh), (n) => `💌 寫了 ${n} 篇日記`, "diary"],
+    [freshEntries, (n) => `💌 寫了 ${n} 篇日記`, entryTarget, entryTarget === "calendar" ? entryDate : ""],
     [photos.filter(fresh), (n) => `📷 傳了 ${n} 張照片`, "photos"],
     [store.answers.filter(fresh), (n) => `🎲 回答了 ${n} 題抽題`, "draw"],
     [store.wishes.filter(fresh), (n) => `🌠 許了 ${n} 個願望`, "wishes"],
@@ -3641,7 +3706,7 @@ function renderHug() {
           store.hugs = old.filter((h) => h.id !== id);
           renderAll();
           try {
-            await xRef("hugs", id).delete();
+            await commit(xRef("hugs", id).delete());
           } catch (e) {
             store.hugs = old;
             renderAll();
@@ -4537,7 +4602,7 @@ async function dropReply(id) {
   store.replies = old.filter((r) => r.id !== id);
   renderAll();
   try {
-    db ? await xRef("replies", id).delete() : saveLocal();
+    db ? await commit(xRef("replies", id).delete()) : saveLocal();
   } catch (e) {
     store.replies = old;
     renderAll();
