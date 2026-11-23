@@ -149,6 +149,7 @@ const subs = Object.entries(done)
 const canPush = !!(cfg && cfg.pub && cfg.d && subs.length);
 
 const todayTW = new Date(Date.now() + 8 * 3600e3);
+const todayKey = todayTW.toISOString().slice(0, 10);
 const monthKey = todayTW.toISOString().slice(0, 7);
 if (todayTW.getUTCDate() === 1 || process.env.FORCE_SPACE) {
   try {
@@ -172,6 +173,28 @@ if (todayTW.getUTCDate() === 1 || process.env.FORCE_SPACE) {
     }
   } catch (e) {
     console.log("照片空間檢查失敗：" + e.message);
+  }
+}
+
+// 時光膠囊到期提醒：已到打開日期、未刪除且還沒發過推播的膠囊
+const dueCaps = Object.entries(done)
+  .filter(([id, v]) => id.startsWith("x~capsules~") && !v.trashed && v.openDate && v.openDate <= todayKey)
+  .map(([id, v]) => ({ id: id.split("~")[2], ...v }))
+  .filter((c) => !done["x~remind~cap-" + c.id]);
+if (dueCaps.length && canPush) {
+  const sent = await pushAll(
+    cfg,
+    subs,
+    JSON.stringify({
+      title: "💌 時光膠囊到時間打開了！",
+      body: `有 ${dueCaps.length} 顆時光膠囊已經可以打開囉，快來看看當時寫了什麼`,
+      url: "./#capsule",
+      tag: "cap-" + todayKey,
+    }),
+  );
+  console.log(`時光膠囊到期提醒（${dueCaps.length} 顆），推播送出 ${sent} / ${subs.length} 台。`);
+  if (sent) {
+    for (const c of dueCaps) await markSent("x~remind~cap-" + c.id, c.openDate);
   }
 }
 

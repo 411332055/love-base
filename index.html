@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
-<link rel="manifest" href="manifest.webmanifest?v=105">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=105">
+<link rel="manifest" href="manifest.webmanifest?v=106">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=106">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap"></noscript>
-<link rel="stylesheet" href="style.css?v=105">
+<link rel="stylesheet" href="style.css?v=106">
 </head>
 <body>
 
@@ -158,7 +158,7 @@
   <section id="calendar" class="fold">
     <div><h2>📅 回憶月曆</h2><p class="sub">有紀錄的日子會亮起來，點一下看當天。</p></div>
     <div class="panel">
-      <div class="row between"><button class="btn ghost" type="button" id="calPrev" aria-label="上個月">‹</button><h3 id="calTitle"></h3><button class="btn ghost" type="button" id="calNext" aria-label="下個月">›</button></div>
+      <div class="row between"><button class="btn ghost" type="button" id="calPrev" aria-label="上個月">‹</button><div class="row"><h3 id="calTitle"></h3><button class="btn ghost small" type="button" id="calToday" hidden>今天</button></div><button class="btn ghost" type="button" id="calNext" aria-label="下個月">›</button></div>
       <div class="cal-head" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
       <div class="cal" id="calGrid"></div>
       <div class="cal-legend"><span><i class="d-diary"></i>日記</span><span><i class="d-photo"></i>照片</span><span><i class="d-task"></i>一起完成</span></div>
@@ -178,7 +178,7 @@
   <section id="wishes" class="fold">
     <div><h2>🌠 願望清單</h2><p class="sub">想去的地方、想吃的店、想一起做的事，每天都可以許願，約會時照著清單一起完成。</p></div>
     <form class="wishform" id="wishForm" autocomplete="off">
-      <input id="wText" maxlength="80" required placeholder="例：一起去看一次日出" aria-label="新增願望">
+      <input id="wText" maxlength="120" required placeholder="例：一起去看一次日出" aria-label="新增願望">
       <button class="btn" type="submit" id="wSave">許願</button>
     </form>
     <div class="filter" id="wCatPick" role="group" aria-label="願望分類"><button type="button" data-wc="eat">🍜 想吃</button><button type="button" data-wc="go">📍 想去</button><button type="button" data-wc="do">🎯 想做</button><button type="button" data-wc="">✨ 其他</button></div>
@@ -401,7 +401,7 @@
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=105" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=106" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -427,6 +427,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=105"></script>
+<script src="app.js?v=106"></script>
 </body>
 </html>

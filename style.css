@@ -208,6 +208,7 @@ form.wishform{display:flex;gap:8px}
 .wishform .btn{flex:none}
 .wishes{display:flex;flex-direction:column;gap:8px}
 .wish{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--glass-bg);border:.5px solid var(--line);border-radius:16px;padding:12px 14px;box-shadow:var(--card-shadow)}
+.wish.editing{grid-template-columns:auto 1fr}
 .wish .t{min-width:0;overflow-wrap:anywhere}
 .wish .t b{font-size:14px}
 .wish .t div{font-size:13px;color:var(--muted)}

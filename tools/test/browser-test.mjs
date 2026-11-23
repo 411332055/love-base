@@ -179,10 +179,17 @@ for (const [theme, width] of [
   );
   if (!wish) fail("許願沒有存進資料庫");
   else {
-    await page.click(`#wishList .check[data-id="${wish[0].split("~")[2]}"]`);
+    const wid = wish[0].split("~")[2];
+    await page.click(`#wishList [data-wedit="${wid}"]`);
+    await page.fill(`#wishList [data-wform="${wid}"] input`, "測試願望（已修改）");
+    await page.click(`#wishList [data-wform="${wid}"] button[type="submit"]`);
+    await page.waitForTimeout(300);
+    await page.click(`#wishList .check[data-id="${wid}"]`);
     await page.waitForTimeout(400);
-    const done = await page.evaluate(([p, id]) => window.__store[p][id].done, [room("done"), wish[0]]);
-    done ? ok("許願、完成願望都正常") : fail("按了完成，願望沒有變成完成");
+    const updated = await page.evaluate(([p, id]) => window.__store[p][id], [room("done"), wish[0]]);
+    updated?.done && updated?.text === "測試願望（已修改）"
+      ? ok("許願、修改願望、完成願望都正常")
+      : fail("修改或完成願望異常");
   }
 
   await go(page, "calendar");
