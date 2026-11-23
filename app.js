@@ -129,6 +129,14 @@ function lsDel(k) {
     localStorage.removeItem(k);
   } catch (e) {}
 }
+function lsJson(k, fallback = null) {
+  try {
+    const raw = localStorage.getItem(k);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
 let hapticLv = HAPTIC_LV[lsGet(HAPTIC_LV_KEY)] ? lsGet(HAPTIC_LV_KEY) : "mid";
 let hapticOn = lsGet(HAPTIC_KEY) !== "off",
   booted = false;
@@ -293,6 +301,7 @@ function armDelete(box, c, fn = (id) => delDoc(c, id), label = "再按一次") {
   });
 }
 
+/* ===== 計分、稱號、連續天數與紀念日 ===== */
 // 兩個人當天都有寫日記或傳照片才算連續，或用補簽卡補上的日子
 function onTimeDays() {
   return [...dayRecords()].filter(([, r]) => r.onTime.size >= need()).map(([d]) => d);
@@ -811,7 +820,7 @@ async function savePhoto(file, date, opt = {}) {
   if (close) close();
   else if (url) URL.revokeObjectURL(url);
   const id = opt.id || newPhotoId(date);
-  const meta = { date, by: myName(), th, cap: "", at: new Date().toISOString() };
+  const meta = { date, by: myName(), th, cap: "", at: nowIso() };
   if (opt.entry) meta.entry = opt.entry;
   if (opt.replace) {
     await Promise.race([archivePhoto(id).catch(() => {}), new Promise((r) => setTimeout(r, 1800))]);
@@ -855,7 +864,7 @@ $("photoFile").addEventListener("change", async () => {
   const earned = !store.bonus.some((b) => b.id === mainId),
     partner = store.bonus.some((b) => b.date === date && b.by !== myName());
   if (earned) {
-    const doc = { date, xp: PHOTO_BONUS, by: myName(), at: new Date().toISOString() };
+    const doc = { date, xp: PHOTO_BONUS, by: myName(), at: nowIso() };
     store.bonus.push({ id: mainId, ...doc });
     xRef("bonus", mainId)
       .set(doc)
@@ -1390,6 +1399,7 @@ function diaryQuote(e) {
     ? `<blockquote>今天雖然${esc(e.s1 || "＿＿")}，但因為有你${esc(e.s2 || "＿＿")}。</blockquote>`
     : "";
 }
+/* ===== 日記卡片、列表與表單 ===== */
 function diaryCard(e, where, n) {
   const me = myName(),
     cls = e.by ? (e.by === me ? "me" : "them") : "",
@@ -1680,7 +1690,7 @@ $("diaryForm").addEventListener("submit", async (ev) => {
     happy: happy || null,
     s1: $("dS1").value.trim(),
     s2: $("dS2").value.trim(),
-    at: new Date().toISOString(),
+    at: nowIso(),
     by: myName(),
   };
   if (!e.mood && !e.food && !e.funny && !e.say && !e.s1 && !e.s2) {
@@ -1697,7 +1707,7 @@ $("diaryForm").addEventListener("submit", async (ev) => {
       $("dSave").disabled = false;
       return;
     }
-    const upd = { ...e, at: old.at, by: old.by || myName(), edited: new Date().toISOString() };
+    const upd = { ...e, at: old.at, by: old.by || myName(), edited: nowIso() };
     try {
       if (db) await commit(db.collection("diary").doc(editId).set(upd));
       else {
@@ -1758,6 +1768,7 @@ fetch("questions.json", { cache: "no-cache" })
     }
   })
   .catch(() => {});
+/* ===== 今日隨機抽題 ===== */
 function monthBank() {
   const m = key(today()).slice(0, 7),
     b = MONTHLY && MONTHLY[m];
@@ -2047,6 +2058,7 @@ $("ansForm").addEventListener("submit", async (ev) => {
 });
 
 // 願望清單
+/* ===== 願望清單 ===== */
 // 願望分類：存在願望的 cat 欄位，舊願望沒有這個欄位就算「其他」
 const WCATS = { eat: "🍜 想吃", go: "📍 想去", do: "🎯 想做", "": "✨ 其他" };
 let wFilter = "all",
@@ -2613,6 +2625,7 @@ function specialOf(k) {
   }
   return null;
 }
+/* ===== 回憶月曆與回顧 ===== */
 function renderCalendar() {
   loadCalPhotos(calMonth);
   $("diaryN").textContent = `${entries.length} 篇`;
@@ -2952,6 +2965,7 @@ function showLastBackup() {
   let v = lsGet(BK_KEY);
   bkMsg(v ? `這台裝置上次備份：${v}` : "這台裝置還沒備份過。");
 }
+/* ===== 資料備份、還原與空間管理 ===== */
 async function exportBackup(full) {
   if (!db || !navigator.onLine) {
     toast("要連上網路才能備份");
@@ -3414,10 +3428,7 @@ function clearDraft() {
   $("dDraftClear").hidden = true;
 }
 function restoreDraft() {
-  let d = null;
-  try {
-    d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
-  } catch (e) {}
+  const d = lsJson(DRAFT_KEY);
   if (!d) return;
   $("dDate").value = d.date || key(today());
   for (const [el, f] of Object.entries(FIELDS)) $(el).value = d[f] || "";
@@ -3658,6 +3669,7 @@ function renderToday() {
   syncNotices();
 }
 
+/* ===== 外觀、選單、版面與手勢 ===== */
 // 外觀與版面：都存在這台裝置，兩個人可以各自設定
 const LAYOUT_KEY = "love-base-layout";
 const CATS = [
@@ -3682,10 +3694,7 @@ const SEC_DEFAULT = Object.keys(SEC_META).filter((id) => id !== "tools");
 let view = "today";
 const lastSub = {};
 function loadLayout() {
-  let v = null;
-  try {
-    v = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "null");
-  } catch (e) {}
+  const v = lsJson(LAYOUT_KEY);
   const order = (v?.order || []).filter((id) => SEC_DEFAULT.includes(id));
   return {
     order: [...order, ...SEC_DEFAULT.filter((id) => !order.includes(id))],
@@ -4569,11 +4578,7 @@ function setNudge(id, show, text, href, goLabel, laterLabel, onLater, onGo) {
 }
 const CAP_SEEN_KEY = "love-base-cap-seen";
 function seenCaps() {
-  try {
-    return JSON.parse(localStorage.getItem(CAP_SEEN_KEY) || "[]");
-  } catch (e) {
-    return [];
-  }
+  return lsJson(CAP_SEEN_KEY, []);
 }
 function markCapsSeen(ids) {
   if (!ids.length) return;
@@ -6102,6 +6107,7 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+/* ===== 畫面重繪與啟動初始化 ===== */
 // 收合中的區塊不重畫，展開時且資料有變動才更新；同一幀內的多次重畫自動合併成一次
 let renderVer = 1;
 const renderedVer = {};
@@ -6167,14 +6173,12 @@ function saveLocal() {
   }
 }
 function loadLocal() {
-  try {
-    const s = JSON.parse(localStorage.getItem(LS) || "null");
-    if (s) {
-      entries = s.entries || [];
-      Object.keys(store).forEach((c) => (store[c] = s[c] || []));
-      if (s.trash) Object.assign(trash, s.trash);
-    }
-  } catch (e) {}
+  const s = lsJson(LS);
+  if (s) {
+    entries = s.entries || [];
+    Object.keys(store).forEach((c) => (store[c] = s[c] || []));
+    if (s.trash) Object.assign(trash, s.trash);
+  }
 }
 
 const debounce = (fn, ms = 120) => {
