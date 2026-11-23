@@ -583,10 +583,13 @@ function myPhotos(d) {
 function myPhoto(d) {
   return myPhotos(d)[0];
 }
-function photoBtn(p, cls) {
+function photoBtn(p, cls, editable = false) {
+  const editBadge = editable
+    ? `<span class="ph-edit" role="button" tabindex="0" data-capedit="${esc(p.id)}" aria-label="${p.cap ? "修改這張照片的一句話" : "幫這張照片寫一句話"}" title="${p.cap ? "改這句話" : "寫一句話"}">${p.cap ? "💬" : "✏️"}</span>`
+    : "";
   return (
     `<button type="button" class="${cls}" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片${p.cap ? "：" + esc(p.cap) : ""}"><img src="${p.th}` +
-    `" alt="" loading="lazy" decoding="async"><span class="nm">${esc(p.by)}${p.by === myName() ? "（我）" : ""}${p.cap ? " 💬" : ""}</span></button>`
+    `" alt="" loading="lazy" decoding="async"><span class="nm">${esc(p.by)}${p.by === myName() ? "（我）" : ""}${!editable && p.cap ? " 💬" : ""}</span>${editBadge}</button>`
   );
 }
 function renderTodayPhotos() {
@@ -609,7 +612,7 @@ function renderTodayPhotos() {
     up = uploading === k;
   let h = '<div class="ph-pair">';
   h += mine
-    ? mineAll.map((p) => photoBtn(p, "ph-slot has")).join("") +
+    ? mineAll.map((p) => photoBtn(p, "ph-slot has" + (capEditing === p.id ? " editing" : ""), true)).join("") +
       (mineAll.length < DAY_PH_MAX
         ? `<button type="button" class="ph-slot" data-up="${k}" ${up ? "disabled" : ""}>${up ? "上傳中…" : "＋<br>再加照片"}</button>`
         : "")
@@ -620,41 +623,34 @@ function renderTodayPhotos() {
     : '<div class="ph-slot wait">等對方上傳…</div>';
   h += "</div>";
   if (mine) {
-    const capBtns =
-      mineAll.length === 1
-        ? `<button class="btn ghost small" type="button" data-capedit="${esc(mine.id)}">${capEditing === mine.id ? "✕ 取消" : `✏️ ${mine.cap ? "改這句話" : "寫一句話"}`}</button>` +
-          (mine.cap ? `<span class="ph-note">「${esc(mine.cap)}」</span>` : "")
-        : mineAll
-            .map(
-              (p, i) =>
-                `<button class="btn ghost small" type="button" data-capedit="${esc(p.id)}">${capEditing === p.id ? "✕ 取消" : `✏️ 第 ${i + 1} 張${p.cap ? "（改）" : ""}`}</button>`,
-            )
-            .join("");
     h +=
       `<div class="row"><button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
-      `>${up ? "上傳中…" : mineAll.length > 1 ? "換第一張" : "換一張"}</button>${capBtns}</div>`;
+      `>${up ? "上傳中…" : mineAll.length > 1 ? "換第一張" : "換一張"}</button></div>`;
   }
-  const otherCaps = [...(mineAll.length > 1 ? mineAll : []), ...others].filter((p) => p.cap);
-  if (otherCaps.length)
-    h += otherCaps.map((p) => `<div class="ph-note">${esc(nameOf(p.by))}：「${esc(p.cap)}」</div>`).join("");
+  const allCaps = [...mineAll, ...others].filter((p) => p.cap);
+  if (allCaps.length)
+    h += allCaps.map((p) => `<div class="ph-note">${esc(nameOf(p.by))}：「${esc(p.cap)}」</div>`).join("");
   box.innerHTML = h;
-  box.querySelectorAll("[data-capedit]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        const id = b.dataset.capedit,
-          idx = mineAll.findIndex((p) => p.id === id),
-          target = mineAll[idx];
-        if (!target) return;
-        capEditing = capEditing === id ? "" : id;
-        renderTodayPhotos();
-        if (capEditing) {
-          const c = $("photoCap");
-          c.placeholder = mineAll.length > 1 ? `幫第 ${idx + 1} 張照片寫一句話（可不填）` : "幫照片寫一句話（可不填）";
-          c.value = target.cap || "";
-          c.focus();
-        }
-      }),
-  );
+  box.querySelectorAll("[data-capedit]").forEach((b) => {
+    const toggle = (ev) => {
+      ev.stopPropagation();
+      ev.preventDefault();
+      const id = b.dataset.capedit,
+        target = mineAll.find((p) => p.id === id);
+      if (!target) return;
+      capEditing = capEditing === id ? "" : id;
+      renderTodayPhotos();
+      if (capEditing) {
+        const c = $("photoCap");
+        c.value = target.cap || "";
+        c.focus();
+      }
+    };
+    b.onclick = toggle;
+    b.onkeydown = (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") toggle(ev);
+    };
+  });
 }
 let wallHtml = "";
 function renderWall() {
@@ -1907,7 +1903,7 @@ function renderWishes() {
           `<button class="btn ghost small" type="button" data-wcancel="1" aria-label="取消修改">✕</button></form>`
         : `<div class="t"><b>${esc(w.text)}</b><div><button type="button" class="cat" data-cat="${esc(w.id)}` +
           `" aria-label="分類：${WCATS[w.cat || ""]}，點一下換分類">${WCATS[w.cat || ""]}</button>` +
-          `<button type="button" class="cat" data-wedit="${esc(w.id)}" aria-label="修改願望：${esc(w.text)}">✏️ 修改</button>${esc(w.by || "")}` +
+          `<button type="button" class="cat" data-wedit="${esc(w.id)}" aria-label="修改願望：${esc(w.text)}">✏️</button>${esc(w.by || "")}` +
           ` 許的${w.done ? ` · <span class="nw">${esc(shortDone(w.doneDate))} 完成</span>` : ""}</div></div>` +
           `<button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button>`) +
       `</div>`
@@ -5313,6 +5309,10 @@ $("hugOpen").onclick = () => {
 $("hugClose").onclick = () => {
   hugOpen = false;
   renderHug();
+};
+$("photoCapClose").onclick = () => {
+  capEditing = "";
+  renderTodayPhotos();
 };
 $("photoCapForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();

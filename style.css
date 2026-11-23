@@ -461,6 +461,10 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 .ph-slot:disabled{opacity:.5;cursor:default}
 .ph-slot img,.wall-grid img{width:100%;height:100%;object-fit:cover;display:block}
 .ph-slot .nm,.wall-grid .nm{position:absolute;left:6px;bottom:6px;background:rgba(20,10,18,.68);border:.5px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;border-radius:99px;padding:2px 8px;z-index:1;white-space:nowrap}
+.ph-edit{position:absolute;right:6px;bottom:6px;width:28px;height:28px;border-radius:50%;background:rgba(20,10,18,.68);border:.5px solid rgba(255,255,255,.35);color:#fff;font-size:13px;display:grid;place-items:center;z-index:2;cursor:pointer;transition:transform .18s ease,background-color .18s ease}
+.ph-edit:active{transform:scale(.9)}
+.ph-slot.editing{box-shadow:0 0 0 2.5px var(--pink),0 8px 20px -6px rgba(155,40,85,.24)}
+.ph-slot.editing .ph-edit{background:var(--pink);border-color:#fff}
 .ph-note{font-size:13px;color:var(--muted)}
 .wall{display:flex;flex-direction:column;gap:16px}
 .wall-day h3{font-size:14px;color:var(--muted);font-weight:700;margin:0 0 6px}
