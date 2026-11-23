@@ -3927,18 +3927,29 @@ window.addEventListener("popstate", () => {
     if (el.tagName !== "INPUT") return false;
     return !/^(checkbox|radio|file|hidden|button|submit|reset|date|time|color|range)$/i.test(el.type || "text");
   };
+  const isActiveTextField = () => {
+    const el = document.activeElement;
+    return isTextField(el) && el.isConnected && el.offsetParent !== null;
+  };
   let kbTimer = 0;
+  const syncKb = () => {
+    clearTimeout(kbTimer);
+    kbTimer = setTimeout(() => {
+      if (!isActiveTextField()) document.documentElement.classList.remove("kb-open");
+    }, 80);
+  };
   document.addEventListener("focusin", (ev) => {
     if (!isTextField(ev.target)) return;
     clearTimeout(kbTimer);
     document.documentElement.classList.add("kb-open");
   });
-  document.addEventListener("focusout", () => {
-    clearTimeout(kbTimer);
-    kbTimer = setTimeout(() => {
-      if (!isTextField(document.activeElement)) document.documentElement.classList.remove("kb-open");
-    }, 80);
-  });
+  document.addEventListener("focusout", syncKb);
+  document.addEventListener("submit", syncKb, true);
+  window.addEventListener("blur", syncKb);
+  window.addEventListener("hashchange", syncKb);
+  window.addEventListener("popstate", syncKb);
+  document.addEventListener("visibilitychange", syncKb);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", syncKb);
 })();
 function activateCat(cid, noScroll) {
   const c = CATS.find((x) => x.id === cid);
@@ -6388,7 +6399,10 @@ $("logout").onclick = () => {
           if (!d.id.startsWith("x~")) return;
           const [, c, id] = d.id.split("~");
           const v = d.data();
-          if (store[c]) (v.trashed ? trash[c] : store[c]).push({ id, ...v });
+          if (!store[c]) return;
+          if (v.trashed) {
+            if (trash[c]) trash[c].push({ id, ...v });
+          } else store[c].push({ id, ...v });
         });
       }
       hasSnap.done = true;
