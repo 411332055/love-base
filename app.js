@@ -1666,7 +1666,7 @@ function renderLog() {
     .filter((r) => pairOf(r.id).length >= need())
     .sort(byAt)
     .reverse();
-  $("logN").textContent = all.length;
+  $("logN").textContent = `${all.length} 題`;
   const q = $("lSearch").value.trim().toLowerCase();
   const hit = (r) =>
     !q ||
@@ -1843,7 +1843,14 @@ function renderWishes() {
   cats.forEach(([c, l, n], i) => {
     const b = wf.children[i];
     const txt = `${l} ${n}`;
-    if (b.textContent !== txt) b.textContent = txt;
+    if (b.dataset.t !== txt) {
+      const sp = l.indexOf(" ");
+      b.dataset.t = txt;
+      b.innerHTML =
+        (sp > 0 ? `<span class="wc-e">${l.slice(0, sp)}</span>${l.slice(sp + 1)}` : l) +
+        `<span class="wc-n">${n}</span>`;
+      b.setAttribute("aria-label", `${sp > 0 ? l.slice(sp + 1) : l} ${n} 個`);
+    }
     b.setAttribute("aria-pressed", String(wFilter === c));
   });
   const wishes = store.wishes.filter(
@@ -1863,12 +1870,18 @@ function renderWishes() {
   }
   const open = wishes.filter((w) => !w.done).sort((a, b) => byAt(b, a));
   const closed = wishes.filter((w) => w.done).sort((a, b) => String(b.doneDate).localeCompare(String(a.doneDate)));
+  const shortDone = (d) => {
+    const v = String(d || "");
+    return v.slice(0, 4) === String(new Date().getFullYear()) && v.length >= 10
+      ? `${+v.slice(5, 7)}/${+v.slice(8, 10)}`
+      : v;
+  };
   const renderWishItem = (w) =>
     `<div class="wish ${w.done ? "done" : ""}"><button class="check" type="button" data-id="${esc(w.id)}` +
     `" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}：${w.done ? "已完成，點一下取消" : "標記完成"}">✓</button>` +
     `<div class="t"><b>${esc(w.text)}</b><div><button type="button" class="cat" data-cat="${esc(w.id)}` +
     `" aria-label="分類：${WCATS[w.cat || ""]}，點一下換分類">${WCATS[w.cat || ""]}</button>${esc(w.by || "")}` +
-    ` 許的${w.done ? ` · ${esc(w.doneDate)} 完成` : ""}</div></div>` +
+    ` 許的${w.done ? ` · <span class="nw">${esc(shortDone(w.doneDate))} 完成</span>` : ""}</div></div>` +
     `<button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`;
   box.innerHTML =
     open.map(renderWishItem).join("") +
@@ -2938,7 +2951,7 @@ function renderTrash() {
     items = Object.entries(trash)
       .flatMap(([c, l]) => l.map((x) => [c, x]))
       .sort((a, b) => String(b[1].trashed.at).localeCompare(String(a[1].trashed.at)));
-  $("trashN").textContent = items.length;
+  $("trashN").textContent = `${items.length} 項`;
   box.innerHTML = items.length
     ? items
         .map(
@@ -5641,7 +5654,7 @@ async function renderPush() {
   $("pushToggle").textContent = mySub ? "🔕 關閉這台裝置的通知" : "🔔 在這台裝置開啟通知";
   $("pushToggle").className = mySub ? "btn ghost" : "btn";
   $("pushTest").hidden = !subs.length || !hasUrl;
-  $("pushUrlSt").textContent = hasUrl ? "✓ 已設定（兩人共用）" : "尚未設定";
+  $("pushUrlSt").textContent = hasUrl ? "✓ 已設定" : "尚未設定";
   if (document.activeElement !== $("pushUrl")) $("pushUrl").value = url;
   if (!renderPush.inited) {
     renderPush.inited = true;

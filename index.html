@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
-<link rel="manifest" href="manifest.webmanifest?v=103">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=103">
+<link rel="manifest" href="manifest.webmanifest?v=104">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=104">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap"></noscript>
-<link rel="stylesheet" href="style.css?v=103">
+<link rel="stylesheet" href="style.css?v=104">
 </head>
 <body>
 
@@ -203,7 +203,7 @@
       <div class="hint" id="drawHint"></div>
     </div>
     <details class="rules">
-      <summary>📚 過關紀錄（<span id="logN">0</span>）</summary>
+      <summary>📚 過關紀錄<span id="logN">0 題</span></summary>
       <div class="log">
         <input type="search" id="lSearch" placeholder="🔍 搜尋題目或答案，例：旅行" aria-label="搜尋過關紀錄" autocomplete="off">
         <div class="sub" id="lSearchN"></div>
@@ -273,7 +273,7 @@
       </div>
     </details>
     <details class="rules" id="pushBox">
-      <summary>🔔 手機推播通知（<span id="pushState">未開啟</span>）</summary>
+      <summary>🔔 手機推播通知<span id="pushState">未開啟</span></summary>
       <div class="custom">
         <p class="sub">開啟後，就算沒開網站或手機鎖屏，對方寫日記、傳照片、討抱抱或回答抽題時也會跳出通知。iPhone 請先「加到主畫面」再從桌面圖示打開來開啟。</p>
         <div class="row">
@@ -311,7 +311,7 @@
       </div>
     </details>
     <details class="rules" id="trash">
-      <summary>🗑️ 垃圾桶（<span id="trashN">0</span>）</summary>
+      <summary>🗑️ 垃圾桶<span id="trashN">0 項</span></summary>
       <div class="custom">
         <p class="sub">刪掉的東西會在這裡留 30 天，時間到自動清除。兩個人都可以復原。</p>
         <div class="log" id="trashList"></div>
@@ -401,7 +401,7 @@
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=103" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=104" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -427,6 +427,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=103"></script>
+<script src="app.js?v=104"></script>
 </body>
 </html>
