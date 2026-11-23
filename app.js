@@ -2051,8 +2051,7 @@ $("ansForm").addEventListener("submit", async (ev) => {
 const WCATS = { eat: "🍜 想吃", go: "📍 想去", do: "🎯 想做", "": "✨ 其他" };
 let wFilter = "all",
   wCat = "",
-  wishDoneOpen = false,
-  wishEditId = null;
+  wishDoneOpen = false;
 function syncWCat() {
   $("wCatPick")
     .querySelectorAll("button")
@@ -2130,28 +2129,17 @@ function renderWishes() {
       ? `${+v.slice(5, 7)}/${+v.slice(8, 10)}`
       : v;
   };
-  const renderWishItem = (w) => {
-    const editing = wishEditId === w.id;
-    return (
-      `<div class="wish ${w.done ? "done" : ""}${editing ? " editing" : ""}"><button class="check" type="button" data-id="${esc(w.id)}` +
-      `" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}：${w.done ? "已完成，點一下取消" : "標記完成"}">✓</button>` +
-      (editing
-        ? `<form class="wishform" data-wform="${esc(w.id)}" autocomplete="off">` +
-          `<input maxlength="120" required value="${esc(w.text)}" aria-label="修改願望">` +
-          `<button class="btn small" type="submit">存</button>` +
-          `<button class="btn ghost small" type="button" data-wcancel="1" aria-label="取消修改">✕</button></form>`
-        : `<div class="t"><b>${esc(w.text)}</b><div><button type="button" class="cat" data-cat="${esc(w.id)}` +
-          `" aria-label="分類：${WCATS[w.cat || ""]}，點一下換分類">${WCATS[w.cat || ""]}</button>` +
-          `<button type="button" class="cat" data-wedit="${esc(w.id)}" aria-label="修改願望：${esc(w.text)}">✏️</button>${esc(w.by || "")}` +
-          ` 許的${w.done ? ` · <span class="nw">${esc(shortDone(w.doneDate))} 完成</span>` : ""}</div></div>` +
-          `<button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button>`) +
-      `</div>`
-    );
-  };
+  const renderWishItem = (w) =>
+    `<div class="wish ${w.done ? "done" : ""}"><button class="check" type="button" data-id="${esc(w.id)}` +
+    `" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}：${w.done ? "已完成，點一下取消" : "標記完成"}">✓</button>` +
+    `<div class="t"><b>${esc(w.text)}</b><div><button type="button" class="cat" data-cat="${esc(w.id)}` +
+    `" aria-label="分類：${WCATS[w.cat || ""]}，點一下換分類">${WCATS[w.cat || ""]}</button>${esc(w.by || "")}` +
+    ` 許的${w.done ? ` · <span class="nw">${esc(shortDone(w.doneDate))} 完成</span>` : ""}</div></div>` +
+    `<button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`;
   box.innerHTML =
     open.map(renderWishItem).join("") +
     (closed.length
-      ? `<details class="month" id="wishDoneBox" ${wishDoneOpen || q || !open.length || closed.some((w) => w.id === wishEditId) ? "open" : ""}>` +
+      ? `<details class="month" id="wishDoneBox" ${wishDoneOpen || q || !open.length ? "open" : ""}>` +
         `<summary>✅ 已完成的願望<span>${closed.length} 個</span></summary>` +
         `<div class="month-body">${closed.map(renderWishItem).join("")}</div></details>`
       : "");
@@ -2170,47 +2158,6 @@ function renderWishes() {
         updDoc("wishes", w.id, { cat: ks[(ks.indexOf(w.cat || "") + 1) % ks.length] });
       }),
   );
-  box.querySelectorAll("[data-wedit]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        wishEditId = b.dataset.wedit;
-        renderWishes();
-        const inp = box.querySelector(`[data-wform="${wishEditId}"] input`);
-        if (inp) {
-          inp.focus();
-          inp.setSelectionRange(inp.value.length, inp.value.length);
-        }
-      }),
-  );
-  box.querySelectorAll("[data-wcancel]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        wishEditId = null;
-        renderWishes();
-      }),
-  );
-  box.querySelectorAll("[data-wform]").forEach((f) => {
-    f.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter" && (ev.isComposing || ev.keyCode === 229)) ev.preventDefault();
-      else if (ev.key === "Escape") {
-        wishEditId = null;
-        renderWishes();
-      }
-    });
-    f.addEventListener("submit", async (ev) => {
-      ev.preventDefault();
-      const id = f.dataset.wform,
-        text = f.querySelector("input").value.trim(),
-        w = store.wishes.find((x) => x.id === id);
-      wishEditId = null;
-      if (w && text && text !== w.text) {
-        await updDoc("wishes", id, { text });
-        toast("願望改好了 ✏️");
-      } else {
-        renderWishes();
-      }
-    });
-  });
   armDelete(box, "wishes");
 }
 function toggleWish(id) {

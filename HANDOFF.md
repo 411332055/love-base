@@ -87,7 +87,7 @@
 | 全部日記、搜尋（含留言與照片說明） | `renderEntries`（只畫打開的月份，搜尋一次顯示 30 篇） |
 | 日記回應與表情貼圖 | `entryExtras`、`bindEntryActs`、`attachReply`、`REACTS`、`popFloat` |
 | 抽題 | `monthBank`、`turnOf`、`todayRound`、`shownRound`、`drawQ`、`renderDraw`、`renderLog` |
-| 願望（含分類與文字修改） | `renderWishes`、`toggleWish`，分類 `WCATS` |
+| 願望（含分類） | `renderWishes`、`toggleWish`，分類 `WCATS` |
 | 月曆、回顧、那年今天、時光膠囊、回憶書 | `renderCalendar`、`renderCalDetail`、`onThisDayHits`、`renderOnThisDay`、`renderTodayFlashback`、`renderMemories`、`renderCapsules`、`renderCapNudge`、`setNudge`、`renderBook`、`renderBookShell` |
 | 星期日這週回顧 | `renderWeekRecap` |
 | 垃圾桶、二次確認 | `confirmTap`、`armDelete`、`renderTrash`、`restoreItem`、`archivePhoto`、`restoreReplaced`、`hardDelete`、`purgeExpired` |
