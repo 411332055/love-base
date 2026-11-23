@@ -2254,6 +2254,29 @@ function loadCalPhotos(m) {
       if (navigator.onLine) toast("這個月的照片沒載到，稍後會再試");
     });
 }
+// 月曆上的特別日子：週年、在一起的里程碑、生日、每月紀念日、時光膠囊打開日
+const MILE_DAYS = [30, 50, 100, 200, 300, 500, 520, 600, 700, 800, 900, 1000, 1314];
+function calSpecial(k) {
+  const dt = fromKey(k),
+    n = Math.round((dt - LOVE_START) / 864e5) + 1;
+  if (n < 1) return null;
+  const sameDay = dt.getDate() === LOVE_START.getDate();
+  if (n > 1 && sameDay && dt.getMonth() === LOVE_START.getMonth()) {
+    return { emo: "🎉", text: `${dt.getFullYear() - LOVE_START.getFullYear()} 週年` };
+  }
+  if (MILE_DAYS.includes(n) || (n >= 100 && n % 100 === 0)) return { emo: "🎊", text: `在一起第 ${n} 天` };
+  const bd = NAMES.filter((who) => {
+    const b = bdayOf(who);
+    return b && b.m === dt.getMonth() + 1 && b.d === dt.getDate();
+  });
+  if (bd.length) return { emo: "🎂", text: bd.join("、") + "的生日" };
+  if (n > 1 && sameDay) {
+    const months = (dt.getFullYear() - LOVE_START.getFullYear()) * 12 + dt.getMonth() - LOVE_START.getMonth();
+    return { emo: "💝", text: `在一起滿 ${months} 個月` };
+  }
+  if (store.capsules.some((c) => c.openDate === k)) return { emo: "💌", text: "時光膠囊打開日" };
+  return null;
+}
 function renderCalendar() {
   loadCalPhotos(calMonth);
   $("diaryN").textContent = `${entries.length} 篇`;
@@ -2279,10 +2302,17 @@ function renderCalendar() {
       [photoDays.has(k), "photo", "照片"],
       [together.has(k), "task", "一起完成"],
     ].filter((x) => x[0]);
+    const sp = calSpecial(k),
+      isToday = k === tk,
+      both = isToday && together.has(k);
     h +=
-      `<button type="button" data-d="${k}" class="${marks.length ? "has" : ""} ${k === tk ? "today" : ""}` +
-      `" aria-pressed="${k === calDay}" aria-label="${m} 月 ${d} 日${marks.length ? "，有" + marks.map((x) => x[2]).join("、") : ""}` +
-      `" ${k > tk ? "disabled" : ""}>${d}<span class="dots">${marks.map((x) => `<i class="d-${x[1]}"></i>`).join("")}</span>` +
+      `<button type="button" data-d="${k}" class="${marks.length ? "has" : ""} ${isToday ? "today" : ""}` +
+      `${both ? " both" : ""}${sp ? " special" : ""}" aria-pressed="${k === calDay}"` +
+      ` aria-label="${isToday ? "今天，" : ""}${m} 月 ${d} 日${sp ? "，" + sp.text : ""}` +
+      `${marks.length ? "，有" + marks.map((x) => x[2]).join("、") : ""}" ${sp ? `title="${sp.text}"` : ""}` +
+      ` ${k > tk ? "disabled" : ""}>${isToday ? `<span class="cal-now">${both ? "💞 今天" : "今天"}</span>` : ""}` +
+      `${sp ? `<span class="cal-sp" aria-hidden="true">${sp.emo}</span>` : ""}${d}` +
+      `<span class="dots">${marks.map((x) => `<i class="d-${x[1]}"></i>`).join("")}</span>` +
       `</button>`;
   }
   $("calGrid").innerHTML = h;
