@@ -3919,6 +3919,27 @@ window.addEventListener("popstate", () => {
   }
   openFor(location.hash.slice(1) || "today");
 });
+// 手機打字跳出鍵盤時自動藏起底部導覽列，避免被鍵盤頂起擋住畫面或誤觸
+(() => {
+  const isTextField = (el) => {
+    if (!el) return false;
+    if (el.tagName === "TEXTAREA") return true;
+    if (el.tagName !== "INPUT") return false;
+    return !/^(checkbox|radio|file|hidden|button|submit|reset|date|time|color|range)$/i.test(el.type || "text");
+  };
+  let kbTimer = 0;
+  document.addEventListener("focusin", (ev) => {
+    if (!isTextField(ev.target)) return;
+    clearTimeout(kbTimer);
+    document.documentElement.classList.add("kb-open");
+  });
+  document.addEventListener("focusout", () => {
+    clearTimeout(kbTimer);
+    kbTimer = setTimeout(() => {
+      if (!isTextField(document.activeElement)) document.documentElement.classList.remove("kb-open");
+    }, 80);
+  });
+})();
 function activateCat(cid, noScroll) {
   const c = CATS.find((x) => x.id === cid);
   if (!c) return;
