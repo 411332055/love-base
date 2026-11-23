@@ -212,8 +212,10 @@ function addDays(d, n) {
   return x;
 }
 function fromKey(k) {
-  const [y, m, d] = k.split("-").map(Number);
-  return new Date(y, m - 1, d);
+  const [y, m, d] = String(k || "")
+    .split("-")
+    .map(Number);
+  return y && m && d ? new Date(y, m - 1, d) : today();
 }
 const byAt = (a, b) => String(a.at).localeCompare(String(b.at));
 const nameOf = (n) => (n ? n + (n === myName() ? "（我）" : "") : "未署名");
@@ -943,9 +945,12 @@ function openPhoto(id, list) {
   $("lbImg").src = cached || p.th;
   $("lbImg").alt = p.by + " 的照片";
   lbResetZoom();
-  const [, m, d] = p.date.split("-").map(Number),
+  const [, m, d] = String(p.date || "")
+      .split("-")
+      .map(Number),
     mine = p.by === myName();
-  $("lbCap").textContent = `${m}/${d} · ${p.by}${mine ? "（我）" : ""}${p.cap ? "\n「" + p.cap + "」" : ""}`;
+  $("lbCap").textContent =
+    `${m && d ? `${m}/${d} · ` : ""}${p.by}${mine ? "（我）" : ""}${p.cap ? "\n「" + p.cap + "」" : ""}`;
   $("lbCapForm").hidden = true;
   $("lbCapEdit").hidden = !mine;
   $("lbCapEdit").textContent = p.cap ? "✏️ 改這句話" : "✏️ 寫一句話";
@@ -1306,8 +1311,10 @@ $("lbShare").onclick = async () => {
   try {
     const f = await lbFile();
     if (!f) return;
-    const [, m, d] = f.p.date.split("-").map(Number),
-      text = `${m}/${d} ${f.p.by}${f.p.cap ? "：「" + f.p.cap + "」" : ""}`;
+    const [, m, d] = String(f.p.date || "")
+        .split("-")
+        .map(Number),
+      text = `${m && d ? `${m}/${d} ` : ""}${f.p.by}${f.p.cap ? "：「" + f.p.cap + "」" : ""}`;
     const data = { files: [f.file], title: "我們的戀愛遊戲基地", text };
     await navigator.share(navigator.canShare(data) ? data : { files: [f.file] });
   } catch (e) {
@@ -2206,7 +2213,12 @@ function toggleWish(id) {
   updDoc("wishes", id, { done: on, doneDate: on ? key(today()) : null });
   if (on) {
     toast("願望達成 🌠");
-    notifyPartner("🌠 願望達成！", `${myName()}完成了願望：「${w.text.slice(0, 26)}」`, "#wishes", "wish-done-" + id);
+    notifyPartner(
+      "🌠 願望達成！",
+      `${myName()}完成了願望：「${String(w.text || "").slice(0, 26)}」`,
+      "#wishes",
+      "wish-done-" + id,
+    );
   }
 }
 bindForm(
@@ -6196,6 +6208,12 @@ if ("serviceWorker" in navigator) {
 // 收合中的區塊不重畫，展開時且資料有變動才更新；同一幀內的多次重畫自動合併成一次
 let renderVer = 1;
 const renderedVer = {};
+// 單一區塊出錯時不影響其他頁面與功能繼續正常運作
+function safeRun(fn) {
+  try {
+    fn();
+  } catch (e) {}
+}
 function renderOpen() {
   const open = (id) => $(id).classList.contains("open");
   const needRender = (id) => {
@@ -6205,33 +6223,33 @@ function renderOpen() {
   };
   if ((open("today") || open("ladder") || open("tools")) && renderedVer._hud !== renderVer) {
     renderedVer._hud = renderVer;
-    renderHUD();
+    safeRun(renderHUD);
   }
   if (needRender("today")) {
-    renderStreak();
-    renderToday();
+    safeRun(renderStreak);
+    safeRun(renderToday);
   }
   if (needRender("quests")) {
-    renderQuests();
-    renderDiaryToday();
-    growAll();
+    safeRun(renderQuests);
+    safeRun(renderDiaryToday);
+    safeRun(growAll);
   }
-  if (needRender("photos")) renderWall();
+  if (needRender("photos")) safeRun(renderWall);
   if (needRender("calendar")) {
-    renderCalendar();
-    if ($("diaryMore").open) renderEntries();
+    safeRun(renderCalendar);
+    if ($("diaryMore").open) safeRun(renderEntries);
   }
-  if (needRender("wishes")) renderWishes();
+  if (needRender("wishes")) safeRun(renderWishes);
   if (needRender("draw")) {
-    renderDraw();
-    renderCustom();
+    safeRun(renderDraw);
+    safeRun(renderCustom);
   }
-  if (needRender("memories")) renderMemories();
+  if (needRender("memories")) safeRun(renderMemories);
   if (needRender("tools")) {
-    renderTrash();
-    renderPush();
+    safeRun(renderTrash);
+    safeRun(renderPush);
   }
-  if (needRender("book")) renderBook();
+  if (needRender("book")) safeRun(renderBook);
 }
 let renderRaf = 0;
 function renderAll() {
@@ -6409,6 +6427,14 @@ $("logout").onclick = () => {
     const i = arr.findIndex((x) => x.id === id);
     if (i >= 0) arr.splice(i, 1);
   };
+  const parseXId = (docId) => {
+    if (!docId || !docId.startsWith("x~")) return null;
+    const p = docId.indexOf("~", 2);
+    if (p < 0) return null;
+    const c = docId.slice(2, p),
+      id = docId.slice(p + 1);
+    return c && id && store[c] ? [c, id] : null;
+  };
   const isIncremental = (hadSnap, s, changes) =>
     hadSnap && Array.isArray(changes) && (changes.length < s.docs.length || changes.some((ch) => ch.type !== "added"));
   let hasSnap = { done: false, diary: false };
@@ -6427,10 +6453,10 @@ $("logout").onclick = () => {
       }
       if (isIncremental(hasSnap.done, s, changes)) {
         changes.forEach((ch) => {
-          const d = ch.doc;
-          if (!d.id.startsWith("x~")) return;
-          const [, c, id] = d.id.split("~");
-          if (!store[c]) return;
+          const d = ch.doc,
+            parsed = parseXId(d.id);
+          if (!parsed) return;
+          const [c, id] = parsed;
           if (ch.type === "removed") {
             removeById(store[c], id);
             if (trash[c]) removeById(trash[c], id);
@@ -6449,10 +6475,10 @@ $("logout").onclick = () => {
         Object.keys(store).forEach((c) => (store[c] = []));
         ["wishes", "capsules", "custom"].forEach((c) => (trash[c] = []));
         s.docs.forEach((d) => {
-          if (!d.id.startsWith("x~")) return;
-          const [, c, id] = d.id.split("~");
-          const v = d.data();
-          if (!store[c]) return;
+          const parsed = parseXId(d.id);
+          if (!parsed) return;
+          const [c, id] = parsed,
+            v = d.data();
           if (v.trashed) {
             if (trash[c]) trash[c].push({ id, ...v });
           } else store[c].push({ id, ...v });
