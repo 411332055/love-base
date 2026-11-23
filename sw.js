@@ -1,7 +1,17 @@
-// 讓網站沒網路也打得開：網頁永遠先拿最新版，拿不到才用存下來的
-const CACHE = "love-base-v110";
+// 讓網站沒網路也打得開：帶版本號的程式和樣式直接用快取秒開，網頁本體優先拿新版、超過 1 秒改用快取
+const CACHE = "love-base-v111";
+const VER = CACHE.split("-").pop().slice(1);
 const BADGE_ICON = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAC90lEQVR42u2d4W30IAyGOwIjZISMkBEyQkbICNmgIzBCRsgIGSEjMILbU/lxul5ajrMNJq8lS590Uj/yPgQMBPuDiD7g5RwiAAAAaHhHROP3vxciWoloe+K33yYi6gXb0cf/Yzlpwxp/G2ObTQNwRDQT0U6v20FEnogGhnYM8W8dGe3Y4zM4SwBc7EWBeOyIvfbVdkyZoj+zEJ/J1Q5gZBQ+FwSn8M9AjLUC8KRj20lPdPE3DfM1AdB88Pue2D9MrkG5DRvHkMQBQFv8RwglxL+HUBSAp7K2Z0ZZ1QxH7064sB8btQG4gq99jRZy5wOrQ0+N5rUAdND61DoNAOj9jG9BDgCM/X/PBaIAEPkwR0QYfgoPQ68COKBv0qahCAAHbZPNSQAYoGuyDRIAJuiabJMEgAW6JtsCAAAAAAAAAAAAAA0BmKFrss1YiDW4EMNBTLp1UptxsDQT2w3doO2/tkkCQCTEGAHlAMBEzDgB40yY34LGofwKnU9t1QCAc4Fzm7S+jMMwxDD84NNEXvOaALAqfmP1y/V5OhZlmYsvLgBYE2TG/pw3ZPAWvHlNieMSNHp/4Ut6V46IfA23JLuLrgsCRz4JrkvaV9wlXaiym/L7hcTfa0xV0F8IQF8jgKt8OTFzaiaRrqbl7eqVWy+pfEEt3qQ5LOQLKpm9RDrkFEmlJpmyrKUblaOUTtJJ6Vo4PZskNdLImGg5Mpql9dFKW2lxv8hraKOZpNRD/PKZcy3sGS2ampRI1ztddcKtKXf0VNk6IZQQv3Ty7loWa0E4X3XV2dNd4W3sXTIvtKX09b7lSMdK/QCteaHYeG+hgEMnPCTtWnUBrFfQWKzH9y2UMBmYzhUOpkIQl6whc4tQPt8Q/7N0lNNKEZ9X34aqe73VKkouMVz1tfd662WszsqkBMmTKwD4vY2xP4SXvcVnsVwEzd0VcHBWn8N6Jbreas9HKUMAgAMAAMAhAgAAABwAAAAOAAAABwAAgAMAAMABAADgAAAAcAX/AvfzHzAnP3JsAAAAAElFTkSuQmCC";
-const SHELL = ["./", "./style.css", "./app.js", "./questions.json", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
+const SHELL = [
+  "./",
+  `./style.css?v=${VER}`,
+  `./app.js?v=${VER}`,
+  "./questions.json",
+  `./manifest.webmanifest?v=${VER}`,
+  `./icon-192.png?v=${VER}`,
+  `./icon-512.png?v=${VER}`,
+  `./apple-touch-icon.png?v=${VER}`
+];
 const LIBS = [
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"
@@ -27,6 +37,22 @@ self.addEventListener("fetch", ev => {
   if (ev.request.method !== "GET") return;
   const url = new URL(ev.request.url);
   if (url.origin === self.location.origin) {
+    // 帶 ?v= 版本號的檔案內容不會變，直接命中快取秒開，免等網路
+    if (url.searchParams.has("v")) {
+      ev.respondWith((async () => {
+        const c = await caches.open(CACHE);
+        const hit = await c.match(ev.request);
+        if (hit) return hit;
+        try {
+          const res = await fetch(ev.request);
+          if (res.ok) c.put(ev.request, res.clone());
+          return res;
+        } catch (e) {
+          return (await c.match(ev.request, { ignoreSearch: true })) || Response.error();
+        }
+      })());
+      return;
+    }
     ev.respondWith((async () => {
       const c = await caches.open(CACHE);
       const net = fetch(ev.request).then((res) => {
@@ -34,9 +60,8 @@ self.addEventListener("fetch", ev => {
         return res;
       });
       ev.waitUntil(net.catch(() => {}));
-      // 網路太慢（超過 3 秒）時先用存下來的同一個版本打開，背景照樣抓最新版存起來。
-      // 這裡不忽略網址的 ?v=，避免新版畫面配到舊版程式
-      const slow = new Promise((r) => setTimeout(r, 3000)).then(() => c.match(ev.request));
+      // 網路超過 1 秒沒回應就先用手機快取打開，背景照樣抓最新版存起來
+      const slow = new Promise((r) => setTimeout(r, 1000)).then(() => c.match(ev.request));
       try {
         const res = await Promise.race([net, slow.then((hit) => hit || net)]);
         if (res) return res;
