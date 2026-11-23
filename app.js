@@ -220,6 +220,28 @@ function fromKey(k) {
 const byAt = (a, b) => String(a.at).localeCompare(String(b.at));
 const nameOf = (n) => (n ? n + (n === myName() ? "（我）" : "") : "未署名");
 const nowIso = () => new Date().toISOString();
+const debounce = (fn, ms = 120) => {
+  let t = 0;
+  return () => {
+    clearTimeout(t);
+    t = setTimeout(fn, ms);
+  };
+};
+let busyOps = 0;
+function withBusy(fn) {
+  busyOps++;
+  return Promise.resolve()
+    .then(fn)
+    .finally(() => {
+      busyOps = Math.max(0, busyOps - 1);
+    });
+}
+window.addEventListener("beforeunload", (ev) => {
+  if (busyOps > 0) {
+    ev.preventDefault();
+    ev.returnValue = "";
+  }
+});
 // 離線或學校弱網時，寫入已先進本機 IndexedDB 佇列；最多等 2.5 秒就先放行畫面，背景繼續同步
 const commit = (p) => {
   if (!navigator.onLine) {
@@ -963,6 +985,8 @@ function openPhoto(id, list) {
   $("lbCapForm").hidden = true;
   $("lbCapEdit").hidden = !mine;
   $("lbCapEdit").textContent = p.cap ? "✏️ 改這句話" : "✏️ 寫一句話";
+  const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(String(p.date || ""));
+  $("lbDay").hidden = !hasDate || (view === "calendar" && calDay === p.date);
   const del = $("lbDel");
   del.hidden = !mine;
   delete del.dataset.confirm;
@@ -1267,6 +1291,14 @@ $("lbCapEdit").onclick = () => {
   const t = $("lbCapText");
   t.value = p.cap || "";
   t.focus();
+};
+$("lbDay").onclick = () => {
+  const p = calAllPhotos().find((x) => x.id === lbId);
+  if (!p || !/^\d{4}-\d{2}-\d{2}$/.test(String(p.date || ""))) return;
+  const d = p.date;
+  closePhoto();
+  openFor("calendar:" + d);
+  history.replaceState(null, "", "#calendar:" + d);
 };
 $("lbCapClose").onclick = () => {
   $("lbCapForm").hidden = true;
@@ -1802,7 +1834,7 @@ $("diaryForm").addEventListener("submit", async (ev) => {
     notifyPartner(
       "💌 新日記",
       `${myName()}寫了一篇新日記${preview ? `：「${preview}」` : ""}`,
-      e.date === key(today()) ? "#quests" : "#calendar",
+      e.date === key(today()) ? "#quests" : "#calendar:" + e.date,
       "diary-" + e.date,
     );
   } catch (err) {
@@ -2508,9 +2540,12 @@ function renderMonth() {
       funny.map((e) => `<p>🤪 ${esc(e.date)}：${esc(e.funny)}</p>`).join("") || '<p class="sub">這個月還沒有日記。</p>';
 }
 $("mPick").onchange = renderMonth;
-window.addEventListener("resize", () => {
-  if ($("memories").classList.contains("open")) renderChart();
-});
+window.addEventListener(
+  "resize",
+  debounce(() => {
+    if ($("memories").classList.contains("open")) renderChart();
+  }, 180),
+);
 function renderReviewsPast() {
   const days = [...new Set(store.reviews.map((r) => r.date))].sort().reverse();
   $("reviewN").textContent = `${days.length} 週`;
@@ -3070,27 +3105,29 @@ async function exportBackup(full) {
   }
   $("bkText").disabled = $("bkFull").disabled = true;
   bkMsg("整理資料中…");
-  try {
-    const data = {};
-    for (const c of BK_COLLS) {
-      if (c === "pics" && !full) continue;
-      const s = await db.collection(c).get();
-      data[c] = {};
-      s.docs.forEach((d) => (data[c][d.id] = d.data()));
-    }
-    saveFile(
-      `戀愛基地備份_${key(today())}${full ? "_完整" : ""}.html`,
-      backupHtml({ app: "love-base", version: 2, exportedAt: nowIso(), full, data }),
-    );
-    lsSet(BK_KEY, key(today()));
+  await withBusy(async () => {
     try {
-      await addDoc("backups", { full, by: myName(), at: nowIso() });
-    } catch (e) {}
-    showLastBackup();
-    toast("備份下載好了 💾");
-  } catch (e) {
-    bkMsg("備份失敗，請確認網路後再試一次。");
-  }
+      const data = {};
+      for (const c of BK_COLLS) {
+        if (c === "pics" && !full) continue;
+        const s = await db.collection(c).get();
+        data[c] = {};
+        s.docs.forEach((d) => (data[c][d.id] = d.data()));
+      }
+      saveFile(
+        `戀愛基地備份_${key(today())}${full ? "_完整" : ""}.html`,
+        backupHtml({ app: "love-base", version: 2, exportedAt: nowIso(), full, data }),
+      );
+      lsSet(BK_KEY, key(today()));
+      try {
+        await addDoc("backups", { full, by: myName(), at: nowIso() });
+      } catch (e) {}
+      showLastBackup();
+      toast("備份下載好了 💾");
+    } catch (e) {
+      bkMsg("備份失敗，請確認網路後再試一次。");
+    }
+  });
   $("bkText").disabled = $("bkFull").disabled = false;
 }
 async function prepRestore(text) {
@@ -3142,17 +3179,19 @@ async function applyRestore() {
   const list = bkPending;
   let ok = 0;
   $("bkConfirm").disabled = true;
-  try {
-    for (const [c, id, v] of list) {
-      await db.collection(c).doc(id).set(v);
-      ok++;
-      bkMsg(`補回中… ${ok} / ${list.length}`);
+  await withBusy(async () => {
+    try {
+      for (const [c, id, v] of list) {
+        await db.collection(c).doc(id).set(v);
+        ok++;
+        bkMsg(`補回中… ${ok} / ${list.length}`);
+      }
+      bkMsg(`補回完成，共 ${ok} 筆。`);
+      toast("資料補回來了 💾");
+    } catch (e) {
+      bkMsg(`補到第 ${ok} 筆時失敗了，請確認網路後再選一次備份檔。`);
     }
-    bkMsg(`補回完成，共 ${ok} 筆。`);
-    toast("資料補回來了 💾");
-  } catch (e) {
-    bkMsg(`補到第 ${ok} 筆時失敗了，請確認網路後再選一次備份檔。`);
-  }
+  });
   bkPending = [];
   $("bkConfirm").hidden = true;
   $("bkConfirm").disabled = false;
@@ -3254,51 +3293,53 @@ $("zipGo").onclick = async () => {
   }
   $("zipGo").disabled = true;
   zipMsg("找照片中…");
-  try {
-    const s = await db
-      .collection("photos")
-      .where("date", ">=", m + "-01")
-      .where("date", "<=", m + "-31")
-      .get();
-    const list = s.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((p) => !p.trashed)
-      .sort((a, b) => (a.date + (a.at || "")).localeCompare(b.date + (b.at || "")));
-    if (!list.length) {
-      zipMsg("這個月還沒有照片。");
-    } else {
-      const files = [],
-        seq = {};
-      let miss = 0;
-      for (const p of list) {
-        let img = picCache.get(p.id);
-        if (!img) {
-          const doc = await db.collection("pics").doc(p.id).get();
-          img = doc.exists ? doc.data()?.img : "";
+  await withBusy(async () => {
+    try {
+      const s = await db
+        .collection("photos")
+        .where("date", ">=", m + "-01")
+        .where("date", "<=", m + "-31")
+        .get();
+      const list = s.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((p) => !p.trashed)
+        .sort((a, b) => (a.date + (a.at || "")).localeCompare(b.date + (b.at || "")));
+      if (!list.length) {
+        zipMsg("這個月還沒有照片。");
+      } else {
+        const files = [],
+          seq = {};
+        let miss = 0;
+        for (const p of list) {
+          let img = picCache.get(p.id);
+          if (!img) {
+            const doc = await db.collection("pics").doc(p.id).get();
+            img = doc.exists ? doc.data()?.img : "";
+          }
+          img = img || p.th;
+          if (!img) {
+            miss++;
+            continue;
+          }
+          const k = p.date + "_" + (p.by || "照片");
+          seq[k] = (seq[k] || 0) + 1;
+          const ext = /^data:image\/png/.test(img) ? "png" : "jpg";
+          files.push({ name: `${k}_${seq[k]}.${ext}`, date: p.date, data: dataUrlBytes(img) });
+          zipMsg(`打包中… ${files.length} / ${list.length}`);
         }
-        img = img || p.th;
-        if (!img) {
-          miss++;
-          continue;
-        }
-        const k = p.date + "_" + (p.by || "照片");
-        seq[k] = (seq[k] || 0) + 1;
-        const ext = /^data:image\/png/.test(img) ? "png" : "jpg";
-        files.push({ name: `${k}_${seq[k]}.${ext}`, date: p.date, data: dataUrlBytes(img) });
-        zipMsg(`打包中… ${files.length} / ${list.length}`);
+        const blob = makeZip(files);
+        downloadBlob(`戀愛基地照片_${m}.zip`, blob);
+        zipMsg(
+          `下載好了：${files.length} 張，約 ${(blob.size / 1048576).toFixed(1)} MB。` +
+            (miss ? `有 ${miss} 張讀不到原圖。` : "") +
+            "解壓縮後就是一張張的照片，可以直接傳到 Google 相簿或雲端。",
+        );
+        toast("照片打包好了 📦");
       }
-      const blob = makeZip(files);
-      downloadBlob(`戀愛基地照片_${m}.zip`, blob);
-      zipMsg(
-        `下載好了：${files.length} 張，約 ${(blob.size / 1048576).toFixed(1)} MB。` +
-          (miss ? `有 ${miss} 張讀不到原圖。` : "") +
-          "解壓縮後就是一張張的照片，可以直接傳到 Google 相簿或雲端。",
-      );
-      toast("照片打包好了 📦");
+    } catch (e) {
+      zipMsg("下載失敗，請確認網路後再試一次。");
     }
-  } catch (e) {
-    zipMsg("下載失敗，請確認網路後再試一次。");
-  }
+  });
   $("zipGo").disabled = false;
 };
 $("bkPick").onclick = () => {
@@ -3993,6 +4034,16 @@ function setView(id) {
   renderOpen();
 }
 function openFor(id, noScroll) {
+  let calTarget = "";
+  if (typeof id === "string" && id.startsWith("calendar:")) {
+    const d = id.slice(9);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      calTarget = d;
+      calMonth = d.slice(0, 7);
+      calDay = d;
+    }
+    id = "calendar";
+  }
   const el = $(id),
     sec = el && el.closest("section");
   if (!sec) {
@@ -4001,6 +4052,7 @@ function openFor(id, noScroll) {
     return;
   }
   setView(sec.id);
+  if (calTarget && view === "calendar") renderCalendar();
   for (let d = el.closest("details"); d; d = d.parentElement?.closest("details")) d.open = true;
   if (noScroll) return;
   if (el === sec) scrollTo(0, 0);
@@ -4581,6 +4633,7 @@ function closeReply() {
   replyFormEl.hidden = true;
   document.body.append(replyFormEl);
 }
+$("replyClose").onclick = closeReply;
 function attachReply(where) {
   if (!replyTo || replyTo.where !== where) return;
   const slot = document.querySelector(`[data-replyslot="${where}:${replyTo.entry}"]`);
@@ -4620,7 +4673,8 @@ document.addEventListener("click", (ev) => {
       dropReply(hit.id);
     } else {
       popFloat(rc, text);
-      const target = entries.find((e) => e.id === entry)?.date === key(today()) ? "#quests" : "#diaryMore";
+      const eDate = entries.find((e) => e.id === entry)?.date;
+      const target = !eDate || eDate === key(today()) ? "#quests" : "#calendar:" + eDate;
       addDoc("replies", { entry, kind: "emo", text, by: me, at: nowIso() })
         .then(() => notifyPartner("💗 日記貼圖", `${me}對日記按了 ${text}`, target, "react-" + entry))
         .catch(() => toast(NOSAVE));
@@ -4691,7 +4745,8 @@ bindForm(
   () => {
     const txt = replyTextEl.value.trim(),
       eid = replyTo ? replyTo.entry : "",
-      target = entries.find((e) => e.id === eid)?.date === key(today()) ? "#quests" : "#diaryMore";
+      eDate = entries.find((e) => e.id === eid)?.date,
+      target = !eDate || eDate === key(today()) ? "#quests" : "#calendar:" + eDate;
     replyTextEl.value = "";
     closeReply();
     toast("回應送出了 💬");
@@ -5311,25 +5366,27 @@ $("picPack").onclick = async () => {
   b.disabled = true;
   let ok = 0,
     saved = 0;
-  try {
-    for (const id of packList) {
-      const snap = await db.collection("pics").doc(id).get(),
-        img = snap.data()?.img;
-      if (img) {
-        const out = await shrinkFull(await loadSrc(img));
-        if (out.length < img.length) {
-          await db.collection("pics").doc(id).update({ img: out });
-          saved += img.length - out.length;
+  await withBusy(async () => {
+    try {
+      for (const id of packList) {
+        const snap = await db.collection("pics").doc(id).get(),
+          img = snap.data()?.img;
+        if (img) {
+          const out = await shrinkFull(await loadSrc(img));
+          if (out.length < img.length) {
+            await db.collection("pics").doc(id).update({ img: out });
+            saved += img.length - out.length;
+          }
         }
+        ok++;
+        picMsg(`壓縮中… ${ok} / ${packList.length}`);
       }
-      ok++;
-      picMsg(`壓縮中… ${ok} / ${packList.length}`);
+      picMsg(`完成，省下約 ${(saved / 1048576).toFixed(1)} MB。`);
+      toast("照片壓縮好了 🗜️");
+    } catch (e) {
+      picMsg(`壓到第 ${ok} 張時失敗了，已完成的不受影響，可以重新檢查後再壓一次。`);
     }
-    picMsg(`完成，省下約 ${(saved / 1048576).toFixed(1)} MB。`);
-    toast("照片壓縮好了 🗜️");
-  } catch (e) {
-    picMsg(`壓到第 ${ok} 張時失敗了，已完成的不受影響，可以重新檢查後再壓一次。`);
-  }
+  });
   b.disabled = false;
   b.hidden = true;
   packList = [];
@@ -5367,28 +5424,32 @@ $("moveRoomBtn").onclick = async () => {
   delete b.dataset.confirm;
   b.disabled = $("newRoomCode").disabled = true;
   moveMsg("讀取目前基地資料中…");
-  let copied = 0;
-  try {
-    const targetDb = firebase.firestore().collection("rooms").doc(code);
-    const docs = [];
-    for (const c of BK_COLLS) {
-      const s = await db.collection(c).get();
-      s.docs.forEach((d) => docs.push([c, d.id, d.data()]));
+  let copied = 0,
+    moved = false;
+  await withBusy(async () => {
+    try {
+      const targetDb = firebase.firestore().collection("rooms").doc(code);
+      const docs = [];
+      for (const c of BK_COLLS) {
+        const s = await db.collection(c).get();
+        s.docs.forEach((d) => docs.push([c, d.id, d.data()]));
+      }
+      for (const [c, id, data] of docs) {
+        await targetDb.collection(c).doc(id).set(data);
+        copied++;
+        moveMsg(`正在搬移資料… ${copied} / ${docs.length}`);
+      }
+      lsSet(ROOM_KEY, code);
+      moved = true;
+      moveMsg(`搬家完成！共複製 ${copied} 筆資料，正在切換到新暗號…（記得請對方也換成新暗號）`);
+      toast("換好新暗號了 🔐 記得告訴對方！");
+    } catch (e) {
+      moveMsg(`搬到第 ${copied} 筆時網路中斷，原本的資料都安全無損，請確認網路後再試一次。`);
+      b.textContent = "搬家到新暗號";
+      b.disabled = $("newRoomCode").disabled = false;
     }
-    for (const [c, id, data] of docs) {
-      await targetDb.collection(c).doc(id).set(data);
-      copied++;
-      moveMsg(`正在搬移資料… ${copied} / ${docs.length}`);
-    }
-    lsSet(ROOM_KEY, code);
-    moveMsg(`搬家完成！共複製 ${copied} 筆資料，正在切換到新暗號…（記得請對方也換成新暗號）`);
-    toast("換好新暗號了 🔐 記得告訴對方！");
-    setTimeout(() => location.reload(), 1200);
-  } catch (e) {
-    moveMsg(`搬到第 ${copied} 筆時網路中斷，原本的資料都安全無損，請確認網路後再試一次。`);
-    b.textContent = "搬家到新暗號";
-    b.disabled = $("newRoomCode").disabled = false;
-  }
+  });
+  if (moved) setTimeout(() => location.reload(), 1200);
 };
 
 // 回憶書：每月總結與年度總結（年度從 11/4 起算，每滿一年是一冊）
@@ -6349,13 +6410,6 @@ function loadLocal() {
   }
 }
 
-const debounce = (fn, ms = 120) => {
-  let t = 0;
-  return () => {
-    clearTimeout(t);
-    t = setTimeout(fn, ms);
-  };
-};
 $("dSearch").addEventListener("input", debounce(renderEntries));
 $("wSearch").addEventListener("input", debounce(renderWishes));
 $("lSearch").addEventListener("input", debounce(renderLog));
