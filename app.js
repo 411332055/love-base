@@ -3750,9 +3750,11 @@ function syncFilterBar(el) {
     });
   });
 })();
+// 在頁面中間左右滑動切換頁面：滑得夠遠，或是短而快的一撥都算
 (() => {
   let sx = null,
-    sy = 0;
+    sy = 0,
+    st = 0;
   document.addEventListener(
     "touchstart",
     (ev) => {
@@ -3766,6 +3768,7 @@ function syncFilterBar(el) {
       }
       sx = ev.touches[0].clientX;
       sy = ev.touches[0].clientY;
+      st = Date.now();
     },
     { passive: true },
   );
@@ -3776,7 +3779,9 @@ function syncFilterBar(el) {
       const dx = ev.changedTouches[0].clientX - sx,
         dy = ev.changedTouches[0].clientY - sy;
       sx = null;
-      if (Math.abs(dx) < 65 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+      const ax = Math.abs(dx),
+        fast = ax >= 30 && ax / Math.max(1, Date.now() - st) > 0.3;
+      if ((ax < 50 && !fast) || ax < Math.abs(dy) * 1.2) return;
       const vis = CATS.filter((c) => catSecs(c).length),
         cur = CATS.find((c) => c.secs.includes(view)),
         next = vis[vis.indexOf(cur) + (dx < 0 ? 1 : -1)];
