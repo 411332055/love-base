@@ -111,16 +111,27 @@ const HAPTIC_KEY = "love-base-haptic",
   HAPTIC_LV_KEY = "love-base-haptic-level";
 // 震動強度：網頁只能控制震多久，所以「強」就是震久一點（Android 才有效，iPhone 固定一種強度）
 const HAPTIC_LV = { light: [1, 20], mid: [2, 40], strong: [3.5, 70] };
-let hapticLv = "mid";
-try {
-  const v = localStorage.getItem(HAPTIC_LV_KEY);
-  if (HAPTIC_LV[v]) hapticLv = v;
-} catch (e) {}
-let hapticOn = true,
+// 手機上記住的設定（localStorage）。無痕模式或關掉儲存時會出錯，統一在這裡接住。
+function lsGet(k) {
+  try {
+    return localStorage.getItem(k) || "";
+  } catch (e) {
+    return "";
+  }
+}
+function lsSet(k, v) {
+  try {
+    localStorage.setItem(k, v);
+  } catch (e) {}
+}
+function lsDel(k) {
+  try {
+    localStorage.removeItem(k);
+  } catch (e) {}
+}
+let hapticLv = HAPTIC_LV[lsGet(HAPTIC_LV_KEY)] ? lsGet(HAPTIC_LV_KEY) : "mid";
+let hapticOn = lsGet(HAPTIC_KEY) !== "off",
   booted = false;
-try {
-  if (localStorage.getItem(HAPTIC_KEY) === "off") hapticOn = false;
-} catch (e) {}
 // 震動回饋：Android 用 navigator.vibrate；iPhone 的 Safari 不支援它，
 // 改用 iOS 18 起的開關元件：點一下 <input type="checkbox" switch> 會有系統的輕觸震動
 // （只有在手指點擊、滑動放開這類操作當下才會震，iOS 17 以前沒有效果）
@@ -1040,13 +1051,7 @@ $("lbSave").onclick = async () => {
   try {
     const f = await lbFile();
     if (!f) return;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(f.blob);
-    a.download = f.name;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    downloadBlob(f.name, f.blob);
     toast("下載好了 ⬇️");
   } catch (e) {
     toast("下載不了，可以長按照片再選「儲存」");
@@ -1131,11 +1136,7 @@ const NAME_KEY = "love-base-name",
   NAMES = ["寒冰", "夏夏"],
   NAME_IC = { 寒冰: "🧊", 夏夏: "🍃" };
 function myName() {
-  try {
-    return localStorage.getItem(NAME_KEY) || "";
-  } catch (e) {
-    return "";
-  }
+  return lsGet(NAME_KEY);
 }
 let who = "all";
 function byChip(n) {
@@ -2658,21 +2659,22 @@ ${part("wall", "照片", wall.length ? `<div class="grid">${wall.map((p) => `<fi
 </main>${BK_TAG}${json}<${"/"}script></body></html>`
   );
 }
-function saveFile(name, text) {
+// 讓瀏覽器下載一個檔案（備份、照片、照片壓縮檔都用這個）
+function downloadBlob(name, blob) {
   const a = document.createElement("a"),
-    url = URL.createObjectURL(new Blob([text], { type: "text/html;charset=utf-8" }));
+    url = URL.createObjectURL(blob);
   a.href = url;
   a.download = name;
   document.body.append(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+function saveFile(name, text) {
+  downloadBlob(name, new Blob([text], { type: "text/html;charset=utf-8" }));
 }
 function showLastBackup() {
-  let v = "";
-  try {
-    v = localStorage.getItem(BK_KEY) || "";
-  } catch (e) {}
+  let v = lsGet(BK_KEY);
   bkMsg(v ? `這台裝置上次備份：${v}` : "這台裝置還沒備份過。");
 }
 async function exportBackup(full) {
@@ -2694,9 +2696,7 @@ async function exportBackup(full) {
       `戀愛基地備份_${key(today())}${full ? "_完整" : ""}.html`,
       backupHtml({ app: "love-base", version: 2, exportedAt: nowIso(), full, data }),
     );
-    try {
-      localStorage.setItem(BK_KEY, key(today()));
-    } catch (e) {}
+    lsSet(BK_KEY, key(today()));
     try {
       await addDoc("backups", { full, by: myName(), at: nowIso() });
     } catch (e) {}
@@ -2901,15 +2901,8 @@ $("zipGo").onclick = async () => {
         files.push({ name: `${k}_${seq[k]}.${ext}`, date: p.date, data: dataUrlBytes(img) });
         zipMsg(`打包中… ${files.length} / ${list.length}`);
       }
-      const blob = makeZip(files),
-        a = document.createElement("a"),
-        url = URL.createObjectURL(blob);
-      a.href = url;
-      a.download = `戀愛基地照片_${m}.zip`;
-      document.body.append(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      const blob = makeZip(files);
+      downloadBlob(`戀愛基地照片_${m}.zip`, blob);
       zipMsg(
         `下載好了：${files.length} 張，約 ${(blob.size / 1048576).toFixed(1)} MB。` +
           (miss ? `有 ${miss} 張讀不到原圖。` : "") +
@@ -3126,10 +3119,7 @@ function setSide(v, save) {
   b.textContent = open ? "«" : "»";
   b.setAttribute("aria-expanded", open);
   b.setAttribute("aria-label", open ? "縮小選單" : "展開選單");
-  if (save)
-    try {
-      localStorage.setItem(SIDE_KEY, v);
-    } catch (e) {}
+  if (save) lsSet(SIDE_KEY, v);
 }
 setSide(document.documentElement.dataset.side === "mini" ? "mini" : "open");
 $("sideToggle").onclick = () => setSide(document.documentElement.dataset.side === "open" ? "mini" : "open", true);
@@ -3141,14 +3131,11 @@ function saveDraft() {
   const d = { date: $("dDate").value, happy };
   for (const [el, f] of Object.entries(FIELDS)) d[f] = $(el).value;
   const has = d.happy || Object.values(FIELDS).some((f) => d[f].trim());
-  try {
-    has ? localStorage.setItem(DRAFT_KEY, JSON.stringify(d)) : localStorage.removeItem(DRAFT_KEY);
-  } catch (e) {}
+  if (has) lsSet(DRAFT_KEY, JSON.stringify(d));
+  else lsDel(DRAFT_KEY);
 }
 function clearDraft() {
-  try {
-    localStorage.removeItem(DRAFT_KEY);
-  } catch (e) {}
+  lsDel(DRAFT_KEY);
   $("dDraftClear").hidden = true;
 }
 function restoreDraft() {
@@ -3178,15 +3165,10 @@ $("dDraftClear").onclick = () => {
 const SEEN_KEY = "love-base-seen";
 let seenMs = 0;
 function initSeen() {
-  let v = "";
-  try {
-    v = localStorage.getItem(SEEN_KEY) || "";
-  } catch (e) {}
+  let v = lsGet(SEEN_KEY);
   if (!v) {
     v = nowIso();
-    try {
-      localStorage.setItem(SEEN_KEY, v);
-    } catch (e) {}
+    lsSet(SEEN_KEY, v);
   }
   seenMs = new Date(v).getTime();
 }
@@ -3253,9 +3235,7 @@ function renderAway() {
   $("awayOk").onclick = () => {
     const v = nowIso();
     seenMs = new Date(v).getTime();
-    try {
-      localStorage.setItem(SEEN_KEY, v);
-    } catch (e) {}
+    lsSet(SEEN_KEY, v);
     renderAway();
   };
 }
@@ -3504,17 +3484,13 @@ function renderLayoutList() {
   );
 }
 function commitLayout() {
-  try {
-    localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
-  } catch (e) {}
+  lsSet(LAYOUT_KEY, JSON.stringify(layout));
   applyLayout();
   renderLayoutList();
   renderAll();
 }
 $("layoutReset").onclick = () => {
-  try {
-    localStorage.removeItem(LAYOUT_KEY);
-  } catch (e) {}
+  lsDel(LAYOUT_KEY);
   layout = loadLayout();
   applyLayout();
   renderLayoutList();
@@ -3528,9 +3504,7 @@ function bindSeg(id, store_, get, apply) {
     (b) =>
       (b.onclick = () => {
         apply(b.dataset.v);
-        try {
-          localStorage.setItem(store_, b.dataset.v);
-        } catch (e) {}
+        lsSet(store_, b.dataset.v);
         paint();
         renderChart();
       }),
@@ -3988,10 +3962,7 @@ function renderDiaryToday() {
     me = myName(),
     list = entries.filter((e) => e.date === tk).sort(byAt),
     mine = list.some((e) => e.by === me);
-  let draft = false;
-  try {
-    draft = !!localStorage.getItem(DRAFT_KEY);
-  } catch (e) {}
+  const draft = !!lsGet(DRAFT_KEY);
   $("diaryForm").hidden = !(!mine || diaryFormOpen || editId || draft);
   $("dNew").hidden = !mine || !!editId || draft;
   $("dNew").textContent = diaryFormOpen ? "收起" : "✏️ 再寫一篇";
@@ -4316,9 +4287,7 @@ function seenCaps() {
 }
 function markCapsSeen(ids) {
   if (!ids.length) return;
-  try {
-    localStorage.setItem(CAP_SEEN_KEY, JSON.stringify([...new Set([...seenCaps(), ...ids])]));
-  } catch (e) {}
+  lsSet(CAP_SEEN_KEY, JSON.stringify([...new Set([...seenCaps(), ...ids])]));
 }
 function renderCapNudge() {
   const tk = key(today()),
@@ -4418,16 +4387,11 @@ function renderRemind() {
   const t = today(),
     tmr = key(new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1)),
     sp = specialOf(tmr);
-  let seen = "";
-  try {
-    seen = localStorage.getItem(REMIND_SEEN) || "";
-  } catch (e) {}
+  let seen = lsGet(REMIND_SEEN);
   const [, m, d] = tmr.split("-").map(Number),
     text = sp ? `${sp.emo} 明天（${m}/${d}）是${sp.text}，記得準備一下喔` : "";
   setNudge("remindNudge", !!(sp && dataReady && seen !== tmr), text, "calendar", "看月曆", "知道了", () => {
-    try {
-      localStorage.setItem(REMIND_SEEN, tmr);
-    } catch (e) {}
+    lsSet(REMIND_SEEN, tmr);
     renderRemind();
   });
   if (!sp || !db || !dataReady || renderRemind.sent === tmr || store.remind.some((r) => r.id === tmr)) return;
@@ -4441,10 +4405,7 @@ function renderRemind() {
 // iPhone 用 Safari 直接開時收不到推播和紅點，教她加到主畫面（按「之後再說」隔 7 天）
 const IOS_SNOOZE = "love-base-ios-snooze";
 function renderIosNudge() {
-  let snooze = 0;
-  try {
-    snooze = +localStorage.getItem(IOS_SNOOZE) || 0;
-  } catch (e) {}
+  let snooze = +lsGet(IOS_SNOOZE) || 0;
   setNudge(
     "iosNudge",
     !!(isIOS && !isStandalone() && Date.now() >= snooze),
@@ -4453,9 +4414,7 @@ function renderIosNudge() {
     "看說明",
     "之後再說",
     () => {
-      try {
-        localStorage.setItem(IOS_SNOOZE, Date.now() + 7 * 864e5);
-      } catch (e) {}
+      lsSet(IOS_SNOOZE, Date.now() + 7 * 864e5);
       renderIosNudge();
     },
   );
@@ -4464,10 +4423,7 @@ function renderIosNudge() {
 const BK_SNOOZE = "love-base-backup-snooze";
 let dataReady = false;
 function renderBackupNudge() {
-  let snooze = 0;
-  try {
-    snooze = +localStorage.getItem(BK_SNOOZE) || 0;
-  } catch (e) {}
+  let snooze = +lsGet(BK_SNOOZE) || 0;
   const last = store.backups.reduce((a, b) => (String(b.at) > a ? String(b.at) : a), ""),
     days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 864e5) : null,
     started = entries.reduce((a, e) => Math.min(a, new Date(e.at).getTime() || a), Date.now()),
@@ -4486,9 +4442,7 @@ function renderBackupNudge() {
     "去備份",
     "之後再說",
     () => {
-      try {
-        localStorage.setItem(BK_SNOOZE, Date.now() + 7 * 864e5);
-      } catch (e) {}
+      lsSet(BK_SNOOZE, Date.now() + 7 * 864e5);
       renderBackupNudge();
     },
   );
@@ -4498,12 +4452,8 @@ function renderBackupNudge() {
 const PIC_SCAN_KEY = "love-base-last-pic-scan",
   PIC_SNOOZE = "love-base-pic-snooze";
 function renderPicNudge() {
-  let last = 0,
-    snooze = 0;
-  try {
-    last = +localStorage.getItem(PIC_SCAN_KEY) || 0;
-    snooze = +localStorage.getItem(PIC_SNOOZE) || 0;
-  } catch (e) {}
+  const last = +lsGet(PIC_SCAN_KEY) || 0,
+    snooze = +lsGet(PIC_SNOOZE) || 0;
   const started = photos.reduce((a, p) => Math.min(a, new Date(p.at).getTime() || a), Date.now()),
     show = !!(
       db &&
@@ -4513,9 +4463,7 @@ function renderPicNudge() {
       Date.now() >= snooze
     );
   setNudge("picNudge", show, "🗜️ 已經半年沒檢查照片空間囉", "picBox", "去檢查", "之後再說", () => {
-    try {
-      localStorage.setItem(PIC_SNOOZE, Date.now() + 14 * 864e5);
-    } catch (e) {}
+    lsSet(PIC_SNOOZE, Date.now() + 14 * 864e5);
     renderPicNudge();
   });
 }
@@ -4831,10 +4779,7 @@ async function copyText(text) {
 }
 if ($("bkAutoCopy")) {
   $("bkAutoCopy").onclick = async () => {
-    let code = "";
-    try {
-      code = localStorage.getItem(ROOM_KEY) || "";
-    } catch (e) {}
+    let code = lsGet(ROOM_KEY);
     const text = GAS_BACKUP_CODE.replace("__ROOM_CODE__", code || "把這裡換成你們的基地暗號");
     await copyText(text);
     toast(code ? "已複製（已自動帶入暗號，請勿外傳）📋" : "已複製自動備份程式碼 📋");
@@ -4873,9 +4818,7 @@ $("picScan").onclick = async () => {
       `目前有 ${s.docs.length} 張照片，約 ${(total / 1048576).toFixed(1)}` +
         ` MB，免費空間是 1024 MB。${packList.length ? "壓縮後畫質會略降，而且無法還原，建議先做完整備份。" : "都已經夠小，不用壓縮。"}`,
     );
-    try {
-      localStorage.setItem(PIC_SCAN_KEY, String(Date.now()));
-    } catch (e) {}
+    lsSet(PIC_SCAN_KEY, String(Date.now()));
     renderPicNudge();
     if (packList.length) {
       $("picPack").textContent = `壓縮 ${packList.length} 張舊照片`;
@@ -4961,9 +4904,7 @@ $("moveRoomBtn").onclick = async () => {
       copied++;
       moveMsg(`正在搬移資料… ${copied} / ${docs.length}`);
     }
-    try {
-      localStorage.setItem(ROOM_KEY, code);
-    } catch (e) {}
+    lsSet(ROOM_KEY, code);
     moveMsg(`搬家完成！共複製 ${copied} 筆資料，正在切換到新暗號…（記得請對方也換成新暗號）`);
     toast("換好新暗號了 🔐 記得告訴對方！");
     setTimeout(() => location.reload(), 1200);
@@ -5933,11 +5874,7 @@ setTimeout(() => {
 /* ===== 伺服器連線（Firebase） ===== */
 const ROOM_KEY = "love-base-room";
 function getRoom() {
-  try {
-    return localStorage.getItem(ROOM_KEY) || "";
-  } catch (e) {
-    return "";
-  }
+  return lsGet(ROOM_KEY);
 }
 function showGate(msg) {
   if ($("splash")) $("splash").hidden = true;
@@ -5988,10 +5925,8 @@ $("gateForm").addEventListener("submit", (ev) => {
 });
 $("logout").onclick = () => {
   if (!confirmTap($("logout"), "記得暗號嗎？再按一次登出", "登出", 4000)) return;
-  try {
-    localStorage.removeItem(ROOM_KEY);
-    localStorage.removeItem(NAME_KEY);
-  } catch (e) {}
+  lsDel(ROOM_KEY);
+  lsDel(NAME_KEY);
   location.reload();
 };
 

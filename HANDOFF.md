@@ -142,3 +142,10 @@
 ## 八、改動紀錄
 
 `git log` 有完整紀錄，每一筆的訊息都用中文寫了改了什麼。目前的版本號看 `sw.js` 第 2 行。
+
+## 自動測試
+
+- `tools/check.js`：語法、題庫、版本號、排版、沒有寫死暗號。
+- `tools/test/browser-test.mjs`：用 `tools/test/fake-firebase.js`（假的 Firestore，資料只在記憶體）在模擬手機上跑網站：11 頁在深色 390px、淺色 390px、淺色 360px 都不能有程式錯誤或左右超出；寫日記、許願並完成、月曆今天的格子、下載一個月的照片壓縮檔。暗號用 `test-only-123`，不會碰到真的資料。
+- 兩個都在 `.github/workflows/check.yml`，每次推送自動跑。本機要跑瀏覽器測試：`npm i --no-save playwright && npx playwright install chromium && node tools/test/browser-test.mjs`。
+- 共用小工具：`lsGet/lsSet/lsDel`（localStorage，無痕模式不會出錯）、`downloadBlob(name, blob)`（下載檔案）。

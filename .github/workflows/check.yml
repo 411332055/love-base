@@ -14,3 +14,14 @@ jobs:
         with:
           node-version: 22
       - run: node tools/check.js
+  # 在模擬手機上把網站跑一遍（假資料庫，不會碰到真的日記）
+  browser-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm i --no-save --no-package-lock playwright@1.63.0
+      - run: npx playwright install --with-deps chromium
+      - run: node tools/test/browser-test.mjs
