@@ -721,7 +721,40 @@ function loadImgTag(file) {
     im.src = url;
   });
 }
-function shrink(im, side, maxLen, q) {
+// 讓出一個畫面更新時機，避免連續處理多張照片時畫面短暫凍住（背景分頁時最多等 32ms）
+function yieldFrame() {
+  return new Promise((res) => {
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      res();
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(go);
+    setTimeout(go, 32);
+  });
+}
+// 優先用非同步 toBlob 讓瀏覽器在背景執行緒壓縮 JPEG，不支援時再退回 toDataURL
+function canvasToDataUrl(c, q) {
+  if (typeof c.toBlob !== "function") return Promise.resolve(c.toDataURL("image/jpeg", q));
+  return new Promise((res) => {
+    c.toBlob(
+      (blob) => {
+        if (!blob) {
+          res(c.toDataURL("image/jpeg", q));
+          return;
+        }
+        const r = new FileReader();
+        r.onload = () => res(typeof r.result === "string" ? r.result : c.toDataURL("image/jpeg", q));
+        r.onerror = () => res(c.toDataURL("image/jpeg", q));
+        r.readAsDataURL(blob);
+      },
+      "image/jpeg",
+      q,
+    );
+  });
+}
+async function shrink(im, side, maxLen, q) {
   const iw = im.naturalWidth || im.width,
     ih = im.naturalHeight || im.height;
   const c = document.createElement("canvas"),
@@ -734,10 +767,11 @@ function shrink(im, side, maxLen, q) {
     c.width = w;
     c.height = h;
     ctx.drawImage(im, 0, 0, w, h);
-    out = c.toDataURL("image/jpeg", q);
+    out = await canvasToDataUrl(c, q);
     if (out.length <= maxLen) break;
     if (q > 0.55) q -= 0.1;
     else side *= 0.8;
+    await yieldFrame();
   }
   c.width = c.height = 0;
   return out;
@@ -771,8 +805,9 @@ document.addEventListener("click", (ev) => {
 const newPhotoId = (date) => `${date}_${myName()}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 async function savePhoto(file, date, opt = {}) {
   const { im, url, close } = await loadImg(file);
-  const img = shrinkFull(im),
-    th = shrinkThumb(im);
+  const img = await shrinkFull(im);
+  await yieldFrame();
+  const th = await shrinkThumb(im);
   if (close) close();
   else if (url) URL.revokeObjectURL(url);
   const id = opt.id || newPhotoId(date);
@@ -5188,7 +5223,7 @@ $("picPack").onclick = async () => {
       const snap = await db.collection("pics").doc(id).get(),
         img = snap.data()?.img;
       if (img) {
-        const out = shrinkFull(await loadSrc(img));
+        const out = await shrinkFull(await loadSrc(img));
         if (out.length < img.length) {
           await db.collection("pics").doc(id).update({ img: out });
           saved += img.length - out.length;
