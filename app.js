@@ -1176,6 +1176,10 @@ $("lbCapEdit").onclick = () => {
   t.value = p.cap || "";
   t.focus();
 };
+$("lbCapClose").onclick = () => {
+  $("lbCapForm").hidden = true;
+  $("lbCapEdit").hidden = false;
+};
 $("lbCapForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const id = lbId,
@@ -1349,13 +1353,30 @@ function renderEntries() {
   const num = new Map(sorted.map((e, i) => [e.id, i + 1]));
   const me = myName();
   const q = $("dSearch").value.trim().toLowerCase();
-  const hit = (e) =>
-    !q ||
-    [e.date, e.mood, e.food, e.funny, e.say, e.s1, e.s2, e.by].some((v) =>
+  const meta = entryMetaMap();
+  const hit = (e) => {
+    if (!q) return true;
+    const rs = meta.repliesByEntry.get(e.id) || [],
+      own = meta.photosByEntry.get(e.id) || [],
+      daily = meta.firstEntryIds.has(e.id) ? meta.dailyPhotosByKey.get(e.date + "_" + e.by) || [] : [];
+    return [
+      e.date,
+      e.mood,
+      e.food,
+      e.funny,
+      e.say,
+      e.s1,
+      e.s2,
+      e.by,
+      ...rs.filter((r) => r.kind === "text").map((r) => r.text),
+      ...own.map((p) => p.cap),
+      ...daily.map((p) => p.cap),
+    ].some((v) =>
       String(v || "")
         .toLowerCase()
         .includes(q),
     );
+  };
   const shown = sorted
     .slice()
     .reverse()
@@ -1448,6 +1469,8 @@ let happy = 0,
 const FIELDS = { dMood: "mood", dFood: "food", dFunny: "funny", dSay: "say", dS1: "s1", dS2: "s2" };
 function resetDiaryFields() {
   for (const el of Object.keys(FIELDS)) $(el).value = "";
+  $("dFunny").closest("label").hidden = true;
+  $("dS1").closest(".summary").hidden = true;
   $("dDate").value = key(today());
   happy = 0;
   renderHearts();
@@ -1460,6 +1483,8 @@ function startEdit(id) {
   renderDiaryToday();
   $("dDate").value = e.date || key(today());
   for (const [el, f] of Object.entries(FIELDS)) $(el).value = e[f] || "";
+  $("dFunny").closest("label").hidden = !e.funny;
+  $("dS1").closest(".summary").hidden = !(e.s1 || e.s2);
   happy = Number(e.happy) || 0;
   renderHearts();
   growAll();
@@ -1701,12 +1726,14 @@ function turnOf(k) {
 function myTurn() {
   return !db || myName() === turnOf(key(today()));
 }
-// 畫面上顯示的題目：今天的題目；今天還沒抽的話，顯示還沒揭曉的舊題目讓大家補答
+// 畫面上顯示的題目：今天的題目；今天還沒抽的話，顯示還沒揭曉（或今天剛補答揭曉）的舊題目
 function shownRound() {
   const t = todayRound();
   if (t) return t;
   const r = curRound();
-  return r && pairOf(r.id).length < need() ? r : null;
+  if (!r) return null;
+  const ans = pairOf(r.id);
+  return ans.length < need() || ans.some((a) => dayOf(a.at) === key(today())) ? r : null;
 }
 let _pairsMap = null;
 function pairOf(id) {
@@ -1782,15 +1809,15 @@ function renderDraw() {
     c.classList.add("flip");
   }
   lastRound = r.id;
-  const d = new Date(r.at);
-  $("drawWho").hidden = false;
-  $("drawWho").textContent =
-    (r === t ? "" : "📌 還沒揭曉的題目 · ") +
-    `🎲 ${r.by ? nameOf(r.by) : "有人"} 在 ${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 抽的`;
-  const ans = pairOf(r.id),
+  const d = new Date(r.at),
+    ans = pairOf(r.id),
     mine = ans.find((a) => a.by === myName()),
     over = ans.length >= need(),
     shownAns = over ? ans : mine ? [mine] : [];
+  $("drawWho").hidden = false;
+  $("drawWho").textContent =
+    (r === t ? "" : over ? "✅ 今天剛揭曉的題目 · " : "📌 還沒揭曉的題目 · ") +
+    `🎲 ${r.by ? nameOf(r.by) : "有人"} 在 ${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 抽的`;
   if (over) ansEditing = false;
   $("ansForm").hidden = !!mine && (!ansEditing || over);
   $("ansSave").textContent = mine ? "儲存修改" : "送出答案";
@@ -2396,7 +2423,11 @@ let lastGachaKey = "";
 $("gachaBtn").onclick = () => {
   sliderTick();
   const pool = [],
-    tk = key(today());
+    tk = key(today()),
+    jumpBtn = (d) =>
+      d
+        ? `<div class="entry-acts"><div class="acts"><button type="button" class="btn ghost small" data-gachaday="${esc(d)}">📅 看這一天</button></div></div>`
+        : "";
   entries.forEach((e) => {
     const text = e.say || e.mood || e.funny || e.food || e.s1 || e.s2 || "",
       phs = entryPhotos(e.id);
@@ -2407,7 +2438,7 @@ $("gachaBtn").onclick = () => {
           `<article class="entry"><header><b>💌 ${esc(e.date)} 的日記</b>` +
           `<span>${esc(e.by || "")}${e.happy ? ` · ⭐ ${esc(e.happy)}/10` : ""}</span></header>` +
           `<dl>${diaryDl(e)}</dl>${diaryQuote(e)}` +
-          `${phs.length ? `<div class="wall-grid">${phs.map((p) => photoBtn(p, "")).join("")}</div>` : ""}</article>`,
+          `${phs.length ? `<div class="wall-grid">${phs.map((p) => photoBtn(p, "")).join("")}</div>` : ""}${jumpBtn(e.date)}</article>`,
       });
   });
   calAllPhotos().forEach((p) => {
@@ -2416,29 +2447,31 @@ $("gachaBtn").onclick = () => {
       html:
         `<article class="entry"><header><b>📷 ${esc(p.date)} 的照片</b><span>${esc(p.by || "")}</span></header>` +
         `<div class="wall-grid">${photoBtn(p, "")}</div>` +
-        `${p.cap ? `<div>「${esc(p.cap)}」</div>` : ""}</article>`,
+        `${p.cap ? `<div>「${esc(p.cap)}」</div>` : ""}${jumpBtn(p.date)}</article>`,
     });
   });
   store.rounds
     .filter((r) => pairOf(r.id).length >= need())
     .forEach((r) => {
+      const d = roundDay(r);
       pool.push({
         k: "r:" + r.id,
         html:
-          `<article class="entry"><header><b>🎲 ${esc(roundDay(r))} 的抽題問答</b></header>` +
+          `<article class="entry"><header><b>🎲 ${esc(d)} 的抽題問答</b></header>` +
           `<div><b>${esc(r.q)}</b></div><dl>${pairOf(r.id)
             .map((a) => `<dt>${esc(nameOf(a.by))}</dt><dd>${esc(a.text)}</dd>`)
-            .join("")}</dl></article>`,
+            .join("")}</dl>${jumpBtn(d)}</article>`,
       });
     });
   store.wishes
     .filter((w) => w.done)
     .forEach((w) => {
+      const d = w.doneDate || dayOf(w.at);
       pool.push({
         k: "w:" + w.id,
         html:
-          `<article class="entry"><header><b>🌠 ${esc(w.doneDate || dayOf(w.at))} 達成的願望</b>` +
-          `<span>${esc(w.by || "")} 許的</span></header><div>✅ ${esc(w.text)}</div></article>`,
+          `<article class="entry"><header><b>🌠 ${esc(d)} 達成的願望</b>` +
+          `<span>${esc(w.by || "")} 許的</span></header><div>✅ ${esc(w.text)}</div>${jumpBtn(d)}</article>`,
       });
     });
   [...new Set(store.reviews.map((r) => r.date))].forEach((d) => {
@@ -2447,7 +2480,7 @@ $("gachaBtn").onclick = () => {
       k: "v:" + d,
       html:
         `<article class="entry"><header><b>📝 ${esc(d)} 的每週回顧</b></header>` +
-        `<dl>${revs.map((r) => `<dt>${esc(nameOf(r.by))}</dt><dd>${esc(r.text)}</dd>`).join("")}</dl></article>`,
+        `<dl>${revs.map((r) => `<dt>${esc(nameOf(r.by))}</dt><dd>${esc(r.text)}</dd>`).join("")}</dl>${jumpBtn(d)}</article>`,
     });
   });
   store.capsules
@@ -2457,7 +2490,7 @@ $("gachaBtn").onclick = () => {
         k: "c:" + c.id,
         html:
           `<article class="entry"><header><b>💌 ${esc(c.openDate)} 打開的時光膠囊</b>` +
-          `<span>${esc(nameOf(c.by))}寫於 ${esc(dayOf(c.at))}</span></header><p class="letter">${esc(c.text)}</p></article>`,
+          `<span>${esc(nameOf(c.by))}寫於 ${esc(dayOf(c.at))}</span></header><p class="letter">${esc(c.text)}</p>${jumpBtn(c.openDate)}</article>`,
       });
     });
   if (!pool.length) {
@@ -2469,6 +2502,16 @@ $("gachaBtn").onclick = () => {
   lastGachaKey = pick.k;
   const gBox = $("gachaBox");
   gBox.innerHTML = pick.html;
+  gBox.querySelectorAll("[data-gachaday]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        const d = b.dataset.gachaday;
+        calMonth = d.slice(0, 7);
+        calDay = d;
+        openFor("calendar");
+        history.pushState(null, "", "#calendar");
+      }),
+  );
   gBox.classList.remove("gacha-pop");
   void gBox.offsetWidth;
   gBox.classList.add("gacha-pop");
@@ -3370,6 +3413,8 @@ function restoreDraft() {
   if (!d) return;
   $("dDate").value = d.date || key(today());
   for (const [el, f] of Object.entries(FIELDS)) $(el).value = d[f] || "";
+  $("dFunny").closest("label").hidden = !d.funny;
+  $("dS1").closest(".summary").hidden = !(d.s1 || d.s2);
   happy = Number(d.happy) || 0;
   renderHearts();
   growAll();

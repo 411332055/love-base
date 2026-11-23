@@ -82,12 +82,12 @@
 | 紀念日、生日倒數 | `renderAnniv`、`renderBdays`、`saveBday`，交往日 `LOVE_START` |
 | 每日照片、照片牆 | `renderTodayPhotos`、`renderWall`、`myPhotos`、`subPhotos` |
 | 照片上傳、壓縮 | `savePhoto`、`shrink`、`loadImg`、`uploadQueue`（日記照片排隊上傳） |
-| 照片大圖（左右滑、存到手機、寫一句話） | `openPhoto`、`lbStep`、`closePhoto` |
+| 照片大圖（雙指與雙擊縮放、左右滑、存到手機、寫一句話） | `openPhoto`、`lbStep`、`closePhoto`、`lbResetZoom` |
 | 寫日記、編輯、草稿 | `renderDiaryToday`、`diaryCard`、`diaryDl`、`diaryQuote`、`startEdit`、`endEdit`、`resetDiaryFields`、`saveDraft`、`restoreDraft` |
-| 全部日記、搜尋 | `renderEntries`（只畫打開的月份，搜尋一次顯示 30 篇） |
+| 全部日記、搜尋（含留言與照片說明） | `renderEntries`（只畫打開的月份，搜尋一次顯示 30 篇） |
 | 日記回應與表情貼圖 | `entryExtras`、`bindEntryActs`、`attachReply`、`REACTS`、`popFloat` |
 | 抽題 | `monthBank`、`turnOf`、`todayRound`、`shownRound`、`drawQ`、`renderDraw`、`renderLog` |
-| 願望 | `renderWishes`、`toggleWish`，分類 `WCATS` |
+| 願望（含分類與文字修改） | `renderWishes`、`toggleWish`，分類 `WCATS` |
 | 月曆、回顧、那年今天、時光膠囊、回憶書 | `renderCalendar`、`renderCalDetail`、`onThisDayHits`、`renderOnThisDay`、`renderTodayFlashback`、`renderMemories`、`renderCapsules`、`renderCapNudge`、`setNudge`、`renderBook`、`renderBookShell` |
 | 星期日這週回顧 | `renderWeekRecap` |
 | 垃圾桶、二次確認 | `confirmTap`、`armDelete`、`renderTrash`、`restoreItem`、`archivePhoto`、`restoreReplaced`、`hardDelete`、`purgeExpired` |
@@ -124,7 +124,7 @@
 
 ## 自動提醒（GitHub Actions）
 
-- `.github/workflows/remind.yml` 每天台灣時間晚上約 8 點跑 `tools/remind.mjs`：明天是週年、里程碑、生日、七夕或每月紀念日，就直接推播給 `done` 裡所有 `x~push~s_*` 裝置（用 `x~push~cfg` 的 VAPID 金鑰，不經過 Apps Script），並寫一筆 `x~remind~日期`，網站和下一次執行都不會重複發。
+- `.github/workflows/remind.yml` 每天台灣時間晚上約 8 點跑 `tools/remind.mjs`：明天是週年、里程碑、生日、七夕或每月紀念日，或有到期的時光膠囊，就直接推播給 `done` 裡所有 `x~push~s_*` 裝置（用 `x~push~cfg` 的 VAPID 金鑰，不經過 Apps Script），並寫一筆 `x~remind~日期`（或 `x~remind~cap-膠囊id`），網站和下一次執行都不會重複發。
 - 暗號放在 GitHub 的 **Secret `ROOM_CODE`**（Settings → Secrets and variables → Actions），沒設定時會直接略過。不能寫進程式或印到紀錄。
 - 判斷規則要和 `app.js` 的 `specialOf()` 一致；`LOVE_START`、`MILE_DAYS`、`NAMES` 是直接從 `app.js` 讀的。改了 `specialOf()` 的規則，`remind.mjs` 也要一起改。
 - 要手動測試：GitHub 的 Actions 頁籤 → 「紀念日前一天提醒」→ Run workflow。
