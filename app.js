@@ -949,6 +949,7 @@ function openPhoto(id, list) {
   $("lbShare").hidden = !canShareFiles();
   if ($("lightbox").hidden) history.pushState({ lb: 1 }, "", location.hash);
   $("lightbox").hidden = false;
+  document.documentElement.classList.add("lb-lock");
   if (!cached) {
     fetchPicImg(id)
       .then((img) => {
@@ -1309,6 +1310,7 @@ $("lbShare").onclick = async () => {
 function closePhoto() {
   lbResetZoom();
   $("lightbox").hidden = true;
+  document.documentElement.classList.remove("lb-lock");
   lbId = null;
   lbList = [];
   lbFull = "";
@@ -3909,6 +3911,11 @@ document.addEventListener("click", (ev) => {
   const c = a.dataset.c && CATS.find((x) => x.id === a.dataset.c),
     secs = c && catSecs(c),
     id = c ? (secs.includes(lastSub[c.id]) ? lastSub[c.id] : secs[0]) : a.getAttribute("href").slice(1);
+  if (id === view && scrollY > 10) {
+    haptic(14);
+    scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    return;
+  }
   openFor(id);
   history.pushState(null, "", "#" + id);
 });
@@ -5480,7 +5487,14 @@ $("bookPrint").onclick = () => window.print();
 // 離線與雲端同步狀態指示
 const OFFLINE_TEXT = "離線中 · 連網後會自動同步";
 const pendingSync = { done: false, diary: false, photos: false };
+let wasOffline = !navigator.onLine;
+function syncOfflineBar() {
+  const bar = $("offlineBar");
+  if (bar) bar.hidden = navigator.onLine;
+}
+syncOfflineBar();
 function updateSyncStatus() {
+  syncOfflineBar();
   if (!db) return;
   if (!navigator.onLine) {
     $("status").textContent = OFFLINE_TEXT;
@@ -5492,7 +5506,10 @@ function updateSyncStatus() {
   }
   if (dataReady) $("status").textContent = "● 兩人同步中 ✓";
 }
-window.addEventListener("offline", updateSyncStatus);
+window.addEventListener("offline", () => {
+  wasOffline = true;
+  updateSyncStatus();
+});
 // 手機把網站放到背景一段時間後，Android 會讓即時連線睡著，切回來時可能一直停在舊資料。
 // 回到前景、網路恢復、或點最上面的同步狀態時，重新接一次線（只會重抓有變動的資料）。
 let hiddenAt = 0,
@@ -5514,6 +5531,10 @@ function reconnect(force) {
 }
 window.addEventListener("online", () => {
   updateSyncStatus();
+  if (wasOffline) {
+    wasOffline = false;
+    toast("已重新連線，正在同步 🔄");
+  }
   reconnect();
 });
 $("status").addEventListener("click", () => reconnect(true));
