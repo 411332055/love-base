@@ -2254,9 +2254,22 @@ function loadCalPhotos(m) {
       if (navigator.onLine) toast("這個月的照片沒載到，稍後會再試");
     });
 }
-// 月曆上的特別日子：週年、在一起的里程碑、生日、每月紀念日、時光膠囊打開日
+// 月曆上的特別日子（到了才顯示）：週年、在一起的里程碑、生日、七夕、每月紀念日
 const MILE_DAYS = [30, 50, 100, 200, 300, 500, 520, 600, 700, 800, 900, 1000, 1314];
+const LUNAR = (() => {
+  try {
+    return new Intl.DateTimeFormat("zh-TW-u-ca-chinese", { month: "numeric", day: "numeric" });
+  } catch (e) {
+    return null;
+  }
+})();
+function isQixi(dt) {
+  if (!LUNAR) return false;
+  const p = LUNAR.formatToParts(dt);
+  return p.find((x) => x.type === "month")?.value === "7" && p.find((x) => x.type === "day")?.value === "7";
+}
 function calSpecial(k) {
+  if (k > key(today())) return null;
   const dt = fromKey(k),
     n = Math.round((dt - LOVE_START) / 864e5) + 1;
   if (n < 1) return null;
@@ -2270,11 +2283,11 @@ function calSpecial(k) {
     return b && b.m === dt.getMonth() + 1 && b.d === dt.getDate();
   });
   if (bd.length) return { emo: "🎂", text: bd.join("、") + "的生日" };
+  if (isQixi(dt)) return { emo: "🎋", text: "七夕情人節" };
   if (n > 1 && sameDay) {
     const months = (dt.getFullYear() - LOVE_START.getFullYear()) * 12 + dt.getMonth() - LOVE_START.getMonth();
     return { emo: "💝", text: `在一起滿 ${months} 個月` };
   }
-  if (store.capsules.some((c) => c.openDate === k)) return { emo: "💌", text: "時光膠囊打開日" };
   return null;
 }
 function renderCalendar() {

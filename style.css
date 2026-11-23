@@ -278,7 +278,6 @@ details.month summary::after{margin-left:4px}
 .cal-now{order:2;font-size:9px;font-weight:700;line-height:1;color:var(--pink);white-space:nowrap;letter-spacing:.5px;pointer-events:none}
 .cal button.today .dots{order:3}
 .cal-sp{position:absolute;top:1px;right:2px;font-size:10px;line-height:1;pointer-events:none}
-.cal button.special:disabled{opacity:.6}
 @keyframes todayGlow{0%,100%{opacity:.25}50%{opacity:1}}
 .cal button[aria-pressed="true"]{outline:0;border-color:var(--pink);box-shadow:0 0 0 2.5px var(--pink),0 6px 14px -3px color-mix(in srgb,var(--pink) 38%,transparent);transform:scale(1.04)}
 .cal button:disabled{opacity:.35;cursor:default}
