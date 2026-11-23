@@ -61,6 +61,7 @@
 | `fixes` | 補簽卡用掉的紀錄 | `day`、`by`、`at` |
 | `birthdays` | 生日 | id 是名字，`m`、`d` |
 | `backups` | 做過備份的紀錄 | `full`、`by`、`at` |
+| `remind` | 紀念日前一天提醒已發過推播的紀錄（不重複發） | id 是隔天的日期，`date`、`by`、`at` |
 | `push` | 手機推播設定與裝置訂閱 | `cfg` 存 VAPID 金鑰與 Google Apps Script 轉發網址（`url`、`pub`、`x`、`y`、`d`、`at`）；`s_亂數` 存各台裝置的 Web Push 訂閱（`by`、`ep`、`p256dh`、`auth`、`dev`、`pub`、`at`） |
 
 `wrote`、`bonus` 和 `passed` 是 XP 不倒扣的關鍵：日記、照片或抽題刪掉後，這些紀錄還在，分數就不會少。不要刪它們，也不要改成只從 `diary`、`photos`、`answers` 即時計算。
@@ -71,7 +72,7 @@
 
 ### 存在手機裡的設定（localStorage）
 
-`love-base-room`（暗號）、`love-base-name`（名字）、`love-base-theme`、`love-base-font`、`love-base-haptic`（震動開關 on/off）、`love-base-haptic-level`（震動強度 light/mid/strong）、`love-base-layout`、`love-base-draft`（日記草稿）、`love-base-seen`、`love-base-cap-seen`（已看過到期提醒的膠囊）、`love-base-last-backup`、`love-base-backup-snooze`、`love-base-last-pic-scan`、`love-base-pic-snooze`、`love-base-side`，以及沒連伺服器時的整份資料 `love-base-v1`。
+`love-base-room`（暗號）、`love-base-name`（名字）、`love-base-theme`、`love-base-font`、`love-base-haptic`（震動開關 on/off）、`love-base-haptic-level`（震動強度 light/mid/strong）、`love-base-layout`、`love-base-draft`（日記草稿）、`love-base-seen`、`love-base-cap-seen`（已看過到期提醒的膠囊）、`love-base-last-backup`、`love-base-backup-snooze`、`love-base-last-pic-scan`、`love-base-pic-snooze`、`love-base-side`、`love-base-remind-seen`（看過的「明天是…」提醒）、`love-base-ios-snooze`（iPhone 加到主畫面提醒的延後時間），以及沒連伺服器時的整份資料 `love-base-v1`。
 
 ## 四、程式在哪裡（`app.js`，用函式名稱搜尋）
 
@@ -95,6 +96,8 @@
 | 震動回饋 | `haptic`（Android 用 `navigator.vibrate`，iPhone 用 `iosHaptic` 點隱藏的 iOS 18 開關元件）、`HAPTIC_LV`、`dragEndTick`、設定頁的「測試震動」 |
 | 手機推播通知 | `renderPush`、`notifyPartner`、`sendPush`、`ensurePushCfg`、`vapidAuth`、`encryptPushBody`（瀏覽器端用 Web Crypto API 簽署 VAPID 與 `aes128gcm` 加密，透過 Google Apps Script 轉發） |
 | 登入畫面、連線、資料同步 | `showGate`，以及檔案最後面的啟動程式（`onSnapshot` 都在那裡） |
+| 月曆特別日子、明天提醒 | `specialOf`（不論是否到了）、`calSpecial`（月曆用，未來的日子不顯示）、`isQixi`、`renderRemind`、`renderIosNudge` |
+| 長按日記表情、下拉重新整理 | 搜尋「長按日記卡片」「下拉重新整理」，常數 `MORE_REACTS` |
 | 重畫畫面 | `renderAll`，資料一變動就整個重畫 |
 
 寫入一律包在 `commit()` 裡：離線時不等伺服器回應，資料先排隊，連上後自動送出。

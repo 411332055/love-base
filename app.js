@@ -73,6 +73,7 @@ const store = {
   reviews: [],
   wrote: [],
   push: [],
+  remind: [],
 };
 // 刪除時在原本的資料上標記 trashed，30 天後才真的清掉
 const trash = { diary: [], photos: [], wishes: [], capsules: [], custom: [] };
@@ -627,6 +628,7 @@ function renderTodayPhotos() {
       }
     };
 }
+let wallHtml = "";
 function renderWall() {
   const w = $("wall");
   if (!db) {
@@ -651,7 +653,7 @@ function renderWall() {
   });
   const days = [...byDay.keys()].sort().reverse();
   const wk = "日一二三四五六";
-  w.innerHTML = days
+  const html = days
     .map((d) => {
       const [y, m, dd] = d.split("-").map(Number);
       const dt = new Date(y, m - 1, dd);
@@ -664,6 +666,11 @@ function renderWall() {
       );
     })
     .join("");
+  // 資料每變動一次就會整個重畫；照片沒變時不重設，避免每張照片重新解碼造成捲動卡頓
+  if (wallHtml !== html || !w.firstElementChild?.classList.contains("wall-day")) {
+    w.innerHTML = html;
+    wallHtml = html;
+  }
   $("wallMore").hidden = photos.length < photoLimit;
 }
 
@@ -2294,7 +2301,9 @@ function isQixi(dt) {
   return p.find((x) => x.type === "month")?.value === "7" && p.find((x) => x.type === "day")?.value === "7";
 }
 function calSpecial(k) {
-  if (k > key(today())) return null;
+  return k > key(today()) ? null : specialOf(k);
+}
+function specialOf(k) {
   const dt = fromKey(k),
     n = Math.round((dt - LOVE_START) / 864e5) + 1;
   if (n < 1) return null;
@@ -2342,13 +2351,21 @@ function renderCalendar() {
     ].filter((x) => x[0]);
     const sp = calSpecial(k),
       isToday = k === tk,
-      both = isToday && together.has(k);
+      both = isToday && together.has(k),
+      doneBy = isToday && !both ? [...whoDid(dayRecords().get(k) || { diary: [], photo: [] })] : [],
+      half = doneBy.length > 0,
+      who = (n) => (n === myName() ? "我" : n),
+      halfText = half
+        ? `，${doneBy.map(who).join("、")}已完成、等${NAMES.filter((n) => !doneBy.includes(n))
+            .map(who)
+            .join("、")}`
+        : "";
     h +=
       `<button type="button" data-d="${k}" class="${marks.length ? "has" : ""} ${isToday ? "today" : ""}` +
-      `${both ? " both" : ""}${sp ? " special" : ""}" aria-pressed="${k === calDay}"` +
-      ` aria-label="${isToday ? "今天，" : ""}${m} 月 ${d} 日${sp ? "，" + sp.text : ""}` +
+      `${both ? " both" : ""}${half ? " half" : ""}${sp ? " special" : ""}" aria-pressed="${k === calDay}"` +
+      ` aria-label="${isToday ? "今天，" : ""}${m} 月 ${d} 日${halfText}${sp ? "，" + sp.text : ""}` +
       `${marks.length ? "，有" + marks.map((x) => x[2]).join("、") : ""}" ${sp ? `title="${sp.text}"` : ""}` +
-      ` ${k > tk ? "disabled" : ""}>${isToday ? `<span class="cal-now">${both ? "💞 今天" : "今天"}</span>` : ""}` +
+      ` ${k > tk ? "disabled" : ""}>${isToday ? `<span class="cal-now">${both ? "💞 今天" : half ? "💗 今天" : "今天"}</span>` : ""}` +
       `${sp ? `<span class="cal-sp" aria-hidden="true">${sp.emo}</span>` : ""}${d}` +
       `<span class="dots">${marks.map((x) => `<i class="d-${x[1]}"></i>`).join("")}</span>` +
       `</button>`;
@@ -3185,9 +3202,13 @@ function renderTodo() {
     `</div>${items.map(([ok, label, id]) => `<a class="todo-i ${ok ? "ok" : ""}" href="#${id}"><span class="tick" aria-hidden="true">✓</span>${label}${ok ? '<span class="sr-only">（已完成）</span>' : ""}</a>`).join("")}`;
 }
 function syncNotices() {
-  $("notices").hidden = ["capNudge", "bkNudge", "picNudge", "awayCard"].every((id) => $(id).hidden);
+  $("notices").hidden = ["remindNudge", "iosNudge", "capNudge", "bkNudge", "picNudge", "awayCard"].every(
+    (id) => $(id).hidden,
+  );
 }
 function renderToday() {
+  renderRemind();
+  renderIosNudge();
   renderCapNudge();
   renderBackupNudge();
   renderPicNudge();
@@ -3927,6 +3948,8 @@ async function uploadQueue(entryId, date, list) {
 
 // 回應日記：留言和表情貼圖都存成獨立資料，不佔日記本身的欄位
 const REACTS = ["❤️", "😂", "🥺", "🥰", "👏"];
+// 長按日記跳出的更多表情（出現過才會顯示在那篇日記的表情列）
+const MORE_REACTS = ["😘", "🤗", "🥹", "😭", "😍", "🔥", "🫶", "💯"];
 let replyTo = null;
 const replyFormEl = $("replyForm"),
   replyTextEl = $("replyText");
@@ -3947,22 +3970,24 @@ function entryExtras(e, where) {
   const acts =
     `<div class="acts">${!e.by || e.by === me ? `<button class="btn ghost edit" type="button" data-id="${esc(e.id)}">✏️ 編輯</button>` : ""}` +
     `<button class="btn ghost del" type="button" data-id="${esc(e.id)}">刪除</button></div>`;
-  const reactBtns = REACTS.map((em) => {
-    const who = [
-        ...new Set(
-          emos
-            .filter((r) => r.text === em)
-            .map((r) => r.by)
-            .filter(Boolean),
-        ),
-      ],
-      mine = who.includes(me);
-    return (
-      `<button type="button" class="react-btn ${mine ? "on" : ""}" data-react="${esc(e.id)}" data-em="${em}" ` +
-      `aria-pressed="${mine}" title="${who.length ? esc(who.join("、")) : "按表情"}">${em}` +
-      `${who.length ? `<small>${who.map((n) => NAME_IC[n] || esc(n)).join("")}</small>` : ""}</button>`
-    );
-  }).join("");
+  const reactBtns = [...new Set([...REACTS, ...emos.map((r) => r.text).filter((t) => MORE_REACTS.includes(t))])]
+    .map((em) => {
+      const who = [
+          ...new Set(
+            emos
+              .filter((r) => r.text === em)
+              .map((r) => r.by)
+              .filter(Boolean),
+          ),
+        ],
+        mine = who.includes(me);
+      return (
+        `<button type="button" class="react-btn ${mine ? "on" : ""}" data-react="${esc(e.id)}" data-em="${em}" ` +
+        `aria-pressed="${mine}" title="${who.length ? esc(who.join("、")) : "按表情"}">${em}` +
+        `${who.length ? `<small>${who.map((n) => NAME_IC[n] || esc(n)).join("")}</small>` : ""}</button>`
+      );
+    })
+    .join("");
   return (
     `${phs.length ? `<div class="wall-grid">${phs.map((p) => photoBtn(p, "")).join("")}</div>` : ""}` +
     `${texts.length ? `<div class="replies">${texts.map((r) => `<div class="reply ${r.by === me ? "me" : ""}"><b>${esc(r.by)}</b> ${esc(r.text)}` + `${r.by === me ? ` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>` : ""}` + `</div>`).join("")}` + `</div>` : ""}` +
@@ -4034,6 +4059,83 @@ document.addEventListener("click", (ev) => {
   const d = ev.target.closest("[data-replydel]");
   if (d && confirmTap(d, "確定刪除？", "✕")) dropReply(d.dataset.replydel);
 });
+// 長按日記卡片（不是按鈕的地方）跳出表情選單，點一下就送出
+(() => {
+  const pick = document.createElement("div");
+  pick.className = "react-pick";
+  pick.hidden = true;
+  pick.setAttribute("role", "menu");
+  pick.setAttribute("aria-label", "選一個表情");
+  document.body.append(pick);
+  let timer = 0,
+    sx = 0,
+    sy = 0,
+    opened = false;
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = 0;
+  };
+  const close = () => {
+    pick.hidden = true;
+  };
+  const open = (id) => {
+    pick.innerHTML = [...REACTS, ...MORE_REACTS]
+      .map((em) => `<button type="button" class="react-btn" data-react="${esc(id)}" data-em="${em}">${em}</button>`)
+      .join("");
+    pick.hidden = false;
+    const w = pick.offsetWidth,
+      h = pick.offsetHeight;
+    pick.style.left = Math.max(8, Math.min(innerWidth - w - 8, sx - w / 2)) + "px";
+    pick.style.top = (sy - h - 16 < 8 ? sy + 24 : sy - h - 16) + "px";
+    opened = true;
+    try {
+      getSelection().removeAllRanges();
+    } catch (e) {}
+    haptic();
+  };
+  document.addEventListener(
+    "touchstart",
+    (ev) => {
+      opened = false;
+      cancel();
+      if (!pick.hidden && !ev.target.closest(".react-pick")) close();
+      const card = ev.target.closest("article.entry");
+      if (!card || ev.target.closest("button,a,input,textarea,select,label,.wall-grid,.react-pick")) return;
+      const id = card.querySelector("[data-react]")?.dataset.react;
+      if (!id || ev.touches.length > 1) return;
+      sx = ev.touches[0].clientX;
+      sy = ev.touches[0].clientY;
+      timer = setTimeout(() => {
+        timer = 0;
+        open(id);
+      }, 450);
+    },
+    { passive: true },
+  );
+  document.addEventListener(
+    "touchmove",
+    (ev) => {
+      const t = ev.touches[0];
+      if (timer && t && Math.hypot(t.clientX - sx, t.clientY - sy) > 10) cancel();
+    },
+    { passive: true },
+  );
+  document.addEventListener("touchend", (ev) => {
+    cancel();
+    if (opened) {
+      opened = false;
+      ev.preventDefault();
+    }
+  });
+  document.addEventListener("touchcancel", cancel, { passive: true });
+  document.addEventListener("contextmenu", (ev) => {
+    if (!pick.hidden || timer) ev.preventDefault();
+  });
+  pick.addEventListener("click", (ev) => {
+    if (ev.target.closest("[data-react]")) setTimeout(close, 0);
+  });
+  window.addEventListener("scroll", close, { passive: true });
+})();
 bindForm(
   "replyForm",
   "replySend",
@@ -4117,6 +4219,115 @@ $("capsule").addEventListener("toggle", () => {
   }
 });
 
+// 下拉重新整理：從主畫面打開時（iPhone、Android 都）沒有瀏覽器的下拉更新，自己做一個
+(() => {
+  const ind = document.createElement("div");
+  ind.className = "ptr";
+  ind.setAttribute("aria-hidden", "true");
+  document.body.append(ind);
+  let sy = null,
+    sx = 0,
+    pull = 0;
+  const reset = () => {
+    sy = null;
+    pull = 0;
+    ind.classList.remove("on", "go");
+    ind.style.transform = "";
+  };
+  document.addEventListener(
+    "touchstart",
+    (ev) => {
+      reset();
+      if (!isStandalone() || ev.touches.length > 1 || scrollY > 0) return;
+      if (!$("lightbox").hidden || !$("gate").hidden) return;
+      if (ev.target.closest("input,textarea,select,.react-pick,#hearts,.chart")) return;
+      sy = ev.touches[0].clientY;
+      sx = ev.touches[0].clientX;
+    },
+    { passive: true },
+  );
+  document.addEventListener(
+    "touchmove",
+    (ev) => {
+      if (sy === null) return;
+      const t = ev.touches[0],
+        dy = t.clientY - sy,
+        dx = Math.abs(t.clientX - sx);
+      if (dy <= 0 || dx > dy || scrollY > 0) {
+        if (dy < 0 || dx > 30) reset();
+        return;
+      }
+      pull = Math.min(dy, 140);
+      ind.classList.add("on");
+      ind.classList.toggle("go", pull >= 80);
+      ind.textContent = pull >= 80 ? "放開更新 🔄" : "下拉更新 ↓";
+      ind.style.transform = `translate3d(-50%,${pull * 0.6}px,0)`;
+    },
+    { passive: true },
+  );
+  document.addEventListener(
+    "touchend",
+    () => {
+      if (sy !== null && pull >= 80) {
+        ind.textContent = "更新中…";
+        haptic();
+        setTimeout(() => location.reload(), 120);
+        return;
+      }
+      reset();
+    },
+    { passive: true },
+  );
+  document.addEventListener("touchcancel", reset, { passive: true });
+})();
+// 紀念日前一天提醒：首頁顯示「明天是…」；當天第一個打開基地的人會順便推播給兩個人（done 裡記一筆 remind，不重複發）
+const REMIND_SEEN = "love-base-remind-seen";
+function renderRemind() {
+  const t = today(),
+    tmr = key(new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1)),
+    sp = specialOf(tmr);
+  let seen = "";
+  try {
+    seen = localStorage.getItem(REMIND_SEEN) || "";
+  } catch (e) {}
+  const [, m, d] = tmr.split("-").map(Number),
+    text = sp ? `${sp.emo} 明天（${m}/${d}）是${sp.text}，記得準備一下喔` : "";
+  setNudge("remindNudge", !!(sp && dataReady && seen !== tmr), text, "calendar", "看月曆", "知道了", () => {
+    try {
+      localStorage.setItem(REMIND_SEEN, tmr);
+    } catch (e) {}
+    renderRemind();
+  });
+  if (!sp || !db || !dataReady || renderRemind.sent === tmr || store.remind.some((r) => r.id === tmr)) return;
+  renderRemind.sent = tmr;
+  commit(xRef("remind", tmr).set({ date: tmr, by: myName(), at: nowIso() }))
+    .then(() =>
+      sendPush({ title: `${sp.emo} 明天是${sp.text}`, body: text, url: "./#calendar", tag: "remind-" + tmr }, "all"),
+    )
+    .catch(() => {});
+}
+// iPhone 用 Safari 直接開時收不到推播和紅點，教她加到主畫面（按「之後再說」隔 7 天）
+const IOS_SNOOZE = "love-base-ios-snooze";
+function renderIosNudge() {
+  let snooze = 0;
+  try {
+    snooze = +localStorage.getItem(IOS_SNOOZE) || 0;
+  } catch (e) {}
+  setNudge(
+    "iosNudge",
+    !!(isIOS && !isStandalone() && Date.now() >= snooze),
+    "📱 用 Safari 開收不到通知和紅點：按下方 分享 ⬆️ →「加入主畫面」，之後從桌面的基地圖示打開（第一次要再輸入一次暗號）",
+    "installText",
+    "看說明",
+    "之後再說",
+    () => {
+      try {
+        localStorage.setItem(IOS_SNOOZE, Date.now() + 7 * 864e5);
+      } catch (e) {}
+      renderIosNudge();
+    },
+  );
+}
 // 備份提醒：任何一人備份過都算，超過 30 天才提醒，按「之後再說」隔 7 天
 const BK_SNOOZE = "love-base-backup-snooze";
 let dataReady = false;
