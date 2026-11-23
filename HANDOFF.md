@@ -122,6 +122,13 @@
 - 月底總結已整合進「回憶書」，和年度總結放在一起切換。
 - 名字 `寒冰`、`夏夏` 是寫死的（`NAMES`），不支援第三個人。
 
+## 自動提醒（GitHub Actions）
+
+- `.github/workflows/remind.yml` 每天台灣時間晚上約 8 點跑 `tools/remind.mjs`：明天是週年、里程碑、生日、七夕或每月紀念日，就直接推播給 `done` 裡所有 `x~push~s_*` 裝置（用 `x~push~cfg` 的 VAPID 金鑰，不經過 Apps Script），並寫一筆 `x~remind~日期`，網站和下一次執行都不會重複發。
+- 暗號放在 GitHub 的 **Secret `ROOM_CODE`**（Settings → Secrets and variables → Actions），沒設定時會直接略過。不能寫進程式或印到紀錄。
+- 判斷規則要和 `app.js` 的 `specialOf()` 一致；`LOVE_START`、`MILE_DAYS`、`NAMES` 是直接從 `app.js` 讀的。改了 `specialOf()` 的規則，`remind.mjs` 也要一起改。
+- 要手動測試：GitHub 的 Actions 頁籤 → 「紀念日前一天提醒」→ Run workflow。
+
 ## 七、怎麼測試
 
 - 直接用瀏覽器打開 `index.html`，**用測試暗號**（例如 `test-only-123`），不要用真的暗號。

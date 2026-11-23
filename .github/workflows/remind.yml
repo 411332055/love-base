@@ -1,0 +1,20 @@
+name: 紀念日前一天提醒
+on:
+  schedule:
+    # 每天台灣時間晚上 8:23（UTC 12:23）檢查明天是不是紀念日、生日或七夕
+    - cron: "23 12 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save --no-package-lock web-push@4.0.0
+      - run: node tools/remind.mjs
+        env:
+          ROOM_CODE: ${{ secrets.ROOM_CODE }}
