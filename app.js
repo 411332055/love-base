@@ -2372,7 +2372,7 @@ function renderCalendar() {
       `${both ? " both" : ""}${half ? " half" : ""}${sp ? " special" : ""}" aria-pressed="${k === calDay}"` +
       ` aria-label="${isToday ? "今天，" : ""}${m} 月 ${d} 日${halfText}${sp ? "，" + sp.text : ""}` +
       `${marks.length ? "，有" + marks.map((x) => x[2]).join("、") : ""}" ${sp ? `title="${sp.text}"` : ""}` +
-      ` ${k > tk ? "disabled" : ""}>${both || half ? `<span class="cal-now" aria-hidden="true">${both ? "💞" : "💗"}</span>` : ""}` +
+      ` ${k > tk ? "disabled" : ""}>` +
       `${sp ? `<span class="cal-sp" aria-hidden="true">${sp.emo}</span>` : ""}${d}` +
       `<span class="dots">${marks.map((x) => `<i class="d-${x[1]}"></i>`).join("")}</span>` +
       `</button>`;
