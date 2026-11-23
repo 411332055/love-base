@@ -2760,6 +2760,155 @@ async function applyRestore() {
 }
 $("bkText").onclick = () => exportBackup(false);
 $("bkFull").onclick = () => exportBackup(true);
+
+// 一個月的照片原圖打包成 zip（不壓縮，照片本來就是 JPG），檔名例如 2026-11-03_寒冰_1.jpg
+const zipMsg = (t) => ($("zipMsg").textContent = t);
+function fillZipMonths() {
+  const sel = $("zipMonth"),
+    now = today(),
+    list = [];
+  for (let d = new Date(LOVE_START.getFullYear(), LOVE_START.getMonth(), 1); d <= now; d.setMonth(d.getMonth() + 1)) {
+    list.push(key(d).slice(0, 7));
+  }
+  const keep = sel.value;
+  sel.innerHTML = list
+    .reverse()
+    .map((m) => `<option value="${m}">${+m.slice(0, 4)} 年 ${+m.slice(5)} 月</option>`)
+    .join("");
+  if (keep && list.includes(keep)) sel.value = keep;
+}
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(b) {
+  let c = 0xffffffff;
+  for (let i = 0; i < b.length; i++) c = CRC_TABLE[(c ^ b[i]) & 255] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+function makeZip(files) {
+  const enc = new TextEncoder(),
+    parts = [],
+    central = [];
+  let off = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name),
+      crc = crc32(f.data),
+      [y, mo, d] = f.date.split("-").map(Number),
+      dosDate = ((y - 1980) << 9) | (mo << 5) | d,
+      dosTime = 12 << 11;
+    const head = new DataView(new ArrayBuffer(30));
+    head.setUint32(0, 0x04034b50, true);
+    head.setUint16(4, 20, true);
+    head.setUint16(6, 0x0800, true);
+    head.setUint16(10, dosTime, true);
+    head.setUint16(12, dosDate, true);
+    head.setUint32(14, crc, true);
+    head.setUint32(18, f.data.length, true);
+    head.setUint32(22, f.data.length, true);
+    head.setUint16(26, name.length, true);
+    parts.push(head, name, f.data);
+    const cen = new DataView(new ArrayBuffer(46));
+    cen.setUint32(0, 0x02014b50, true);
+    cen.setUint16(4, 20, true);
+    cen.setUint16(6, 20, true);
+    cen.setUint16(8, 0x0800, true);
+    cen.setUint16(12, dosTime, true);
+    cen.setUint16(14, dosDate, true);
+    cen.setUint32(16, crc, true);
+    cen.setUint32(20, f.data.length, true);
+    cen.setUint32(24, f.data.length, true);
+    cen.setUint16(28, name.length, true);
+    cen.setUint32(42, off, true);
+    central.push(cen, name);
+    off += 30 + name.length + f.data.length;
+  }
+  const size = central.reduce((a, p) => a + p.byteLength, 0),
+    end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, files.length, true);
+  end.setUint16(10, files.length, true);
+  end.setUint32(12, size, true);
+  end.setUint32(16, off, true);
+  return new Blob([...parts, ...central, end], { type: "application/zip" });
+}
+function dataUrlBytes(url) {
+  const bin = atob(url.slice(url.indexOf(",") + 1)),
+    out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+$("bkBox").addEventListener("toggle", () => {
+  if ($("bkBox").open) fillZipMonths();
+});
+$("zipGo").onclick = async () => {
+  const m = $("zipMonth").value;
+  if (!m) return;
+  if (!db || !navigator.onLine) {
+    zipMsg("要連上網路才能下載照片。");
+    return;
+  }
+  $("zipGo").disabled = true;
+  zipMsg("找照片中…");
+  try {
+    const s = await db
+      .collection("photos")
+      .where("date", ">=", m + "-01")
+      .where("date", "<=", m + "-31")
+      .get();
+    const list = s.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((p) => !p.trashed)
+      .sort((a, b) => (a.date + (a.at || "")).localeCompare(b.date + (b.at || "")));
+    if (!list.length) {
+      zipMsg("這個月還沒有照片。");
+    } else {
+      const files = [],
+        seq = {};
+      let miss = 0;
+      for (const p of list) {
+        let img = picCache.get(p.id);
+        if (!img) {
+          const doc = await db.collection("pics").doc(p.id).get();
+          img = doc.exists ? doc.data()?.img : "";
+        }
+        img = img || p.th;
+        if (!img) {
+          miss++;
+          continue;
+        }
+        const k = p.date + "_" + (p.by || "照片");
+        seq[k] = (seq[k] || 0) + 1;
+        const ext = /^data:image\/png/.test(img) ? "png" : "jpg";
+        files.push({ name: `${k}_${seq[k]}.${ext}`, date: p.date, data: dataUrlBytes(img) });
+        zipMsg(`打包中… ${files.length} / ${list.length}`);
+      }
+      const blob = makeZip(files),
+        a = document.createElement("a"),
+        url = URL.createObjectURL(blob);
+      a.href = url;
+      a.download = `戀愛基地照片_${m}.zip`;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      zipMsg(
+        `下載好了：${files.length} 張，約 ${(blob.size / 1048576).toFixed(1)} MB。` +
+          (miss ? `有 ${miss} 張讀不到原圖。` : "") +
+          "解壓縮後就是一張張的照片，可以直接傳到 Google 相簿或雲端。",
+      );
+      toast("照片打包好了 📦");
+    }
+  } catch (e) {
+    zipMsg("下載失敗，請確認網路後再試一次。");
+  }
+  $("zipGo").disabled = false;
+};
 $("bkPick").onclick = () => {
   $("bkFile").value = "";
   $("bkFile").click();

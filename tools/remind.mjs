@@ -87,9 +87,93 @@ function specialOf(dt, birthdays) {
   return null;
 }
 
+// 照片空間：每月 1 號（台灣時間）算一次原圖用了多少，超過 WARN_MB 就推播。
+// 要讀完所有原圖（最多約 1 GB），所以一個月只做一次，免費額度（每月 10 GB 流量）用不完。
+const WARN_MB = Number(app.match(/const WARN_MB = (\d+)/)[1]);
+async function picsMB() {
+  const base = BASE.replace(/\/done$/, "/pics");
+  let total = 0,
+    count = 0,
+    token = "";
+  do {
+    const res = await fetch(`${base}?pageSize=30&mask.fieldPaths=img&key=${API_KEY}${token ? "&pageToken=" + token : ""}`);
+    if (!res.ok) throw new Error("讀取照片失敗：HTTP " + res.status);
+    const j = await res.json();
+    for (const d of j.documents || []) {
+      total += (d.fields?.img?.stringValue || "").length;
+      count++;
+    }
+    token = j.nextPageToken || "";
+  } while (token);
+  return { mb: Math.round(total / 1048576), count };
+}
+
+async function pushAll(cfg, subs, payload) {
+  webpush.setVapidDetails("mailto:love-base@users.noreply.github.com", cfg.pub, cfg.d);
+  let sent = 0;
+  for (const s of subs) {
+    try {
+      await webpush.sendNotification({ endpoint: s.ep, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, {
+        TTL: 12 * 3600,
+      });
+      sent++;
+    } catch (e) {
+      console.log(
+        `有一台裝置沒送到（${s.by || "?"} 的 ${s.dev || "裝置"}，HTTP ${e.statusCode || "?"}）`,
+        process.env.DEBUG ? e.message : "",
+      );
+    }
+  }
+  return sent;
+}
+
+async function markSent(id, date) {
+  const now = new Date().toISOString();
+  const body = { fields: { date: { stringValue: date }, by: { stringValue: "自動提醒" }, at: { stringValue: now } } };
+  const res = await fetch(`${BASE}/${encodeURIComponent(id)}?key=${API_KEY}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) console.log("記錄「已發過」失敗：HTTP " + res.status);
+}
+
 const done = await loadDone();
 const birthdays = {};
 for (const [id, v] of Object.entries(done)) if (id.startsWith("x~birthdays~")) birthdays[id.split("~")[2]] = v;
+
+const cfg = done["x~push~cfg"];
+const subs = Object.entries(done)
+  .filter(([id, v]) => id.startsWith("x~push~") && id !== "x~push~cfg" && v.ep && v.p256dh && v.auth)
+  .map(([, v]) => v);
+const canPush = !!(cfg && cfg.pub && cfg.d && subs.length);
+
+const todayTW = new Date(Date.now() + 8 * 3600e3);
+const monthKey = todayTW.toISOString().slice(0, 7);
+if (todayTW.getUTCDate() === 1 || process.env.FORCE_SPACE) {
+  try {
+    const { mb, count } = await picsMB();
+    console.log(`照片空間：${count} 張，約 ${mb} MB / 1024 MB（提醒門檻 ${WARN_MB} MB）。`);
+    const sid = "x~remind~space-" + monthKey;
+    if (mb >= WARN_MB && canPush && !done[sid]) {
+      const left = Math.max(0, 1024 - mb);
+      const sent = await pushAll(
+        cfg,
+        subs,
+        JSON.stringify({
+          title: `📦 照片空間用了 ${mb} MB`,
+          body: `免費空間 1024 MB 只剩約 ${left} MB，記得先做完整備份，再決定要不要升級或搬照片`,
+          url: "./#picBox",
+          tag: "space-" + monthKey,
+        }),
+      );
+      console.log(`照片空間提醒送出 ${sent} / ${subs.length} 台。`);
+      if (sent) await markSent(sid, monthKey);
+    }
+  } catch (e) {
+    console.log("照片空間檢查失敗：" + e.message);
+  }
+}
 
 const tmr = tomorrowTW(),
   tk = keyOf(tmr),
@@ -102,48 +186,22 @@ if (done["x~remind~" + tk]) {
   console.log(`明天（${tk}）的提醒已經發過了。`);
   process.exit(0);
 }
-
-const cfg = done["x~push~cfg"];
-const subs = Object.entries(done)
-  .filter(([id, v]) => id.startsWith("x~push~") && id !== "x~push~cfg" && v.ep && v.p256dh && v.auth)
-  .map(([, v]) => v);
-if (!cfg || !cfg.pub || !cfg.d || !subs.length) {
+if (!canPush) {
   console.log("還沒有裝置開啟推播，略過。");
   process.exit(0);
 }
 
-webpush.setVapidDetails("mailto:love-base@users.noreply.github.com", cfg.pub, cfg.d);
 const m = tmr.getUTCMonth() + 1,
   d = tmr.getUTCDate();
-const payload = JSON.stringify({
-  title: `${sp.emo} 明天是${sp.text}`,
-  body: `${sp.emo} 明天（${m}/${d}）是${sp.text}，記得準備一下喔`,
-  url: "./#calendar",
-  tag: "remind-" + tk,
-});
-let sent = 0;
-for (const s of subs) {
-  try {
-    await webpush.sendNotification({ endpoint: s.ep, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, {
-      TTL: 12 * 3600,
-    });
-    sent++;
-  } catch (e) {
-    console.log(
-      `有一台裝置沒送到（${s.by || "?"} 的 ${s.dev || "裝置"}，HTTP ${e.statusCode || "?"}）`,
-      process.env.DEBUG ? e.message : "",
-    );
-  }
-}
+const sent = await pushAll(
+  cfg,
+  subs,
+  JSON.stringify({
+    title: `${sp.emo} 明天是${sp.text}`,
+    body: `${sp.emo} 明天（${m}/${d}）是${sp.text}，記得準備一下喔`,
+    url: "./#calendar",
+    tag: "remind-" + tk,
+  }),
+);
 console.log(`明天（${tk}）是${sp.text}，推播送出 ${sent} / ${subs.length} 台。`);
-
-if (sent) {
-  const now = new Date().toISOString();
-  const body = { fields: { date: { stringValue: tk }, by: { stringValue: "自動提醒" }, at: { stringValue: now } } };
-  const res = await fetch(`${BASE}/${encodeURIComponent("x~remind~" + tk)}?key=${API_KEY}`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) console.log("記錄「已發過」失敗：HTTP " + res.status);
-}
+if (sent) await markSent("x~remind~" + tk, tk);

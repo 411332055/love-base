@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
-<link rel="manifest" href="manifest.webmanifest?v=100">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=100">
+<link rel="manifest" href="manifest.webmanifest?v=101">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=101">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap"></noscript>
-<link rel="stylesheet" href="style.css?v=100">
+<link rel="stylesheet" href="style.css?v=101">
 </head>
 <body>
 
@@ -332,6 +332,9 @@
         <div class="row"><button class="btn ghost" type="button" id="bkPick">從備份檔補回資料</button><button class="btn" type="button" id="bkConfirm" hidden></button></div>
         <input type="file" id="bkFile" accept=".html,.json,text/html,application/json" hidden>
         <p class="sub" id="bkMsg"></p>
+        <p class="sub">想把照片原圖存到相簿或 Google 雲端？選一個月份，會下載成一個壓縮檔，裡面是一張張的 JPG。</p>
+        <div class="row" id="zipRow"><select id="zipMonth" aria-label="要下載的月份"></select><button class="btn ghost" type="button" id="zipGo">下載這個月的照片</button></div>
+        <p class="sub" id="zipMsg"></p>
         <details class="month" id="bkAutoSetup">
           <summary>☁️ 設定 Google 雲端每月自動備份</summary>
           <div class="month-body">
@@ -398,7 +401,7 @@
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=100" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=101" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -424,6 +427,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=100"></script>
+<script src="app.js?v=101"></script>
 </body>
 </html>

@@ -6,6 +6,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  # 讓下面「保持開啟」那一步可以重新啟用這個排程
+  actions: write
 jobs:
   remind:
     runs-on: ubuntu-latest
@@ -18,3 +20,11 @@ jobs:
       - run: node tools/remind.mjs
         env:
           ROOM_CODE: ${{ secrets.ROOM_CODE }}
+      # GitHub 會把 60 天沒有更新程式的排程自動暫停；每次跑完都重新啟用一次，計時就會重算。
+      # 這一步失敗也不影響上面的提醒。
+      - name: 保持排程開啟
+        if: always()
+        continue-on-error: true
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/remind.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -128,6 +128,9 @@
 - 暗號放在 GitHub 的 **Secret `ROOM_CODE`**（Settings → Secrets and variables → Actions），沒設定時會直接略過。不能寫進程式或印到紀錄。
 - 判斷規則要和 `app.js` 的 `specialOf()` 一致；`LOVE_START`、`MILE_DAYS`、`NAMES` 是直接從 `app.js` 讀的。改了 `specialOf()` 的規則，`remind.mjs` 也要一起改。
 - 要手動測試：GitHub 的 Actions 頁籤 → 「紀念日前一天提醒」→ Run workflow。
+- 每月 1 號（台灣時間）同一支程式也會讀完 `pics` 的原圖算空間（REST 加 `mask.fieldPaths=img`），超過 `WARN_MB`（從 `app.js` 的備份程式碼讀，現在是 700）就推播，並寫一筆 `x~remind~space-YYYY-MM` 避免同月重發。讀原圖一次最多約 1 GB 流量，所以只在每月 1 號做；本機測試可設 `FORCE_SPACE=1`。
+- GitHub 會暫停 60 天沒有提交的 repo 的排程。`remind.yml` 最後一步用 `gh api -X PUT .../workflows/remind.yml/enable` 重新啟用（需要 `actions: write`），讓計時重算；這步失敗不影響提醒本身。
+- 「資料備份」裡的「下載這個月的照片」：用 `photos` 的 date 範圍查詢找出那個月的照片，逐張讀 `pics` 原圖（有 `picCache` 先用），在瀏覽器裡用 `makeZip()` 打包成不壓縮的 zip（檔名 UTF-8、`日期_名字_序號.jpg`），不需要外部函式庫。
 
 ## 七、怎麼測試
 

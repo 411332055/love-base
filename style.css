@@ -237,7 +237,7 @@ form.wishform{display:flex;gap:8px}
 .entry .letter{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .panel{background:var(--glass-bg);border:.5px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--card-shadow)}
 .panel h3{font-size:15px;font-weight:800}
-.bday-row select,.panel select,#bookTools select{width:auto}
+.bday-row select,.panel select,#bookTools select,#zipRow select{width:auto}
 .between{justify-content:space-between}
 .chart{position:relative}
 .chart svg{display:block;width:100%;height:auto}
