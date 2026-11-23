@@ -6364,28 +6364,62 @@ $("logout").onclick = () => {
       syncDrawMarks();
     }
   };
+  const upsertById = (arr, item) => {
+    const i = arr.findIndex((x) => x.id === item.id);
+    if (i >= 0) arr[i] = item;
+    else arr.push(item);
+  };
+  const removeById = (arr, id) => {
+    const i = arr.findIndex((x) => x.id === id);
+    if (i >= 0) arr.splice(i, 1);
+  };
+  const isIncremental = (hadSnap, s, changes) =>
+    hadSnap && Array.isArray(changes) && (changes.length < s.docs.length || changes.some((ch) => ch.type !== "added"));
   let hasSnap = { done: false, diary: false };
   db.collection("done").onSnapshot(
     { includeMetadataChanges: true },
     (s) => {
       pendingSync.done = !!s.metadata?.hasPendingWrites;
       updateSyncStatus();
-      if (hasSnap.done && typeof s.docChanges === "function" && !s.docChanges().length) {
+      const changes = typeof s.docChanges === "function" ? s.docChanges() : null;
+      if (hasSnap.done && changes && !changes.length) {
         if (!s.metadata?.fromCache) {
           got.done = true;
           ready();
         }
         return;
       }
+      if (isIncremental(hasSnap.done, s, changes)) {
+        changes.forEach((ch) => {
+          const d = ch.doc;
+          if (!d.id.startsWith("x~")) return;
+          const [, c, id] = d.id.split("~");
+          if (!store[c]) return;
+          if (ch.type === "removed") {
+            removeById(store[c], id);
+            if (trash[c]) removeById(trash[c], id);
+            return;
+          }
+          const item = { id, ...d.data() };
+          if (item.trashed) {
+            removeById(store[c], id);
+            if (trash[c]) upsertById(trash[c], item);
+          } else {
+            if (trash[c]) removeById(trash[c], id);
+            upsertById(store[c], item);
+          }
+        });
+      } else {
+        Object.keys(store).forEach((c) => (store[c] = []));
+        ["wishes", "capsules", "custom"].forEach((c) => (trash[c] = []));
+        s.docs.forEach((d) => {
+          if (!d.id.startsWith("x~")) return;
+          const [, c, id] = d.id.split("~");
+          const v = d.data();
+          if (store[c]) (v.trashed ? trash[c] : store[c]).push({ id, ...v });
+        });
+      }
       hasSnap.done = true;
-      Object.keys(store).forEach((c) => (store[c] = []));
-      ["wishes", "capsules", "custom"].forEach((c) => (trash[c] = []));
-      s.docs.forEach((d) => {
-        if (!d.id.startsWith("x~")) return;
-        const [, c, id] = d.id.split("~");
-        const v = d.data();
-        if (store[c]) (v.trashed ? trash[c] : store[c]).push({ id, ...v });
-      });
       if (!s.metadata?.fromCache) got.done = true;
       ready();
       renderAll();
@@ -6402,17 +6436,37 @@ $("logout").onclick = () => {
     (s) => {
       pendingSync.diary = !!s.metadata?.hasPendingWrites;
       updateSyncStatus();
-      if (hasSnap.diary && typeof s.docChanges === "function" && !s.docChanges().length) {
+      const changes = typeof s.docChanges === "function" ? s.docChanges() : null;
+      if (hasSnap.diary && changes && !changes.length) {
         if (!s.metadata?.fromCache) {
           got.diary = true;
           ready();
         }
         return;
       }
+      if (isIncremental(hasSnap.diary, s, changes)) {
+        changes.forEach((ch) => {
+          const d = ch.doc;
+          if (ch.type === "removed") {
+            removeById(entries, d.id);
+            removeById(trash.diary, d.id);
+            return;
+          }
+          const item = { id: d.id, ...d.data() };
+          if (item.trashed) {
+            removeById(entries, d.id);
+            upsertById(trash.diary, item);
+          } else {
+            removeById(trash.diary, d.id);
+            upsertById(entries, item);
+          }
+        });
+      } else {
+        const all = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+        entries = all.filter((e) => !e.trashed);
+        trash.diary = all.filter((e) => e.trashed);
+      }
       hasSnap.diary = true;
-      const all = s.docs.map((d) => ({ id: d.id, ...d.data() }));
-      entries = all.filter((e) => !e.trashed);
-      trash.diary = all.filter((e) => e.trashed);
       if (!s.metadata?.fromCache) got.diary = true;
       ready();
       renderAll();
