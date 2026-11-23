@@ -553,6 +553,13 @@ function renderQuests() {
     )
     .join("");
   $("reviewForm").hidden = !!myRev && !reviewEditing;
+  if (!myRev && !reviewEditing && document.activeElement !== $("reviewText") && !$("reviewText").value) {
+    const rd = lsJson(REV_DRAFT_KEY);
+    if (rd && rd.date === tk && rd.text) {
+      $("reviewText").value = rd.text;
+      grow($("reviewText"));
+    }
+  }
   if (myRev)
     $("reviewEdit").onclick = () => {
       reviewEditing = !reviewEditing;
@@ -1894,6 +1901,13 @@ function renderDraw() {
     `🎲 ${r.by ? nameOf(r.by) : "有人"} 在 ${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 抽的`;
   if (over) ansEditing = false;
   $("ansForm").hidden = !!mine && (!ansEditing || over);
+  if (!mine && !ansEditing && document.activeElement !== $("ansText") && !$("ansText").value) {
+    const ad = lsJson(ANS_DRAFT_KEY);
+    if (ad && ad.round === r.id && ad.text) {
+      $("ansText").value = ad.text;
+      grow($("ansText"));
+    }
+  }
   $("ansSave").textContent = mine ? "儲存修改" : "送出答案";
   $("reveal").hidden = !shownAns.length;
   if (shownAns.length) {
@@ -2017,7 +2031,16 @@ function bindForm(form, btn, build, after) {
     if (ev.key === "Enter" && (ev.isComposing || ev.keyCode === 229)) ev.preventDefault();
   }),
 );
+const ANS_DRAFT_KEY = "love-base-ans-draft",
+  REV_DRAFT_KEY = "love-base-rev-draft";
 let ansEditing = false;
+$("ansText").addEventListener("input", () => {
+  if (ansEditing) return;
+  const r = shownRound(),
+    text = $("ansText").value;
+  if (r && text.trim()) lsSet(ANS_DRAFT_KEY, JSON.stringify({ round: r.id, text }));
+  else lsDel(ANS_DRAFT_KEY);
+});
 $("ansForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const r = shownRound(),
@@ -2030,6 +2053,7 @@ $("ansForm").addEventListener("submit", async (ev) => {
     if (mine) {
       await updDoc("answers", mine.id, { text });
       ansEditing = false;
+      lsDel(ANS_DRAFT_KEY);
       $("ansText").value = "";
       grow($("ansText"));
       renderAll();
@@ -2037,6 +2061,7 @@ $("ansForm").addEventListener("submit", async (ev) => {
     } else {
       await addDoc("answers", { round: r.id, text, by: myName(), at: nowIso() });
       ansEditing = false;
+      lsDel(ANS_DRAFT_KEY);
       $("ansText").value = "";
       grow($("ansText"));
       if (pairOf(r.id).length >= need()) {
@@ -5739,6 +5764,12 @@ function renderWeekRecap(t) {
     `${best ? `<div class="recap-i">⭐ 最幸福的一天：${label(best.date)} ${esc(best.by || "")} ${esc(best.happy)}/10</div>` : ""}` +
     `${es.map((e) => `<div class="recap-i"><b>${label(e.date)}</b>${esc(e.by || "")}：${esc(String(say(e)).slice(0, 60))}</div>`).join("")}`;
 }
+$("reviewText").addEventListener("input", () => {
+  if (reviewEditing) return;
+  const text = $("reviewText").value;
+  if (text.trim()) lsSet(REV_DRAFT_KEY, JSON.stringify({ date: key(today()), text }));
+  else lsDel(REV_DRAFT_KEY);
+});
 $("reviewForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const text = $("reviewText").value.trim();
@@ -5755,6 +5786,7 @@ $("reviewForm").addEventListener("submit", async (ev) => {
     store.reviews = store.reviews.filter((r) => r.id !== id).concat([{ id, ...doc }]);
     if (!db) saveLocal();
     reviewEditing = false;
+    lsDel(REV_DRAFT_KEY);
     $("reviewText").value = "";
     grow($("reviewText"));
     renderAll();
