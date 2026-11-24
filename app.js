@@ -100,12 +100,12 @@ function esc(s) {
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
   );
 }
-function toast(msg) {
+function toast(msg, ms = 2200) {
   const t = $("toast");
   t.textContent = msg;
   t.hidden = false;
   clearTimeout(toast.h);
-  toast.h = setTimeout(() => (t.hidden = true), 2200);
+  toast.h = setTimeout(() => (t.hidden = true), ms);
 }
 const HAPTIC_KEY = "love-base-haptic",
   HAPTIC_LV_KEY = "love-base-haptic-level";
@@ -249,22 +249,44 @@ window.addEventListener("beforeunload", (ev) => {
     ev.returnValue = "";
   }
 });
-// 離線或學校弱網時，寫入已先進本機 IndexedDB 佇列；最多等 2.5 秒就先放行畫面，背景繼續同步
-const commit = (p) => {
+// 離線或學校弱網時，寫入已先進本機 IndexedDB 佇列；最多等 ms 毫秒就先放行畫面，背景繼續同步。
+// 回傳 true 表示已在時限內寫上雲端，false 表示還在背景同步中；lastCommitP 保留真正的雲端寫入 Promise，供推播等待。
+const QUEUED_HINT = "已先存在手機，請停留幾秒等上方出現 ✓ 再關掉喔";
+let lastCommitP = Promise.resolve();
+let lastCommitSynced = true;
+const commit = (p, ms = 2500) => {
+  const tracked = Promise.resolve(p);
+  lastCommitP = tracked;
   if (!navigator.onLine) {
-    p.catch(() => {});
-    return Promise.resolve();
+    lastCommitSynced = false;
+    tracked.catch(() => {});
+    return Promise.resolve(false);
   }
+  let settled = false;
+  const done = tracked.then(
+    () => {
+      settled = true;
+      return true;
+    },
+    (err) => {
+      settled = true;
+      throw err;
+    },
+  );
   return Promise.race([
-    p,
+    done,
     new Promise((res) =>
       setTimeout(() => {
-        p.catch(() => {});
-        res();
-      }, 2500),
+        if (!settled) tracked.catch(() => {});
+        res(false);
+      }, ms),
     ),
-  ]);
+  ]).then((ok) => {
+    lastCommitSynced = !!ok;
+    return !!ok;
+  });
 };
+const saveToast = (okMsg, synced = lastCommitSynced) => (synced ? toast(okMsg) : toast(QUEUED_HINT, 4500));
 const xRef = (c, id) => db.collection("done").doc(`x~${c}~${id}`);
 
 async function addDoc(c, data) {
@@ -873,7 +895,10 @@ async function savePhoto(file, date, opt = {}) {
   const item = { id, ...meta };
   photos = photos.filter((p) => p.id !== id).concat([item]);
   calPhotos = calPhotos.filter((p) => p.id !== id).concat([item]);
-  await commit(Promise.all([pPic, pMeta]));
+  const writeP = Promise.all([pPic, pMeta]);
+  const synced = await commit(writeP, 5000);
+  item._synced = synced;
+  item._writeP = writeP;
   return item;
 }
 function photoErrMsg(e) {
@@ -913,7 +938,9 @@ $("photoFile").addEventListener("change", async () => {
       .catch(() => {});
   }
   let ok = 0,
-    msg = "";
+    msg = "",
+    allSynced = true;
+  const writePs = [];
   await withBusy(async () => {
     for (let i = 0; i < files.length; i++) {
       if (files.length > 1) {
@@ -923,7 +950,9 @@ $("photoFile").addEventListener("change", async () => {
       try {
         // 第一張用固定的 id（日期_名字），其他張加亂數；只有真的要換掉舊照片時才搬進垃圾桶
         const asMain = pendingSwap || (!hasMain && i === 0);
-        await savePhoto(files[i], date, asMain ? { id: mainId, replace: pendingSwap && hasMain } : {});
+        const saved = await savePhoto(files[i], date, asMain ? { id: mainId, replace: pendingSwap && hasMain } : {});
+        if (saved._writeP) writePs.push(saved._writeP);
+        if (!saved._synced) allSynced = false;
         ok++;
         if (files.length > 1) renderAll();
       } catch (e) {
@@ -936,15 +965,21 @@ $("photoFile").addEventListener("change", async () => {
   updateSyncStatus();
   if (ok) {
     const n = ok > 1 ? `${ok} 張照片` : "照片";
-    toast(
+    const okMsg =
       msg ||
-        (earned && partner
-          ? `兩個人都傳了！+${PHOTO_BONUS} XP 📸`
-          : earned
-            ? `${n}上傳好了 📸 等對方也傳就 +${PHOTO_BONUS} XP`
-            : `${n}上傳好了 📸`),
+      (earned && partner
+        ? `兩個人都傳了！+${PHOTO_BONUS} XP 📸`
+        : earned
+          ? `${n}上傳好了 📸 等對方也傳就 +${PHOTO_BONUS} XP`
+          : `${n}上傳好了 📸`);
+    saveToast(okMsg, allSynced);
+    notifyPartner(
+      "📷 今日照片",
+      `${myName()}傳了${ok > 1 ? ` ${ok} 張` : ""}今天的照片`,
+      "#quests",
+      "photo-" + date,
+      Promise.all(writePs),
     );
-    notifyPartner("📷 今日照片", `${myName()}傳了${ok > 1 ? ` ${ok} 張` : ""}今天的照片`, "#quests", "photo-" + date);
   } else if (msg) toast(msg);
   renderAll();
 });
@@ -1824,7 +1859,7 @@ $("diaryForm").addEventListener("submit", async (ev) => {
       Object.assign(old, upd);
       endEdit();
       renderAll();
-      toast("修改好了 ✏️");
+      saveToast("修改好了 ✏️");
     } catch (err) {
       $("dMsg").textContent = "沒存到，請再試一次";
     }
@@ -1846,7 +1881,7 @@ $("diaryForm").addEventListener("submit", async (ev) => {
     $("dMsg").textContent = "";
     resetDiaryFields();
     renderAll();
-    toast("寫好了 💌");
+    saveToast("寫好了 💌");
     const preview = (e.mood || e.say || e.food || e.funny || "").slice(0, 24);
     notifyPartner(
       "💌 新日記",
@@ -2171,25 +2206,34 @@ $("ansForm").addEventListener("submit", async (ev) => {
       $("ansText").value = "";
       grow($("ansText"));
       renderAll();
-      toast("答案改好了 ✏️");
+      saveToast("答案改好了 ✏️");
     } else {
       await addDoc("answers", { round: r.id, text, by: myName(), at: nowIso() });
+      const ansWrite = lastCommitP,
+        ansSynced = lastCommitSynced;
       ansEditing = false;
       lsDel(ANS_DRAFT_KEY);
       $("ansText").value = "";
       grow($("ansText"));
       if (pairOf(r.id).length >= need()) {
         await markRoundPassed(r);
-        toast(`過關！+${DRAW_XP} XP 🎲`);
+        saveToast(`過關！+${DRAW_XP} XP 🎲`, ansSynced);
         notifyPartner(
           "🎲 抽題揭曉！",
           `${myName()}也答完了，快來看你們的答案（+${DRAW_XP} XP）`,
           "#draw",
           "draw-ans-" + r.id,
+          ansWrite,
         );
       } else {
-        toast(`答案送出了 🎲 等對方回答就 +${DRAW_XP} XP`);
-        notifyPartner("🎲 等你回答", `${myName()}答好抽題了，換你作答就會揭曉！`, "#draw", "draw-ans-" + r.id);
+        saveToast(`答案送出了 🎲 等對方回答就 +${DRAW_XP} XP`, ansSynced);
+        notifyPartner(
+          "🎲 等你回答",
+          `${myName()}答好抽題了，換你作答就會揭曉！`,
+          "#draw",
+          "draw-ans-" + r.id,
+          ansWrite,
+        );
       }
     }
   } catch (e) {
@@ -2338,7 +2382,7 @@ bindForm(
   () => {
     const text = $("wText").value.trim();
     $("wText").value = "";
-    toast("許願成功 🌠");
+    saveToast("許願成功 🌠");
     notifyPartner("🌠 新願望", `${myName()}許了一個願望：「${text.slice(0, 28)}」`, "#wishes", "wish-new");
   },
 );
@@ -2434,7 +2478,7 @@ bindForm(
     lsDel(CAP_DRAFT_KEY);
     $("capText").value = "";
     grow($("capText"));
-    toast("封存好了 ⏳");
+    saveToast("封存好了 ⏳");
     notifyPartner("⏳ 時光膠囊", `${myName()}封存了一顆寫給未來的時光膠囊`, "#capsule", "cap-new");
   },
 );
@@ -3800,7 +3844,7 @@ bindForm(
     hugOpen = false;
     popFloat($("hugCard"), "🤗");
     renderHug();
-    toast("討抱抱送出去了 🤗");
+    saveToast("討抱抱送出去了 🤗");
     notifyPartner("🤗 討抱抱", `${myName()}想要你的抱抱${txt ? `：「${txt}」` : ""}`, "#hugCard", "hug-ask");
   },
 );
@@ -4575,9 +4619,9 @@ $("dPhotoFile").addEventListener("change", async () => {
     list.map((f) => ({ file: f })),
   );
   if (n) {
-    toast(`加了 ${n} 張照片 📷`);
+    saveToast(`加了 ${n} 張照片 📷`, lastUploadSynced);
     const targetHash = e.date === key(today()) ? "#quests" : "#calendar:" + e.date;
-    notifyPartner("📷 日記新照片", `${myName()}在日記加了 ${n} 張照片`, targetHash, "dphoto-" + e.id);
+    notifyPartner("📷 日記新照片", `${myName()}在日記加了 ${n} 張照片`, targetHash, "dphoto-" + e.id, lastUploadWriteP);
   }
 });
 document.addEventListener("click", (ev) => {
@@ -4593,19 +4637,25 @@ document.addEventListener("click", (ev) => {
     $("dPhotoFile").click();
   }
 });
+let lastUploadSynced = true,
+  lastUploadWriteP = Promise.resolve();
 async function uploadQueue(entryId, date, list) {
   if (!db || !list.length) return 0;
   diaryUp = entryId;
   diaryUpProg = list.length > 1 ? `1 / ${list.length}` : "";
   renderAll();
-  let ok = 0;
+  let ok = 0,
+    allSynced = true;
+  const writePs = [];
   await withBusy(async () => {
     for (let i = 0; i < list.length; i++) {
       diaryUpProg = list.length > 1 ? `${i + 1} / ${list.length}` : "";
       const label = diaryUpProg ? `上傳中 ${diaryUpProg}…` : "上傳中…";
       document.querySelectorAll(`[data-addph="${entryId}"]`).forEach((b) => (b.textContent = label));
       try {
-        await savePhoto(list[i].file, date, { entry: entryId });
+        const saved = await savePhoto(list[i].file, date, { entry: entryId });
+        if (saved._writeP) writePs.push(saved._writeP);
+        if (!saved._synced) allSynced = false;
         ok++;
         if (list.length > 1) renderAll();
       } catch (e) {
@@ -4614,6 +4664,8 @@ async function uploadQueue(entryId, date, list) {
     }
   });
   (list || []).forEach((q) => q.url && URL.revokeObjectURL(q.url));
+  lastUploadSynced = allSynced;
+  lastUploadWriteP = Promise.all(writePs);
   diaryUp = null;
   diaryUpProg = "";
   updateSyncStatus();
@@ -4793,7 +4845,7 @@ bindForm(
       target = !eDate || eDate === key(today()) ? "#quests" : "#calendar:" + eDate;
     replyTextEl.value = "";
     closeReply();
-    toast("回應送出了 💬");
+    saveToast("回應送出了 💬");
     notifyPartner("💬 日記新回應", `${myName()}回應了日記：「${txt.slice(0, 30)}」`, target, "reply-" + eid);
   },
 );
@@ -5972,7 +6024,7 @@ $("reviewForm").addEventListener("submit", async (ev) => {
     $("reviewText").value = "";
     grow($("reviewText"));
     renderAll();
-    toast(
+    saveToast(
       !first
         ? "回顧改好了"
         : partner
@@ -6182,9 +6234,14 @@ async function sendPush(payloadObj, target = "partner") {
   );
   return { sent };
 }
-function notifyPartner(title, body, hash = "#today", tag = "love-base") {
+function notifyPartner(title, body, hash = "#today", tag = "love-base", waitP = lastCommitP) {
   if (!db) return;
-  sendPush({ title, body, url: "./" + hash, tag }, "partner").catch(() => {});
+  const fire = () => sendPush({ title, body, url: "./" + hash, tag }, "partner").catch(() => {});
+  if (waitP && typeof waitP.then === "function") {
+    waitP.then(fire, () => {});
+  } else {
+    fire();
+  }
 }
 let curSubEp = "";
 async function checkLocalSub() {
@@ -6370,6 +6427,7 @@ if ("serviceWorker" in navigator) {
       const h = ev.data.url.split("#")[1] || "today";
       openFor(h);
       history.replaceState(null, "", "#" + h);
+      reconnect();
     }
   });
 }
