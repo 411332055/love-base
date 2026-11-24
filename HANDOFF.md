@@ -72,7 +72,7 @@
 
 ### 存在手機裡的設定（localStorage）
 
-`love-base-room`（暗號）、`love-base-name`（名字）、`love-base-theme`、`love-base-font`、`love-base-haptic`（震動開關 on/off）、`love-base-haptic-level`（震動強度 light/mid/strong）、`love-base-layout`、`love-base-draft`（日記草稿）、`love-base-seen`、`love-base-cap-seen`（已看過到期提醒的膠囊）、`love-base-last-backup`、`love-base-backup-snooze`、`love-base-last-pic-scan`、`love-base-pic-snooze`、`love-base-side`、`love-base-remind-seen`（看過的「明天是…」提醒）、`love-base-ios-snooze`（iPhone 加到主畫面提醒的延後時間），以及沒連伺服器時的整份資料 `love-base-v1`。
+`love-base-room`（暗號）、`love-base-name`（名字）、`love-base-theme`、`love-base-font`、`love-base-haptic`（震動開關 on/off）、`love-base-haptic-level`（震動強度 light/mid/strong）、`love-base-layout`、`love-base-draft`（日記草稿）、`love-base-ans-draft`（抽題草稿）、`love-base-rev-draft`（每週回顧草稿）、`love-base-cap-draft`（時光膠囊草稿）、`love-base-seen`、`love-base-cap-seen`（已看過到期提醒的膠囊）、`love-base-last-backup`、`love-base-backup-snooze`、`love-base-last-pic-scan`、`love-base-pic-snooze`、`love-base-side`、`love-base-remind-seen`（看過的「明天是…」提醒）、`love-base-ios-snooze`（iPhone 加到主畫面提醒的延後時間），以及沒連伺服器時的整份資料 `love-base-v1`。
 
 ## 四、程式在哪裡（`app.js`，用函式名稱搜尋）
 

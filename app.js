@@ -217,6 +217,13 @@ function fromKey(k) {
     .map(Number);
   return y && m && d ? new Date(y, m - 1, d) : today();
 }
+function shortDate(k) {
+  const [y, m, d] = String(k || "")
+    .split("-")
+    .map(Number);
+  if (!y || !m || !d) return "";
+  return y === today().getFullYear() ? `${m}/${d}` : `${y}/${m}/${d}`;
+}
 const byAt = (a, b) => String(a.at).localeCompare(String(b.at));
 const nameOf = (n) => (n ? n + (n === myName() ? "（我）" : "") : "未署名");
 const nowIso = () => new Date().toISOString();
@@ -723,8 +730,9 @@ function renderWall() {
     .map((d) => {
       const [y, m, dd] = d.split("-").map(Number);
       const dt = new Date(y, m - 1, dd);
+      const head = shortDate(d) || `${m}/${dd}`;
       return (
-        `<div class="wall-day"><h3>${m}/${dd}（${wk[dt.getDay()]}）</h3>` +
+        `<div class="wall-day"><h3>${head}（${wk[dt.getDay()]}）</h3>` +
         `<div class="wall-grid">${byDay
           .get(d)
           .map((p) => photoBtn(p, ""))
@@ -906,21 +914,23 @@ $("photoFile").addEventListener("change", async () => {
   }
   let ok = 0,
     msg = "";
-  for (let i = 0; i < files.length; i++) {
-    if (files.length > 1) {
-      uploadingProg = `${i + 1} / ${files.length}`;
-      renderTodayPhotos();
+  await withBusy(async () => {
+    for (let i = 0; i < files.length; i++) {
+      if (files.length > 1) {
+        uploadingProg = `${i + 1} / ${files.length}`;
+        renderTodayPhotos();
+      }
+      try {
+        // 第一張用固定的 id（日期_名字），其他張加亂數；只有真的要換掉舊照片時才搬進垃圾桶
+        const asMain = pendingSwap || (!hasMain && i === 0);
+        await savePhoto(files[i], date, asMain ? { id: mainId, replace: pendingSwap && hasMain } : {});
+        ok++;
+        if (files.length > 1) renderAll();
+      } catch (e) {
+        msg = photoErrMsg(e);
+      }
     }
-    try {
-      // 第一張用固定的 id（日期_名字），其他張加亂數；只有真的要換掉舊照片時才搬進垃圾桶
-      const asMain = pendingSwap || (!hasMain && i === 0);
-      await savePhoto(files[i], date, asMain ? { id: mainId, replace: pendingSwap && hasMain } : {});
-      ok++;
-      if (files.length > 1) renderAll();
-    } catch (e) {
-      msg = photoErrMsg(e);
-    }
-  }
+  });
   uploading = null;
   uploadingProg = "";
   updateSyncStatus();
@@ -976,12 +986,9 @@ function openPhoto(id, list) {
   $("lbImg").src = cached || p.th;
   $("lbImg").alt = p.by + " 的照片";
   lbResetZoom();
-  const [, m, d] = String(p.date || "")
-      .split("-")
-      .map(Number),
+  const sd = shortDate(p.date),
     mine = p.by === myName();
-  $("lbCap").textContent =
-    `${m && d ? `${m}/${d} · ` : ""}${p.by}${mine ? "（我）" : ""}${p.cap ? "\n「" + p.cap + "」" : ""}`;
+  $("lbCap").textContent = `${sd ? sd + " · " : ""}${p.by}${mine ? "（我）" : ""}${p.cap ? "\n「" + p.cap + "」" : ""}`;
   $("lbCapForm").hidden = true;
   $("lbCapEdit").hidden = !mine;
   $("lbCapEdit").textContent = p.cap ? "✏️ 改這句話" : "✏️ 寫一句話";
@@ -1369,10 +1376,8 @@ $("lbShare").onclick = async () => {
   try {
     const f = await lbFile();
     if (!f) return;
-    const [, m, d] = String(f.p.date || "")
-        .split("-")
-        .map(Number),
-      text = `${m && d ? `${m}/${d} ` : ""}${f.p.by}${f.p.cap ? "：「" + f.p.cap + "」" : ""}`;
+    const sd = shortDate(f.p.date),
+      text = `${sd ? sd + " " : ""}${f.p.by}${f.p.cap ? "：「" + f.p.cap + "」" : ""}`;
     const data = { files: [f.file], title: "我們的戀愛遊戲基地", text };
     await navigator.share(navigator.canShare(data) ? data : { files: [f.file] });
   } catch (e) {
@@ -1614,12 +1619,18 @@ async function delEntry(id) {
 let happy = 0,
   editId = null;
 const FIELDS = { dMood: "mood", dFood: "food", dFunny: "funny", dSay: "say", dS1: "s1", dS2: "s2" };
+function clearPromptHint() {
+  if (!$("dPromptHint")) return;
+  $("dPromptHint").textContent = "";
+  $("dPromptHint").hidden = true;
+}
 function resetDiaryFields() {
   for (const el of Object.keys(FIELDS)) $(el).value = "";
   $("dFunny").closest("label").hidden = true;
   $("dS1").closest(".summary").hidden = true;
   $("dDate").value = key(today());
   happy = 0;
+  clearPromptHint();
   renderHearts();
   growAll();
 }
@@ -1627,6 +1638,7 @@ function startEdit(id) {
   const e = entries.find((x) => x.id === id);
   if (!e) return;
   editId = id;
+  clearPromptHint();
   renderDiaryToday();
   $("dDate").value = e.date || key(today());
   for (const [el, f] of Object.entries(FIELDS)) $(el).value = e[f] || "";
@@ -1765,7 +1777,12 @@ const DIARY_PROMPTS = [
 let promptIdx = -1;
 $("dPromptBtn").onclick = () => {
   promptIdx = (promptIdx + 1) % DIARY_PROMPTS.length;
-  $("dSay").placeholder = "💡 " + DIARY_PROMPTS[promptIdx];
+  const tip = "💡 " + DIARY_PROMPTS[promptIdx];
+  $("dSay").placeholder = tip;
+  if ($("dPromptHint")) {
+    $("dPromptHint").textContent = tip;
+    $("dPromptHint").hidden = false;
+  }
   $("dSay").focus();
 };
 
@@ -2383,6 +2400,22 @@ function renderCapsules() {
   ].join("");
   armDelete(box, "capsules");
 }
+const CAP_DRAFT_KEY = "love-base-cap-draft";
+function saveCapDraft() {
+  const text = $("capText").value,
+    openDate = $("capDate").value;
+  if (text.trim()) lsSet(CAP_DRAFT_KEY, JSON.stringify({ text, openDate }));
+  else lsDel(CAP_DRAFT_KEY);
+}
+function restoreCapDraft() {
+  const d = lsJson(CAP_DRAFT_KEY);
+  if (!d || !d.text) return;
+  $("capText").value = d.text;
+  if (d.openDate && d.openDate > key(today())) $("capDate").value = d.openDate;
+  grow($("capText"));
+}
+$("capText").addEventListener("input", saveCapDraft);
+$("capDate").addEventListener("change", saveCapDraft);
 bindForm(
   "capForm",
   "capSave",
@@ -2398,6 +2431,7 @@ bindForm(
     return { c: "capsules", doc: { text, openDate, by: myName(), at: nowIso() } };
   },
   () => {
+    lsDel(CAP_DRAFT_KEY);
     $("capText").value = "";
     grow($("capText"));
     toast("封存好了 ⏳");
@@ -4481,6 +4515,7 @@ const shrinkFull = (im) => shrink(im, 1280, PHOTO_MAX, 0.76),
 // 日記照片：一篇最多 9 張，每張存成 photos/pics 各一筆，用 entry 欄位指回日記
 const DIARY_PH_MAX = 9;
 let diaryUp = null,
+  diaryUpProg = "",
   addTarget = null,
   _entryMeta = null;
 function entryMetaMap() {
@@ -4541,7 +4576,8 @@ $("dPhotoFile").addEventListener("change", async () => {
   );
   if (n) {
     toast(`加了 ${n} 張照片 📷`);
-    notifyPartner("📷 日記新照片", `${myName()}在日記加了 ${n} 張照片`, "#quests", "dphoto-" + e.id);
+    const targetHash = e.date === key(today()) ? "#quests" : "#calendar:" + e.date;
+    notifyPartner("📷 日記新照片", `${myName()}在日記加了 ${n} 張照片`, targetHash, "dphoto-" + e.id);
   }
 });
 document.addEventListener("click", (ev) => {
@@ -4560,20 +4596,27 @@ document.addEventListener("click", (ev) => {
 async function uploadQueue(entryId, date, list) {
   if (!db || !list.length) return 0;
   diaryUp = entryId;
+  diaryUpProg = list.length > 1 ? `1 / ${list.length}` : "";
   renderAll();
   let ok = 0;
-  for (let i = 0; i < list.length; i++) {
-    $("dMsg").textContent = `上傳照片 ${i + 1} / ${list.length}…`;
-    try {
-      await savePhoto(list[i].file, date, { entry: entryId });
-      ok++;
-    } catch (e) {
-      toast(e && e.message === "decode" ? "有一張照片讀不到，先跳過" : "有一張照片沒傳成功，可以之後再加");
+  await withBusy(async () => {
+    for (let i = 0; i < list.length; i++) {
+      diaryUpProg = list.length > 1 ? `${i + 1} / ${list.length}` : "";
+      const label = diaryUpProg ? `上傳中 ${diaryUpProg}…` : "上傳中…";
+      document.querySelectorAll(`[data-addph="${entryId}"]`).forEach((b) => (b.textContent = label));
+      try {
+        await savePhoto(list[i].file, date, { entry: entryId });
+        ok++;
+        if (list.length > 1) renderAll();
+      } catch (e) {
+        toast(e && e.message === "decode" ? "有一張照片讀不到，先跳過" : "有一張照片沒傳成功，可以之後再加");
+      }
     }
-  }
+  });
   (list || []).forEach((q) => q.url && URL.revokeObjectURL(q.url));
-  $("dMsg").textContent = "";
   diaryUp = null;
+  diaryUpProg = "";
+  updateSyncStatus();
   renderAll();
   return ok;
 }
@@ -4595,9 +4638,10 @@ function entryExtras(e, where) {
   const own = meta.photosByEntry.get(e.id) || [],
     phs = [...(where === "list" && first ? meta.dailyPhotosByKey.get(e.date + "_" + e.by) || [] : []), ...own];
   const canAdd = db && !photoErr && e.by === me && own.length < DIARY_PH_MAX;
+  const upLabel = diaryUpProg ? `上傳中 ${diaryUpProg}…` : "上傳中…";
   const addBtn = canAdd
     ? `<button type="button" class="btn ghost" data-addph="${esc(e.id)}" ${diaryUp === e.id ? "disabled" : ""}` +
-      `>${diaryUp === e.id ? "上傳中…" : "📷 加照片"}</button>`
+      `>${diaryUp === e.id ? upLabel : "📷 加照片"}</button>`
     : "";
   const acts =
     `<div class="acts">${!e.by || e.by === me ? `<button class="btn ghost edit" type="button" data-id="${esc(e.id)}">✏️ 編輯</button>` : ""}` +
@@ -6432,6 +6476,7 @@ renderHearts();
 renderInstall();
 showLastBackup();
 restoreDraft();
+restoreCapDraft();
 openFor(location.hash.slice(1) || "today");
 booted = true;
 setTimeout(() => {

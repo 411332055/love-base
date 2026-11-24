@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
-<link rel="manifest" href="manifest.webmanifest?v=123">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=123">
+<link rel="manifest" href="manifest.webmanifest?v=124">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=124">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap"></noscript>
-<link rel="stylesheet" href="style.css?v=123">
+<link rel="stylesheet" href="style.css?v=124">
 </head>
 <body>
 
@@ -128,6 +128,7 @@
         <label hidden>🤪 今天最好笑的事情<textarea id="dFunny" maxlength="200" rows="1"></textarea></label>
         <div class="full field">
           <div class="row between"><label for="dSay">💞 今天想記下的事</label><button class="btn ghost small" type="button" id="dPromptBtn">💡 靈感</button></div>
+          <div class="sub" id="dPromptHint" hidden></div>
           <textarea id="dSay" maxlength="1000" rows="3" placeholder="寫下今天發生的事，或按右上「💡 靈感」"></textarea>
         </div>
         <div class="full field"><span id="heartsLbl">⭐ 今天的幸福指數（1～10）</span>
@@ -404,7 +405,7 @@
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=123" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=124" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -430,6 +431,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=123"></script>
+<script src="app.js?v=124"></script>
 </body>
 </html>
