@@ -4547,6 +4547,13 @@ function syncFilterBar(el) {
   });
 })();
 // 在頁面中間左右滑動切換頁面：滑得夠遠，或是短而快的一撥都算
+// 手指放在可以左右捲動的區塊（例如一排照片）上時，只捲那一排，不換頁
+function inHScroll(el) {
+  for (; el && el !== document.body; el = el.parentElement) {
+    if (el.scrollWidth > el.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(el).overflowX)) return true;
+  }
+  return false;
+}
 (() => {
   let sx = null,
     sy = 0,
@@ -4557,7 +4564,8 @@ function syncFilterBar(el) {
       if (
         !$("lightbox").hidden ||
         !$("gate").hidden ||
-        ev.target.closest("input,textarea,select,#hearts,#subNav,#tabBar,.filter,.chart")
+        ev.target.closest("input,textarea,select,#hearts,#subNav,#tabBar,.filter,.chart") ||
+        inHScroll(ev.target)
       ) {
         sx = null;
         return;
