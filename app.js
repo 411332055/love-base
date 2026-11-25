@@ -2630,22 +2630,27 @@ function renderChart() {
     `<button type="button" class="tip" hidden></button>`;
   const svg = box.querySelector("svg"),
     tip = box.querySelector(".tip");
-  // 手機點一下（或滑鼠移過去）顯示最近那天的分數；再點提示就跳到月曆的那一天
+  // 手指在曲線上左右滑（或滑鼠移過去），經過哪一天就顯示那天的分數；點提示就跳到月曆的那一天
   let picked = null;
   const pick = (ev) => {
     const r = svg.getBoundingClientRect(),
       px = ((ev.clientX - r.left) / r.width) * W;
     const p = pts.reduce((a, b) => (Math.abs(x(b.i) - px) < Math.abs(x(a.i) - px) ? b : a));
+    if (p === picked) return;
+    if (picked) sliderTick();
     picked = p;
     tip.textContent = `${fmt(p.d)} · ⭐ ${Math.round(p.v * 10) / 10} · 看那天 ›`;
     tip.hidden = false;
     tip.style.left = Math.min(80, Math.max(20, (x(p.i) / W) * 100)) + "%";
     svg.querySelectorAll(".dot").forEach((c) => c.classList.toggle("sel", +c.dataset.n === pts.indexOf(p)));
   };
-  svg.onclick = pick;
-  svg.onpointermove = (ev) => {
-    if (ev.pointerType === "mouse") pick(ev);
+  svg.onpointerdown = (ev) => {
+    pick(ev);
+    try {
+      svg.setPointerCapture(ev.pointerId);
+    } catch (e) {}
   };
+  svg.onpointermove = pick;
   tip.onclick = () => {
     if (!picked) return;
     const d = key(picked.d);
