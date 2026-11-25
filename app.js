@@ -1926,33 +1926,46 @@ $("diaryForm").addEventListener("submit", async (ev) => {
     $("dSave").disabled = false;
     return;
   }
-  try {
-    if (db) {
-      const ref = db.collection("diary").doc();
-      await commit(ref.set(e));
-      if (!entries.find((x) => x.id === ref.id)) entries.push({ id: ref.id, ...e });
-    } else {
-      e.id = "l" + Date.now();
-      entries.push(e);
-      saveLocal();
-    }
-    diaryFormOpen = false;
-    clearDraft();
-    $("dMsg").textContent = "";
-    resetDiaryFields();
-    renderAll();
-    saveToast("寫好了 💌");
-    const preview = (e.mood || e.say || e.food || e.funny || "").slice(0, 24);
-    notifyPartner(
-      "💌 新日記",
-      `${myName()}寫了一篇新日記${preview ? `：「${preview}」` : ""}`,
-      e.date === key(today()) ? "#quests" : "#calendar:" + e.date,
-      "diary-" + e.date,
-    );
-  } catch (err) {
-    $("dMsg").textContent = "沒存到，請確認你有這個頁面的編輯權限";
-  }
+  // 先把日記放進畫面、清空表單，存檔在背景；內容另外備份一份，萬一沒存成功就整篇放回表單
+  const id = db ? db.collection("diary").doc().id : "l" + Date.now();
+  const backup = JSON.stringify(e);
+  lsSet(SAVING_KEY, backup);
+  entries.push({ id, ...e });
+  if (!db) saveLocal();
+  diaryFormOpen = false;
+  clearDraft();
+  $("dMsg").textContent = "";
+  resetDiaryFields();
+  renderAll();
+  lastCommitSynced = navigator.onLine;
+  saveToast("寫好了 💌");
   $("dSave").disabled = false;
+  if (!db) {
+    lsDel(SAVING_KEY);
+    return;
+  }
+  const saving = commit(db.collection("diary").doc(id).set(e));
+  const preview = (e.mood || e.say || e.food || e.funny || "").slice(0, 24);
+  notifyPartner(
+    "💌 新日記",
+    `${myName()}寫了一篇新日記${preview ? `：「${preview}」` : ""}`,
+    e.date === key(today()) ? "#quests" : "#calendar:" + e.date,
+    "diary-" + e.date,
+  );
+  try {
+    const synced = await saving;
+    if (!synced && navigator.onLine) toast(QUEUED_HINT, 4500);
+    if (lsGet(SAVING_KEY) === backup) lsDel(SAVING_KEY);
+  } catch (err) {
+    const i = entries.findIndex((x) => x.id === id);
+    if (i >= 0) entries.splice(i, 1);
+    if (!lsGet(DRAFT_KEY)) lsSet(DRAFT_KEY, backup);
+    lsDel(SAVING_KEY);
+    restoreDraft();
+    renderAll();
+    $("dMsg").textContent = "沒存到，請確認網路後再按一次「寫進日記」";
+    toast(NOSAVE);
+  }
 });
 
 // 抽題：每天輪流抽一題（寒冰、夏夏隔天輪），每個月的題庫在 questions.json
@@ -3739,7 +3752,8 @@ setSide(document.documentElement.dataset.side === "mini" ? "mini" : "open");
 $("sideToggle").onclick = () => setSide(document.documentElement.dataset.side === "open" ? "mini" : "open", true);
 
 // 日記草稿：只存在這台裝置，寫進日記後清掉；編輯舊日記時不動草稿
-const DRAFT_KEY = "love-base-draft";
+const DRAFT_KEY = "love-base-draft",
+  SAVING_KEY = "love-base-diary-saving";
 function saveDraft() {
   if (editId) return;
   const d = { date: $("dDate").value, happy };
