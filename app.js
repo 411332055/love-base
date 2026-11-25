@@ -1517,6 +1517,7 @@ function subPhotos() {
     .onSnapshot(
       { includeMetadataChanges: true },
       (s) => {
+        syncBroken.photos = false;
         pendingSync.photos = !!s.metadata?.hasPendingWrites;
         updateSyncStatus();
         if (photos.length && typeof s.docChanges === "function" && !s.docChanges().length) return;
@@ -1527,6 +1528,8 @@ function subPhotos() {
       },
       (e) => {
         photoErr = e && e.code === "permission-denied" ? "rules" : "net";
+        if (photoErr === "net") syncBroken.photos = true;
+        updateSyncStatus();
         renderAll();
       },
     );
@@ -3657,8 +3660,12 @@ function purgeExpired() {
       }
     }
 }
+let photoTrashUnsub = null;
 function subPhotoTrash() {
-  db.collection("photos")
+  if (!db) return;
+  if (photoTrashUnsub) photoTrashUnsub();
+  photoTrashUnsub = db
+    .collection("photos")
     .where("trashed.at", ">", "")
     .onSnapshot(
       (s) => {
@@ -5801,6 +5808,8 @@ $("bookPrint").onclick = () => window.print();
 // 離線與雲端同步狀態指示
 const OFFLINE_TEXT = "離線中 · 連網後會自動同步";
 const pendingSync = { done: false, diary: false, photos: false };
+const syncBroken = { done: false, diary: false, photos: false };
+let resubscribeBroken = null;
 let wasOffline = !navigator.onLine;
 function syncOfflineBar() {
   const bar = $("offlineBar");
@@ -5810,11 +5819,18 @@ syncOfflineBar();
 function hasActiveUpload() {
   return !!(uploading || diaryUp || pendingWrites > 0 || pendingSync.done || pendingSync.diary || pendingSync.photos);
 }
+function hasBrokenSync() {
+  return !!(syncBroken.done || syncBroken.diary || syncBroken.photos);
+}
 function updateSyncStatus() {
   syncOfflineBar();
   if (!db) return;
   if (!navigator.onLine) {
     $("status").textContent = OFFLINE_TEXT;
+    return;
+  }
+  if (hasBrokenSync()) {
+    $("status").textContent = "同步中斷 · 點這裡重新連線";
     return;
   }
   if (hasActiveUpload()) {
@@ -5833,7 +5849,9 @@ window.addEventListener("offline", () => {
 let hiddenAt = 0,
   reconnecting = false;
 function reconnect(force) {
-  if (!db || reconnecting || !navigator.onLine) return;
+  if (!db || !navigator.onLine) return;
+  if (hasBrokenSync() && resubscribeBroken) resubscribeBroken();
+  if (reconnecting) return;
   if (!force && hasActiveUpload()) {
     updateSyncStatus();
     return;
@@ -5890,17 +5908,42 @@ function checkRollover() {
   }
   renderAll();
 }
+let swReg = null;
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) hiddenAt = Date.now();
   else {
     checkRollover();
-    if (hiddenAt && Date.now() - hiddenAt > 15000) reconnect();
+    if (hiddenAt && Date.now() - hiddenAt > 15000) {
+      reconnect();
+      if (swReg && navigator.onLine) swReg.update().catch(() => {});
+    }
   }
 });
 window.addEventListener("focus", checkRollover);
 setInterval(checkRollover, 30000);
-if ("serviceWorker" in navigator && location.protocol.startsWith("http"))
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker
+    .register("sw.js")
+    .then((reg) => {
+      swReg = reg;
+    })
+    .catch(() => {});
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController) return;
+    const bar = $("updateBar");
+    if (bar) bar.hidden = false;
+  });
+}
+if ($("updateNow")) {
+  $("updateNow").onclick = () => {
+    if (busyOps > 0 || (navigator.onLine && hasActiveUpload())) {
+      toast("正在上傳資料，等上方出現 ✓ 再更新喔");
+      return;
+    }
+    location.reload();
+  };
+}
 
 let hugOpen = false,
   capEditing = "";
@@ -6761,108 +6804,139 @@ $("logout").onclick = () => {
   };
   const isIncremental = (hadSnap, s, changes) =>
     hadSnap && Array.isArray(changes) && (changes.length < s.docs.length || changes.some((ch) => ch.type !== "added"));
-  let hasSnap = { done: false, diary: false };
-  db.collection("done").onSnapshot(
-    { includeMetadataChanges: true },
-    (s) => {
-      pendingSync.done = !!s.metadata?.hasPendingWrites;
-      updateSyncStatus();
-      const changes = typeof s.docChanges === "function" ? s.docChanges() : null;
-      if (hasSnap.done && changes && !changes.length) {
-        if (!s.metadata?.fromCache) {
-          got.done = true;
-          ready();
+  let hasSnap = { done: false, diary: false },
+    doneUnsub = null,
+    diaryUnsub = null;
+  const subDone = () => {
+    if (doneUnsub) doneUnsub();
+    hasSnap.done = false;
+    doneUnsub = db.collection("done").onSnapshot(
+      { includeMetadataChanges: true },
+      (s) => {
+        syncBroken.done = false;
+        pendingSync.done = !!s.metadata?.hasPendingWrites;
+        updateSyncStatus();
+        const changes = typeof s.docChanges === "function" ? s.docChanges() : null;
+        if (hasSnap.done && changes && !changes.length) {
+          if (!s.metadata?.fromCache) {
+            got.done = true;
+            ready();
+          }
+          return;
         }
-        return;
-      }
-      if (isIncremental(hasSnap.done, s, changes)) {
-        changes.forEach((ch) => {
-          const d = ch.doc,
-            parsed = parseXId(d.id);
-          if (!parsed) return;
-          const [c, id] = parsed;
-          if (ch.type === "removed") {
-            removeById(store[c], id);
-            if (trash[c]) removeById(trash[c], id);
-            return;
+        if (isIncremental(hasSnap.done, s, changes)) {
+          changes.forEach((ch) => {
+            const d = ch.doc,
+              parsed = parseXId(d.id);
+            if (!parsed) return;
+            const [c, id] = parsed;
+            if (ch.type === "removed") {
+              removeById(store[c], id);
+              if (trash[c]) removeById(trash[c], id);
+              return;
+            }
+            const item = { id, ...d.data() };
+            if (item.trashed) {
+              removeById(store[c], id);
+              if (trash[c]) upsertById(trash[c], item);
+            } else {
+              if (trash[c]) removeById(trash[c], id);
+              upsertById(store[c], item);
+            }
+          });
+        } else {
+          Object.keys(store).forEach((c) => (store[c] = []));
+          ["wishes", "capsules", "custom"].forEach((c) => (trash[c] = []));
+          s.docs.forEach((d) => {
+            const parsed = parseXId(d.id);
+            if (!parsed) return;
+            const [c, id] = parsed,
+              v = d.data();
+            if (v.trashed) {
+              if (trash[c]) trash[c].push({ id, ...v });
+            } else store[c].push({ id, ...v });
+          });
+        }
+        hasSnap.done = true;
+        if (!s.metadata?.fromCache) got.done = true;
+        ready();
+        renderAll();
+      },
+      () => {
+        clearTimeout(timer);
+        syncBroken.done = true;
+        updateSyncStatus();
+      },
+    );
+  };
+  const subDiary = () => {
+    if (diaryUnsub) diaryUnsub();
+    hasSnap.diary = false;
+    diaryUnsub = db.collection("diary").onSnapshot(
+      { includeMetadataChanges: true },
+      (s) => {
+        syncBroken.diary = false;
+        pendingSync.diary = !!s.metadata?.hasPendingWrites;
+        updateSyncStatus();
+        const changes = typeof s.docChanges === "function" ? s.docChanges() : null;
+        if (hasSnap.diary && changes && !changes.length) {
+          if (!s.metadata?.fromCache) {
+            got.diary = true;
+            ready();
           }
-          const item = { id, ...d.data() };
-          if (item.trashed) {
-            removeById(store[c], id);
-            if (trash[c]) upsertById(trash[c], item);
-          } else {
-            if (trash[c]) removeById(trash[c], id);
-            upsertById(store[c], item);
-          }
-        });
-      } else {
-        Object.keys(store).forEach((c) => (store[c] = []));
-        ["wishes", "capsules", "custom"].forEach((c) => (trash[c] = []));
-        s.docs.forEach((d) => {
-          const parsed = parseXId(d.id);
-          if (!parsed) return;
-          const [c, id] = parsed,
-            v = d.data();
-          if (v.trashed) {
-            if (trash[c]) trash[c].push({ id, ...v });
-          } else store[c].push({ id, ...v });
-        });
-      }
-      hasSnap.done = true;
-      if (!s.metadata?.fromCache) got.done = true;
-      ready();
-      renderAll();
-    },
-    () => {
-      clearTimeout(timer);
-      $("status").textContent = "同步中斷，重新整理試試";
-    },
-  );
+          return;
+        }
+        if (isIncremental(hasSnap.diary, s, changes)) {
+          changes.forEach((ch) => {
+            const d = ch.doc;
+            if (ch.type === "removed") {
+              removeById(entries, d.id);
+              removeById(trash.diary, d.id);
+              return;
+            }
+            const item = { id: d.id, ...d.data() };
+            if (item.trashed) {
+              removeById(entries, d.id);
+              upsertById(trash.diary, item);
+            } else {
+              removeById(trash.diary, d.id);
+              upsertById(entries, item);
+            }
+          });
+        } else {
+          const all = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+          entries = all.filter((e) => !e.trashed);
+          trash.diary = all.filter((e) => e.trashed);
+        }
+        hasSnap.diary = true;
+        if (!s.metadata?.fromCache) got.diary = true;
+        ready();
+        renderAll();
+      },
+      () => {
+        clearTimeout(timer);
+        syncBroken.diary = true;
+        updateSyncStatus();
+      },
+    );
+  };
+  resubscribeBroken = () => {
+    if (syncBroken.done) {
+      syncBroken.done = false;
+      subDone();
+    }
+    if (syncBroken.diary) {
+      syncBroken.diary = false;
+      subDiary();
+    }
+    if (syncBroken.photos) {
+      syncBroken.photos = false;
+      subPhotos();
+      subPhotoTrash();
+    }
+  };
+  subDone();
   subPhotos();
   subPhotoTrash();
-  db.collection("diary").onSnapshot(
-    { includeMetadataChanges: true },
-    (s) => {
-      pendingSync.diary = !!s.metadata?.hasPendingWrites;
-      updateSyncStatus();
-      const changes = typeof s.docChanges === "function" ? s.docChanges() : null;
-      if (hasSnap.diary && changes && !changes.length) {
-        if (!s.metadata?.fromCache) {
-          got.diary = true;
-          ready();
-        }
-        return;
-      }
-      if (isIncremental(hasSnap.diary, s, changes)) {
-        changes.forEach((ch) => {
-          const d = ch.doc;
-          if (ch.type === "removed") {
-            removeById(entries, d.id);
-            removeById(trash.diary, d.id);
-            return;
-          }
-          const item = { id: d.id, ...d.data() };
-          if (item.trashed) {
-            removeById(entries, d.id);
-            upsertById(trash.diary, item);
-          } else {
-            removeById(trash.diary, d.id);
-            upsertById(entries, item);
-          }
-        });
-      } else {
-        const all = s.docs.map((d) => ({ id: d.id, ...d.data() }));
-        entries = all.filter((e) => !e.trashed);
-        trash.diary = all.filter((e) => e.trashed);
-      }
-      hasSnap.diary = true;
-      if (!s.metadata?.fromCache) got.diary = true;
-      ready();
-      renderAll();
-    },
-    () => {
-      clearTimeout(timer);
-      $("status").textContent = "同步中斷，重新整理試試";
-    },
-  );
+  subDiary();
 })();
