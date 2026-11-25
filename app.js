@@ -263,10 +263,12 @@ const commit = (p, ms = 2500) => {
   updateSyncStatus();
   const tracked = Promise.resolve(p);
   lastCommitP = tracked;
-  tracked.finally(() => {
-    pendingWrites = Math.max(0, pendingWrites - 1);
-    updateSyncStatus();
-  });
+  tracked
+    .finally(() => {
+      pendingWrites = Math.max(0, pendingWrites - 1);
+      updateSyncStatus();
+    })
+    .catch(() => {});
   if (!navigator.onLine) {
     lastCommitSynced = false;
     tracked.catch(() => {});
@@ -299,12 +301,21 @@ const commit = (p, ms = 2500) => {
 const saveToast = (okMsg, synced = lastCommitSynced) => (synced ? toast(okMsg) : toast(QUEUED_HINT, 4500));
 const xRef = (c, id) => db.collection("done").doc(`x~${c}~${id}`);
 
+// 先放進畫面再存：按下去馬上看到結果，存檔在背景進行；存失敗就從畫面拿掉並丟出錯誤
 async function addDoc(c, data) {
   const id = db ? db.collection("done").doc().id : "l" + Date.now() + Math.random().toString(36).slice(2, 6);
-  if (db) await commit(xRef(c, id).set(data));
   if (!store[c].find((x) => x.id === id)) store[c].push({ id, ...data });
   if (!db) saveLocal();
   renderAll();
+  if (!db) return true;
+  try {
+    return await commit(xRef(c, id).set(data));
+  } catch (e) {
+    const i = store[c].findIndex((x) => x.id === id);
+    if (i >= 0) store[c].splice(i, 1);
+    renderAll();
+    throw e;
+  }
 }
 async function updDoc(c, id, data) {
   const w = store[c].find((x) => x.id === id);
@@ -2208,19 +2219,28 @@ async function drawQ() {
 }
 $("drawBtn").onclick = drawQ;
 
+// 送出表單：畫面馬上更新、清空輸入框，存檔在背景；存失敗就把剛剛打的字放回去
 function bindForm(form, btn, build, after) {
   $(form).addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const data = build();
     if (!data) return;
+    const fields = [...$(form).querySelectorAll("input:not([type=hidden]),textarea,select")],
+      before = fields.map((f) => f.value);
     $(btn).disabled = true;
+    setTimeout(() => ($(btn).disabled = false), 400);
+    const saving = addDoc(data.c, data.doc);
+    lastCommitSynced = navigator.onLine;
+    after();
     try {
-      await addDoc(data.c, data.doc);
-      after();
+      const synced = await saving;
+      if (!synced && navigator.onLine) toast(QUEUED_HINT, 4500);
     } catch (e) {
+      fields.forEach((f, i) => {
+        if (!f.value) f.value = before[i];
+      });
       toast(NOSAVE);
     }
-    $(btn).disabled = false;
   });
 }
 // 中文選字按 Enter 時不要送出
@@ -2257,13 +2277,20 @@ $("ansForm").addEventListener("submit", async (ev) => {
       renderAll();
       saveToast("答案改好了 ✏️");
     } else {
-      await addDoc("answers", { round: r.id, text, by: myName(), at: nowIso() });
-      const ansWrite = lastCommitP,
-        ansSynced = lastCommitSynced;
+      const saving = addDoc("answers", { round: r.id, text, by: myName(), at: nowIso() });
+      const ansWrite = lastCommitP;
       ansEditing = false;
-      lsDel(ANS_DRAFT_KEY);
       $("ansText").value = "";
       grow($("ansText"));
+      try {
+        await saving;
+      } catch (e) {
+        $("ansText").value = text;
+        grow($("ansText"));
+        throw e;
+      }
+      const ansSynced = lastCommitSynced;
+      lsDel(ANS_DRAFT_KEY);
       if (pairOf(r.id).length >= need()) {
         await markRoundPassed(r);
         saveToast(`過關！+${DRAW_XP} XP 🎲`, ansSynced);
