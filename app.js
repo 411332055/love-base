@@ -234,7 +234,8 @@ const debounce = (fn, ms = 120) => {
     t = setTimeout(fn, ms);
   };
 };
-let busyOps = 0;
+let busyOps = 0,
+  pendingWrites = 0;
 function withBusy(fn) {
   busyOps++;
   return Promise.resolve()
@@ -244,7 +245,10 @@ function withBusy(fn) {
     });
 }
 window.addEventListener("beforeunload", (ev) => {
-  if (busyOps > 0) {
+  if (
+    busyOps > 0 ||
+    (navigator.onLine && (pendingWrites > 0 || pendingSync.done || pendingSync.diary || pendingSync.photos))
+  ) {
     ev.preventDefault();
     ev.returnValue = "";
   }
@@ -255,8 +259,14 @@ const QUEUED_HINT = "已先存在手機，請停留幾秒等上方出現 ✓ 再
 let lastCommitP = Promise.resolve();
 let lastCommitSynced = true;
 const commit = (p, ms = 2500) => {
+  pendingWrites++;
+  updateSyncStatus();
   const tracked = Promise.resolve(p);
   lastCommitP = tracked;
+  tracked.finally(() => {
+    pendingWrites = Math.max(0, pendingWrites - 1);
+    updateSyncStatus();
+  });
   if (!navigator.onLine) {
     lastCommitSynced = false;
     tracked.catch(() => {});
@@ -985,7 +995,9 @@ $("photoFile").addEventListener("change", async () => {
 });
 let lbId = null,
   lbList = [],
-  lbFull = "";
+  lbFull = "",
+  lbBaseCount = "",
+  lbSlowTimer = 0;
 const picCache = new Map();
 function fetchPicImg(id) {
   if (picCache.has(id)) return Promise.resolve(picCache.get(id));
@@ -1003,19 +1015,60 @@ function fetchPicImg(id) {
       return img;
     });
 }
+function preloadAdjPics(id) {
+  if (!navigator.onLine || lbId !== id) return;
+  const i = lbList.indexOf(id);
+  const adj = [lbList[i + 1], lbList[i - 1]].filter((x) => x && !picCache.has(x));
+  (async () => {
+    for (const nextId of adj) {
+      if (lbId !== id || !navigator.onLine) break;
+      await fetchPicImg(nextId).catch(() => {});
+    }
+  })();
+}
+function loadLbFull(id) {
+  clearTimeout(lbSlowTimer);
+  $("lbRetry").hidden = true;
+  $("lbCount").textContent = (lbBaseCount ? lbBaseCount + " · " : "") + "讀取高畫質原圖…";
+  lbSlowTimer = setTimeout(() => {
+    if (lbId !== id || lbFull) return;
+    $("lbCount").textContent = (lbBaseCount ? lbBaseCount + " · " : "") + "網路較慢，仍在讀取原圖…";
+    $("lbRetry").hidden = false;
+  }, 6000);
+  fetchPicImg(id)
+    .then((img) => {
+      clearTimeout(lbSlowTimer);
+      if (lbId !== id) return;
+      if (img) {
+        lbFull = img;
+        $("lbImg").src = img;
+      }
+      $("lbRetry").hidden = true;
+      $("lbCount").textContent = lbBaseCount;
+      preloadAdjPics(id);
+    })
+    .catch(() => {
+      clearTimeout(lbSlowTimer);
+      if (lbId !== id) return;
+      $("lbCount").textContent = (lbBaseCount ? lbBaseCount + " · " : "") + "原圖沒載到，先顯示縮圖";
+      $("lbRetry").hidden = false;
+    });
+}
 // list：同一組照片的 id，可以左右切換
 function openPhoto(id, list) {
   const p = calAllPhotos().find((x) => x.id === id);
   if (!p) return;
+  clearTimeout(lbSlowTimer);
   lbId = id;
   const cached = picCache.get(id) || "";
   lbFull = cached;
   if (list) lbList = list.filter((i) => calAllPhotos().some((x) => x.id === i));
   if (!lbList.includes(id)) lbList = [id];
   const i = lbList.indexOf(id),
-    many = lbList.length > 1,
-    baseCount = many ? `${i + 1} / ${lbList.length}` : "";
-  $("lbCount").textContent = cached ? baseCount : (baseCount ? baseCount + " · " : "") + "讀取高畫質原圖…";
+    many = lbList.length > 1;
+  lbBaseCount = many ? `${i + 1} / ${lbList.length}` : "";
+  $("lbCount").textContent = lbBaseCount;
+  $("lbRetry").hidden = true;
   $("lbPrev").hidden = !many || i === 0;
   $("lbNext").hidden = !many || i === lbList.length - 1;
   $("lbImg").src = cached || p.th;
@@ -1037,22 +1090,12 @@ function openPhoto(id, list) {
   if ($("lightbox").hidden) history.pushState({ lb: 1 }, "", location.hash);
   $("lightbox").hidden = false;
   document.documentElement.classList.add("lb-lock");
-  if (!cached) {
-    fetchPicImg(id)
-      .then((img) => {
-        if (lbId !== id) return;
-        if (img) {
-          lbFull = img;
-          $("lbImg").src = img;
-        }
-        $("lbCount").textContent = baseCount;
-      })
-      .catch(() => {
-        if (lbId === id) $("lbCount").textContent = (baseCount ? baseCount + " · " : "") + "原圖沒載到，先顯示縮圖";
-      });
-  }
-  [lbList[i - 1], lbList[i + 1]].filter(Boolean).forEach((adj) => fetchPicImg(adj).catch(() => {}));
+  if (cached) preloadAdjPics(id);
+  else loadLbFull(id);
 }
+$("lbRetry").onclick = () => {
+  if (lbId && !lbFull) loadLbFull(lbId);
+};
 function lbStep(n) {
   const i = lbList.indexOf(lbId) + n;
   if (i >= 0 && i < lbList.length) {
@@ -1422,12 +1465,15 @@ $("lbShare").onclick = async () => {
   }
 };
 function closePhoto() {
+  clearTimeout(lbSlowTimer);
   lbResetZoom();
   $("lightbox").hidden = true;
+  $("lbRetry").hidden = true;
   document.documentElement.classList.remove("lb-lock");
   lbId = null;
   lbList = [];
   lbFull = "";
+  lbBaseCount = "";
   $("lbImg").removeAttribute("src");
 }
 // 使用者自己關大圖時，順便退掉打開時加的那一筆返回紀錄（Android 返回手勢會先關大圖）
@@ -2776,9 +2822,11 @@ function calAllPhotos() {
   _allPh = [...m.values()];
   return _allPh;
 }
+const calFailed = new Set();
 function loadCalPhotos(m) {
   if (!db || calLoaded.has(m)) return;
   calLoaded.add(m);
+  calFailed.delete(m);
   db.collection("photos")
     .where("date", ">=", m + "-01")
     .where("date", "<=", m + "-31")
@@ -2794,8 +2842,15 @@ function loadCalPhotos(m) {
     })
     .catch(() => {
       calLoaded.delete(m);
-      if (navigator.onLine) toast("這個月的照片沒載到，稍後會再試");
+      calFailed.add(m);
+      if (navigator.onLine) toast("這個月的照片沒載到，連網後會自動重試");
     });
+}
+function retryFailedCalPhotos() {
+  if (!calFailed.size || !navigator.onLine) return;
+  const list = [...calFailed];
+  calFailed.clear();
+  list.forEach((m) => loadCalPhotos(m));
 }
 // 月曆上的特別日子（到了才顯示）：週年、在一起的里程碑、生日、七夕、每月紀念日
 const MILE_DAYS = [30, 50, 100, 200, 300, 500, 520, 600, 700, 800, 900, 1000, 1314];
@@ -5752,6 +5807,9 @@ function syncOfflineBar() {
   if (bar) bar.hidden = navigator.onLine;
 }
 syncOfflineBar();
+function hasActiveUpload() {
+  return !!(uploading || diaryUp || pendingWrites > 0 || pendingSync.done || pendingSync.diary || pendingSync.photos);
+}
 function updateSyncStatus() {
   syncOfflineBar();
   if (!db) return;
@@ -5759,8 +5817,8 @@ function updateSyncStatus() {
     $("status").textContent = OFFLINE_TEXT;
     return;
   }
-  if (pendingSync.done || pendingSync.diary || pendingSync.photos || uploading || diaryUp) {
-    $("status").textContent = "⏳ 正在傳上雲端…";
+  if (hasActiveUpload()) {
+    $("status").textContent = pendingWrites > 1 ? `⏳ 正在傳上雲端（${pendingWrites} 筆）…` : "⏳ 正在傳上雲端…";
     return;
   }
   if (dataReady) $("status").textContent = "● 兩人同步中 ✓";
@@ -5771,10 +5829,15 @@ window.addEventListener("offline", () => {
 });
 // 手機把網站放到背景一段時間後，Android 會讓即時連線睡著，切回來時可能一直停在舊資料。
 // 回到前景、網路恢復、或點最上面的同步狀態時，重新接一次線（只會重抓有變動的資料）。
+// 如果正在上傳照片或還有資料在排隊傳上雲端，非手動觸發時先不強制斷線重連，避免打斷上傳。
 let hiddenAt = 0,
   reconnecting = false;
 function reconnect(force) {
   if (!db || reconnecting || !navigator.onLine) return;
+  if (!force && hasActiveUpload()) {
+    updateSyncStatus();
+    return;
+  }
   const fs = firebase.firestore();
   if (typeof fs.disableNetwork !== "function") return;
   reconnecting = true;
@@ -5785,7 +5848,10 @@ function reconnect(force) {
     .finally(() => {
       reconnecting = false;
       setTimeout(updateSyncStatus, 1200);
-      if (force) toast("重新同步好了 🔄");
+      if (force) {
+        retryFailedCalPhotos();
+        toast("重新同步好了 🔄");
+      }
     });
 }
 window.addEventListener("online", () => {
@@ -5795,6 +5861,9 @@ window.addEventListener("online", () => {
     toast("已重新連線，正在同步 🔄");
   }
   reconnect();
+  retryFailedCalPhotos();
+  flushPendingPushes();
+  if (!$("lightbox").hidden && lbId && !lbFull) loadLbFull(lbId);
 });
 $("status").addEventListener("click", () => reconnect(true));
 $("status").addEventListener("keydown", (ev) => {
@@ -6212,7 +6281,7 @@ async function sendPush(payloadObj, target = "partner") {
   let sent = 0;
   await Promise.all(
     targets.map(async (s) => {
-      try {
+      const sendOnce = async () => {
         const auth = await vapidAuth(cfg, s.ep);
         const body = await encryptPushBody(s, payloadObj);
         const res = await fetch(url, {
@@ -6226,17 +6295,45 @@ async function sendPush(payloadObj, target = "partner") {
             xRef("push", s.id)
               .delete()
               .catch(() => {});
-        } else if (!j || j.ok) {
-          sent++;
+          return "gone";
         }
-      } catch (e) {}
+        if (res.ok && (!j || j.ok)) {
+          sent++;
+          return "ok";
+        }
+        return "retry";
+      };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const st = await sendOnce();
+          if (st === "ok" || st === "gone") break;
+        } catch (e) {}
+        if (attempt === 0 && navigator.onLine) await new Promise((r) => setTimeout(r, 2500));
+        else break;
+      }
     }),
   );
   return { sent };
 }
+const pendingPushes = [];
+function flushPendingPushes() {
+  if (!navigator.onLine || !pendingPushes.length) return;
+  const list = pendingPushes.splice(0, pendingPushes.length);
+  list.forEach((p) => sendPush(p, "partner").catch(() => {}));
+}
 function notifyPartner(title, body, hash = "#today", tag = "love-base", waitP = lastCommitP) {
   if (!db) return;
-  const fire = () => sendPush({ title, body, url: "./" + hash, tag }, "partner").catch(() => {});
+  const payload = { title, body, url: "./" + hash, tag };
+  const fire = () => {
+    if (!navigator.onLine) {
+      const i = pendingPushes.findIndex((x) => x.tag === tag);
+      if (i >= 0) pendingPushes[i] = payload;
+      else pendingPushes.push(payload);
+      if (pendingPushes.length > 5) pendingPushes.shift();
+      return;
+    }
+    sendPush(payload, "partner").catch(() => {});
+  };
   if (waitP && typeof waitP.then === "function") {
     waitP.then(fire, () => {});
   } else {
@@ -6619,6 +6716,11 @@ $("logout").onclick = () => {
   $("meLabel").textContent = "你是 " + myName() + " ·";
   firebase.initializeApp(FIREBASE_CONFIG);
   const fs = firebase.firestore();
+  if (typeof fs.settings === "function") {
+    try {
+      fs.settings({ experimentalAutoDetectLongPolling: true });
+    } catch (e) {}
+  }
   fs.enablePersistence({ synchronizeTabs: true }).catch(() => {});
   db = fs.collection("rooms").doc(room);
   updateSyncStatus();
