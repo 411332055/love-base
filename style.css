@@ -257,7 +257,7 @@ form.wishform{display:flex;gap:8px}
 .panel h3{font-size:15px;font-weight:800}
 .bday-row select,.panel select,#bookTools select,#zipRow select{width:auto}
 .between{justify-content:space-between}
-.chart{position:relative}
+.chart{position:relative;padding-top:34px}
 .chart svg{display:block;width:100%;height:auto}
 .chart .grid{stroke:var(--line);stroke-width:1}
 .chart .axis{fill:var(--muted);font-size:11px}
@@ -267,6 +267,7 @@ form.wishform{display:flex;gap:8px}
 .chart .dot{transition:r .15s}
 .chart .dot.sel{r:7;stroke-width:3}
 .chart .tip{pointer-events:auto;cursor:pointer;font-family:inherit;z-index:2;-webkit-tap-highlight-color:transparent}
+.chart .tip.hint{left:50%;background:transparent;border-color:transparent;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;color:var(--muted);font-weight:600;pointer-events:none}
 .chart .tip:active{transform:translateX(-50%) scale(.96)}
 .tip{position:absolute;top:0;transform:translateX(-50%);background:var(--surface);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);border:.5px solid var(--line);box-shadow:var(--card-shadow);color:var(--fg);font-size:12px;font-weight:700;border-radius:99px;padding:4px 10px;white-space:nowrap;pointer-events:none}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}

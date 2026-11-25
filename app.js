@@ -2627,7 +2627,7 @@ function renderChart() {
     `<text class="axis" x="${L}" y="${H - 4}">${fmt(days[0])}</text><text class="axis" x="${W - R}" y="${H - 4}` +
     `" text-anchor="end">今天</text><polygon points="${areaPts}" fill="url(#hGrad)"/><polyline class="line" points="${polyPts}` +
     `"/>${pts.map((p, n) => `<circle class="dot" data-n="${n}" cx="${x(p.i)}" cy="${y(p.v)}" r="5"/>`).join("")}</svg>` +
-    `<button type="button" class="tip" hidden></button>`;
+    `<button type="button" class="tip hint">👆 在曲線上左右滑，看每一天</button>`;
   const svg = box.querySelector("svg"),
     tip = box.querySelector(".tip");
   // 手指在曲線上左右滑（或滑鼠移過去），經過哪一天就顯示那天的分數；點提示就跳到月曆的那一天
@@ -2640,7 +2640,7 @@ function renderChart() {
     if (picked) sliderTick();
     picked = p;
     tip.textContent = `${fmt(p.d)} · ⭐ ${Math.round(p.v * 10) / 10} · 看那天 ›`;
-    tip.hidden = false;
+    tip.classList.remove("hint");
     tip.style.left = Math.min(80, Math.max(20, (x(p.i) / W) * 100)) + "%";
     svg.querySelectorAll(".dot").forEach((c) => c.classList.toggle("sel", +c.dataset.n === pts.indexOf(p)));
   };
