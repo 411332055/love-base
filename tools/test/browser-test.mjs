@@ -194,6 +194,20 @@ for (const [theme, width] of [
   else if (cell.sh > cell.h + 2) fail("月曆今天的格子內容超出格子");
   else ok("月曆今天的格子正常");
 
+  await go(page, "memories");
+  const svgBox = await (await page.$(".chart svg")).boundingBox();
+  await page.tap(".chart svg", { position: { x: svgBox.width * 0.6, y: svgBox.height / 2 } });
+  await page.waitForTimeout(200);
+  const tipShown = await page.$eval(".chart .tip", (t) => !t.hidden && /⭐/.test(t.textContent));
+  if (!tipShown) fail("點幸福指數曲線沒有顯示分數");
+  else {
+    await page.tap(".chart .tip");
+    await page.waitForTimeout(400);
+    (await page.evaluate(() => location.hash)) === "#calendar"
+      ? ok("點幸福指數會顯示分數，再點會跳到月曆那天")
+      : fail("點幸福指數的提示沒有跳到月曆");
+  }
+
   await go(page, "tools");
   await page.evaluate(() => (document.getElementById("bkBox").open = true));
   await page.waitForTimeout(300);

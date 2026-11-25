@@ -2626,19 +2626,34 @@ function renderChart() {
     `" role="img" aria-label="最近 30 天幸福指數曲線"><defs><linearGradient id="hGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--pink)" stop-opacity=".34"/><stop offset="100%" stop-color="var(--pink)" stop-opacity="0"/></linearGradient></defs>${[1, 5, 10].map((v) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 6}" y="${y(v) + 4}` + `" text-anchor="end">${v}</text>`).join("")}` +
     `<text class="axis" x="${L}" y="${H - 4}">${fmt(days[0])}</text><text class="axis" x="${W - R}" y="${H - 4}` +
     `" text-anchor="end">今天</text><polygon points="${areaPts}" fill="url(#hGrad)"/><polyline class="line" points="${polyPts}` +
-    `"/>${pts.map((p) => `<circle class="dot" cx="${x(p.i)}" cy="${y(p.v)}" r="5"/>`).join("")}</svg>` +
-    `<div class="tip" hidden></div>`;
+    `"/>${pts.map((p, n) => `<circle class="dot" data-n="${n}" cx="${x(p.i)}" cy="${y(p.v)}" r="5"/>`).join("")}</svg>` +
+    `<button type="button" class="tip" hidden></button>`;
   const svg = box.querySelector("svg"),
     tip = box.querySelector(".tip");
-  svg.onpointermove = (ev) => {
+  // 手機點一下（或滑鼠移過去）顯示最近那天的分數；再點提示就跳到月曆的那一天
+  let picked = null;
+  const pick = (ev) => {
     const r = svg.getBoundingClientRect(),
       px = ((ev.clientX - r.left) / r.width) * W;
     const p = pts.reduce((a, b) => (Math.abs(x(b.i) - px) < Math.abs(x(a.i) - px) ? b : a));
-    tip.textContent = `${fmt(p.d)} · ⭐ ${Math.round(p.v * 10) / 10}`;
+    picked = p;
+    tip.textContent = `${fmt(p.d)} · ⭐ ${Math.round(p.v * 10) / 10} · 看那天 ›`;
     tip.hidden = false;
-    tip.style.left = Math.min(88, Math.max(12, (x(p.i) / W) * 100)) + "%";
+    tip.style.left = Math.min(80, Math.max(20, (x(p.i) / W) * 100)) + "%";
+    svg.querySelectorAll(".dot").forEach((c) => c.classList.toggle("sel", +c.dataset.n === pts.indexOf(p)));
   };
-  svg.onpointerleave = () => (tip.hidden = true);
+  svg.onclick = pick;
+  svg.onpointermove = (ev) => {
+    if (ev.pointerType === "mouse") pick(ev);
+  };
+  tip.onclick = () => {
+    if (!picked) return;
+    const d = key(picked.d);
+    calMonth = d.slice(0, 7);
+    calDay = d;
+    openFor("calendar");
+    history.pushState(null, "", "#calendar");
+  };
 }
 // 統計小卡：數字大、單位小，排在同一行
 function statTile([label, v]) {
