@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
-<link rel="manifest" href="manifest.webmanifest?v=127">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=127">
+<link rel="manifest" href="manifest.webmanifest?v=128">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=128">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap"></noscript>
-<link rel="stylesheet" href="style.css?v=127">
+<link rel="stylesheet" href="style.css?v=128">
 </head>
 <body>
 
@@ -53,19 +53,21 @@
   <div class="offline-bar" id="offlineBar" role="status" hidden>📡 目前離線 · 資料會先存在手機，有網路時自動同步</div>
   <div class="update-bar" id="updateBar" role="status" hidden><span>✨ 基地有新版了</span><button class="btn ghost small" type="button" id="updateNow">馬上更新</button></div>
   <header class="hud" id="top">
-    <div>
+    <div class="hud-top">
       <h1>我們的戀愛遊戲基地</h1>
+      <div class="status"><span id="meLabel" hidden></span><span id="status" role="button" tabindex="0" title="點一下重新同步">連線中…</span><button type="button" id="logout" hidden>登出</button></div>
     </div>
-    <div class="anniv" id="anniv"></div>
-    <div class="bdays" id="bdays"></div>
-    <div class="lvl">
-      <div><div class="next">目前稱號</div><div class="title" id="curTitle">尚未解鎖</div></div>
-      <div class="xp num"><span id="xp">0</span><small>XP</small></div>
+    <div class="hud-love">
+      <div class="anniv" id="anniv"></div>
+      <div class="bdays" id="bdays"></div>
     </div>
-    <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
-    <div class="row between">
+    <div class="hud-prog">
+      <div class="lvl">
+        <div><div class="next">目前稱號</div><div class="title" id="curTitle">尚未解鎖</div></div>
+        <div class="xp num"><span id="xp">0</span><small>XP</small></div>
+      </div>
+      <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
       <div class="next" id="nextText">再 50 XP 解鎖「🐣 戀愛新手村」</div>
-      <div class="status"><span id="meLabel" hidden></span> <span id="status" role="button" tabindex="0" title="點一下重新同步">連線中…</span> <button type="button" id="logout" hidden>登出</button></div>
     </div>
   </header>
 
@@ -263,6 +265,7 @@
 
   <section id="tools" class="fold">
     <div><h2>⚙️ 設定與備份</h2></div>
+    <h3 class="sec-grp">個人與外觀</h3>
     <details class="rules" id="prefs">
       <summary>🎨 外觀與版面</summary>
       <div class="custom">
@@ -276,6 +279,21 @@
         <div class="row between"><span class="sub">這些設定只影響你這台裝置，對方的畫面不會變。</span><button class="btn ghost" type="button" id="layoutReset">恢復預設版面</button></div>
       </div>
     </details>
+    <details class="rules" id="bdayBox">
+      <summary>🎂 生日</summary>
+      <div class="custom">
+        <p class="sub">填好之後，首頁會顯示距離生日還有幾天。兩個人都可以填。</p>
+        <div class="log" id="bdayForm"></div>
+      </div>
+    </details>
+    <details class="rules">
+      <summary>📱 加到手機主畫面</summary>
+      <div class="custom">
+        <p class="sub" id="installText"></p>
+        <button class="btn" type="button" id="installBtn" hidden>加到主畫面</button>
+      </div>
+    </details>
+    <h3 class="sec-grp">通知與資料</h3>
     <details class="rules" id="pushBox">
       <summary>🔔 手機推播通知<span id="pushState">未開啟</span></summary>
       <div class="custom">
@@ -305,27 +323,6 @@
             </div>
           </div>
         </details>
-      </div>
-    </details>
-    <details class="rules" id="bdayBox">
-      <summary>🎂 生日</summary>
-      <div class="custom">
-        <p class="sub">填好之後，首頁會顯示距離生日還有幾天。兩個人都可以填。</p>
-        <div class="log" id="bdayForm"></div>
-      </div>
-    </details>
-    <details class="rules" id="trash">
-      <summary>🗑️ 垃圾桶<span id="trashN">0 項</span></summary>
-      <div class="custom">
-        <p class="sub">刪掉的東西會在這裡留 30 天，時間到自動清除。兩個人都可以復原。</p>
-        <div class="log" id="trashList"></div>
-      </div>
-    </details>
-    <details class="rules">
-      <summary>📱 加到手機主畫面</summary>
-      <div class="custom">
-        <p class="sub" id="installText"></p>
-        <button class="btn" type="button" id="installBtn" hidden>加到主畫面</button>
       </div>
     </details>
     <details class="rules" id="bkBox">
@@ -364,6 +361,14 @@
         <p class="sub" id="picMsg"></p>
       </div>
     </details>
+    <details class="rules" id="trash">
+      <summary>🗑️ 垃圾桶<span id="trashN">0 項</span></summary>
+      <div class="custom">
+        <p class="sub">刪掉的東西會在這裡留 30 天，時間到自動清除。兩個人都可以復原。</p>
+        <div class="log" id="trashList"></div>
+      </div>
+    </details>
+    <h3 class="sec-grp">基地安全</h3>
     <details class="rules" id="roomBox">
       <summary>🔐 更換基地暗號</summary>
       <div class="custom">
@@ -406,7 +411,7 @@
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=127" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=128" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -432,6 +437,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=127"></script>
+<script src="app.js?v=128"></script>
 </body>
 </html>
