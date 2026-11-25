@@ -917,10 +917,33 @@ async function savePhoto(file, date, opt = {}) {
   photos = photos.filter((p) => p.id !== id).concat([item]);
   calPhotos = calPhotos.filter((p) => p.id !== id).concat([item]);
   const writeP = Promise.all([pPic, pMeta]);
-  const synced = await commit(writeP, 5000);
-  item._synced = synced;
+  // 照片已經在畫面上了，不等伺服器回覆；呼叫的地方用 _commit 在背景確認有沒有存到
   item._writeP = writeP;
+  item._commit = commit(writeP, 5000);
   return item;
+}
+// 背景確認一批照片有沒有存到：沒存成功的從畫面拿掉並提示，存在手機還沒上傳的提醒一下
+function settlePhotos(items, errMsg) {
+  return Promise.all(
+    items.map((it) =>
+      it._commit.then(
+        (synced) => ({ it, synced }),
+        (e) => ({ it, e }),
+      ),
+    ),
+  ).then((rs) => {
+    const bad = rs.filter((r) => r.e);
+    if (bad.length) {
+      const ids = new Set(bad.map((r) => r.it.id));
+      photos = photos.filter((p) => !ids.has(p.id));
+      calPhotos = calPhotos.filter((p) => !ids.has(p.id));
+      ids.forEach((id) => picCache.delete(id));
+      toast(errMsg(bad[0].e));
+      renderAll();
+    } else if (rs.some((r) => !r.synced) && navigator.onLine) toast(QUEUED_HINT, 4500);
+    updateSyncStatus();
+    return rs.length - bad.length;
+  });
 }
 function photoErrMsg(e) {
   if (e && e.code === "permission-denied") return "照片功能還沒開通，要先更新 Firebase 規則";
@@ -959,9 +982,9 @@ $("photoFile").addEventListener("change", async () => {
       .catch(() => {});
   }
   let ok = 0,
-    msg = "",
-    allSynced = true;
-  const writePs = [];
+    msg = "";
+  const writePs = [],
+    savedList = [];
   await withBusy(async () => {
     for (let i = 0; i < files.length; i++) {
       if (files.length > 1) {
@@ -972,10 +995,10 @@ $("photoFile").addEventListener("change", async () => {
         // 第一張用固定的 id（日期_名字），其他張加亂數；只有真的要換掉舊照片時才搬進垃圾桶
         const asMain = pendingSwap || (!hasMain && i === 0);
         const saved = await savePhoto(files[i], date, asMain ? { id: mainId, replace: pendingSwap && hasMain } : {});
-        if (saved._writeP) writePs.push(saved._writeP);
-        if (!saved._synced) allSynced = false;
+        writePs.push(saved._writeP);
+        savedList.push(saved);
         ok++;
-        if (files.length > 1) renderAll();
+        if (i < files.length - 1) renderAll();
       } catch (e) {
         msg = photoErrMsg(e);
       }
@@ -993,7 +1016,9 @@ $("photoFile").addEventListener("change", async () => {
         : earned
           ? `${n}上傳好了 📸 等對方也傳就 +${PHOTO_BONUS} XP`
           : `${n}上傳好了 📸`);
-    saveToast(okMsg, allSynced);
+    lastCommitSynced = navigator.onLine;
+    saveToast(okMsg);
+    settlePhotos(savedList, photoErrMsg);
     notifyPartner(
       "📷 今日照片",
       `${myName()}傳了${ok > 1 ? ` ${ok} 張` : ""}今天的照片`,
@@ -4609,6 +4634,16 @@ function syncFilterBar(el) {
 })();
 // 在頁面中間左右滑動切換頁面：滑得夠遠，或是短而快的一撥都算
 // 手指放在可以左右捲動的區塊（例如一排照片）上時，只捲那一排，不換頁
+// 正在打字（鍵盤打開）時不換頁；沒在打字的輸入框上照常可以左右滑
+function typing() {
+  const a = document.activeElement;
+  return (
+    !!a &&
+    (a.tagName === "TEXTAREA" ||
+      (a.tagName === "INPUT" && !/^(button|checkbox|radio|range|file|submit)$/.test(a.type)) ||
+      a.isContentEditable)
+  );
+}
 function inHScroll(el) {
   for (; el && el !== document.body; el = el.parentElement) {
     if (el.scrollWidth > el.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(el).overflowX)) return true;
@@ -4626,7 +4661,8 @@ function inHScroll(el) {
       if (
         !$("lightbox").hidden ||
         !$("gate").hidden ||
-        ev.target.closest("input,textarea,select,#hearts,#subNav,#tabBar,.filter,.chart") ||
+        ev.target.closest("select,input[type=range],#hearts,#subNav,#tabBar,.filter,.chart") ||
+        typing() ||
         inHScroll(ev.target)
       ) {
         sx = null;
@@ -4780,9 +4816,9 @@ async function uploadQueue(entryId, date, list) {
   diaryUp = entryId;
   diaryUpProg = list.length > 1 ? `1 / ${list.length}` : "";
   renderAll();
-  let ok = 0,
-    allSynced = true;
-  const writePs = [];
+  let ok = 0;
+  const writePs = [],
+    savedList = [];
   await withBusy(async () => {
     for (let i = 0; i < list.length; i++) {
       diaryUpProg = list.length > 1 ? `${i + 1} / ${list.length}` : "";
@@ -4790,18 +4826,19 @@ async function uploadQueue(entryId, date, list) {
       document.querySelectorAll(`[data-addph="${entryId}"]`).forEach((b) => (b.textContent = label));
       try {
         const saved = await savePhoto(list[i].file, date, { entry: entryId });
-        if (saved._writeP) writePs.push(saved._writeP);
-        if (!saved._synced) allSynced = false;
+        writePs.push(saved._writeP);
+        savedList.push(saved);
         ok++;
-        if (list.length > 1) renderAll();
+        if (i < list.length - 1) renderAll();
       } catch (e) {
         toast(e && e.message === "decode" ? "有一張照片讀不到，先跳過" : "有一張照片沒傳成功，可以之後再加");
       }
     }
   });
   (list || []).forEach((q) => q.url && URL.revokeObjectURL(q.url));
-  lastUploadSynced = allSynced;
+  lastUploadSynced = navigator.onLine;
   lastUploadWriteP = Promise.all(writePs);
+  settlePhotos(savedList, () => "有照片沒傳成功，可以之後再加");
   diaryUp = null;
   diaryUpProg = "";
   updateSyncStatus();
