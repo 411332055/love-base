@@ -4577,7 +4577,8 @@ function inHScroll(el) {
 (() => {
   let sx = null,
     sy = 0,
-    st = 0;
+    st = 0,
+    onPhoto = false;
   document.addEventListener(
     "touchstart",
     (ev) => {
@@ -4593,6 +4594,7 @@ function inHScroll(el) {
       sx = ev.touches[0].clientX;
       sy = ev.touches[0].clientY;
       st = Date.now();
+      onPhoto = !!ev.target.closest("img,.ph-slot,.ph-pair,.wall-grid,#wall,#todayPhotos");
     },
     { passive: true },
   );
@@ -4605,7 +4607,10 @@ function inHScroll(el) {
       sx = null;
       const ax = Math.abs(dx),
         fast = ax >= 30 && ax / Math.max(1, Date.now() - st) > 0.3;
-      if ((ax < 50 && !fast) || ax < Math.abs(dy) * 1.2) return;
+      // 從照片上開始滑：要滑得很長、很水平才換頁，避免看照片時不小心跳走
+      if (onPhoto) {
+        if (ax < Math.max(110, innerWidth * 0.3) || ax < Math.abs(dy) * 2.5) return;
+      } else if ((ax < 50 && !fast) || ax < Math.abs(dy) * 1.2) return;
       const vis = CATS.filter((c) => catSecs(c).length),
         cur = CATS.find((c) => c.secs.includes(view)),
         next = vis[vis.indexOf(cur) + (dx < 0 ? 1 : -1)];
