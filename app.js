@@ -683,6 +683,7 @@ function photoBtn(p, cls, editable = false) {
     `" alt="" loading="lazy" decoding="async"><span class="nm">${esc(p.by)}${p.by === myName() ? "（我）" : ""}${!editable && p.cap ? " 💬" : ""}</span>${editBadge}</button>`
   );
 }
+let duoOpen = ""; // 今天的照片展開的是誰的：mine／other／空字串
 function renderTodayPhotos() {
   const t = today(),
     k = key(t),
@@ -702,30 +703,64 @@ function renderTodayPhotos() {
   const others = photosOn(k).filter((p) => p.by !== myName()),
     up = uploading === k,
     upText = uploadingProg ? `上傳中 ${uploadingProg}…` : "上傳中…";
-  // 順序：對方第一張、我的第一張（打開就看得到兩個人），再接對方其他張、我其他張、再加照片
+  // 左右各一格：左邊對方第一張、右邊我的第一張；多張時角落有「+N」，點了在下面展開那個人的全部照片
   const mineBtn = (p) => photoBtn(p, "ph-slot has" + (capEditing === p.id ? " editing" : ""), true),
     otherBtn = (p) => photoBtn(p, "ph-slot has"),
-    addSlot = mine
-      ? mineAll.length < DAY_PH_MAX
-        ? `<button type="button" class="ph-slot" data-up="${k}" ${up ? "disabled" : ""}>${up ? upText : "＋<br>再加照片"}</button>`
-        : ""
-      : `<button type="button" class="ph-slot" data-up="${k}" ${up ? "disabled" : ""}` +
-        `>${up ? upText : "📸<br>上傳我的照片<br><small>可以一次選很多張</small>"}</button>`;
-  let h = '<div class="ph-pair">';
-  h += others.length ? otherBtn(others[0]) : '<div class="ph-slot wait">等對方上傳…</div>';
-  h += mine ? mineBtn(mine) : addSlot;
-  h += others.slice(1).map(otherBtn).join("");
-  if (mine) h += mineAll.slice(1).map(mineBtn).join("") + addSlot;
+    more = (who, n) =>
+      n > 1
+        ? `<button type="button" class="ph-more${duoOpen === who ? " on" : ""}" data-more="${who}" aria-expanded="${duoOpen === who}"` +
+          ` aria-label="${duoOpen === who ? "收起" : `看全部 ${n} 張`}">${duoOpen === who ? "收起" : "+" + (n - 1)}</button>`
+        : "",
+    // 隱藏的清單讓大圖可以左右滑看同一個人的其他張
+    gallery = (list) =>
+      list
+        .slice(1)
+        .map((p) => `<span hidden data-open="${esc(p.id)}"></span>`)
+        .join(""),
+    uploadBtn = (cls, label) =>
+      `<button type="button" class="${cls}" data-up="${k}" ${up ? "disabled" : ""}>${up ? upText : label}</button>`,
+    partner = NAMES.find((n) => n !== myName()) || "對方";
+  if (duoOpen === "mine" && mineAll.length < 2) duoOpen = "";
+  if (duoOpen === "other" && others.length < 2) duoOpen = "";
+  let h = '<div class="ph-duo">';
+  h +=
+    '<div class="ph-cell">' +
+    (others.length
+      ? otherBtn(others[0]) + more("other", others.length) + gallery(others)
+      : `<div class="ph-slot wait">等${esc(partner)}上傳…</div>`) +
+    "</div>";
+  h +=
+    '<div class="ph-cell">' +
+    (mine
+      ? mineBtn(mine) + more("mine", mineAll.length) + gallery(mineAll)
+      : uploadBtn("ph-slot", "📸<br>上傳我的照片<br><small>可以一次選很多張</small>")) +
+    "</div>";
   h += "</div>";
+  if (duoOpen) {
+    const list = duoOpen === "mine" ? mineAll : others;
+    h += `<div class="ph-pair ph-all">${list
+      .slice(1)
+      .map(duoOpen === "mine" ? mineBtn : otherBtn)
+      .join("")}</div>`;
+  }
   if (mine) {
+    h += '<div class="row">';
+    if (mineAll.length < DAY_PH_MAX) h += uploadBtn("btn ghost", "＋ 再加照片");
     h +=
-      `<div class="row"><button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
+      `<button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
       `>${up ? upText : mineAll.length > 1 ? "換我的第一張" : "換我的照片"}</button></div>`;
   }
   const allCaps = [...mineAll, ...others].filter((p) => p.cap);
   if (allCaps.length)
     h += allCaps.map((p) => `<div class="ph-note">${esc(nameOf(p.by))}：「${esc(p.cap)}」</div>`).join("");
   box.innerHTML = h;
+  box.querySelectorAll("[data-more]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        duoOpen = duoOpen === b.dataset.more ? "" : b.dataset.more;
+        renderTodayPhotos();
+      }),
+  );
   box.querySelectorAll("[data-capedit]").forEach((b) => {
     const toggle = (ev) => {
       ev.stopPropagation();
@@ -889,7 +924,7 @@ document.addEventListener("click", (ev) => {
   }
   const o = ev.target.closest("[data-open]");
   if (o) {
-    const box = o.closest("#wall") || o.closest(".wall-grid,.ph-pair") || o.parentElement;
+    const box = o.closest("#wall") || o.closest(".wall-grid,.ph-pair,.ph-cell") || o.parentElement;
     openPhoto(
       o.dataset.open,
       [...box.querySelectorAll("[data-open]")].map((x) => x.dataset.open),
