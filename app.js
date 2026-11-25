@@ -4791,7 +4791,7 @@ $("dPhotoFile").addEventListener("change", async () => {
     list.map((f) => ({ file: f })),
   );
   if (n) {
-    saveToast(`加了 ${n} 張照片 📷`, lastUploadSynced);
+    saveToast(`加了 ${n} 張照片 📷`, navigator.onLine);
     const targetHash = e.date === key(today()) ? "#quests" : "#calendar:" + e.date;
     notifyPartner("📷 日記新照片", `${myName()}在日記加了 ${n} 張照片`, targetHash, "dphoto-" + e.id, lastUploadWriteP);
   }
@@ -4809,8 +4809,7 @@ document.addEventListener("click", (ev) => {
     $("dPhotoFile").click();
   }
 });
-let lastUploadSynced = true,
-  lastUploadWriteP = Promise.resolve();
+let lastUploadWriteP = Promise.resolve();
 async function uploadQueue(entryId, date, list) {
   if (!db || !list.length) return 0;
   diaryUp = entryId;
@@ -4836,7 +4835,6 @@ async function uploadQueue(entryId, date, list) {
     }
   });
   (list || []).forEach((q) => q.url && URL.revokeObjectURL(q.url));
-  lastUploadSynced = navigator.onLine;
   lastUploadWriteP = Promise.all(writePs);
   settlePhotos(savedList, () => "有照片沒傳成功，可以之後再加");
   diaryUp = null;

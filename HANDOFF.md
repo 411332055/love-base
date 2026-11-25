@@ -61,7 +61,7 @@
 | `fixes` | 補簽卡用掉的紀錄 | `day`、`by`、`at` |
 | `birthdays` | 生日 | id 是名字，`m`、`d` |
 | `backups` | 做過備份的紀錄 | `full`、`by`、`at` |
-| `remind` | 紀念日前一天提醒已發過推播的紀錄（不重複發） | id 是隔天的日期，`date`、`by`、`at` |
+| `remind` | 自動提醒已發過推播的紀錄（不重複發） | id 是隔天的日期、`cap-膠囊id` 或 `space-YYYY-MM`，`date`、`by`、`at` |
 | `push` | 手機推播設定與裝置訂閱 | `cfg` 存 VAPID 金鑰與 Google Apps Script 轉發網址（`url`、`pub`、`x`、`y`、`d`、`at`）；`s_亂數` 存各台裝置的 Web Push 訂閱（`by`、`ep`、`p256dh`、`auth`、`dev`、`pub`、`at`） |
 
 `wrote`、`bonus` 和 `passed` 是 XP 不倒扣的關鍵：日記、照片或抽題刪掉後，這些紀錄還在，分數就不會少。不要刪它們，也不要改成只從 `diary`、`photos`、`answers` 即時計算。
@@ -72,7 +72,7 @@
 
 ### 存在手機裡的設定（localStorage）
 
-`love-base-room`（暗號）、`love-base-name`（名字）、`love-base-theme`、`love-base-font`、`love-base-haptic`（震動開關 on/off）、`love-base-haptic-level`（震動強度 light/mid/strong）、`love-base-layout`、`love-base-draft`（日記草稿）、`love-base-ans-draft`（抽題草稿）、`love-base-rev-draft`（每週回顧草稿）、`love-base-cap-draft`（時光膠囊草稿）、`love-base-seen`、`love-base-cap-seen`（已看過到期提醒的膠囊）、`love-base-last-backup`、`love-base-backup-snooze`、`love-base-last-pic-scan`、`love-base-pic-snooze`、`love-base-side`、`love-base-remind-seen`（看過的「明天是…」提醒）、`love-base-ios-snooze`（iPhone 加到主畫面提醒的延後時間），以及沒連伺服器時的整份資料 `love-base-v1`。
+`love-base-room`（暗號）、`love-base-name`（名字）、`love-base-theme`、`love-base-font`、`love-base-haptic`（震動開關 on/off）、`love-base-haptic-level`（震動強度 light/mid/strong）、`love-base-layout`、`love-base-draft`（日記草稿）、`love-base-diary-saving`（正在背景存檔的日記，存失敗時用來放回表單）、`love-base-ans-draft`（抽題草稿）、`love-base-rev-draft`（每週回顧草稿）、`love-base-cap-draft`（時光膠囊草稿）、`love-base-seen`、`love-base-cap-seen`（已看過到期提醒的膠囊）、`love-base-last-backup`、`love-base-backup-snooze`、`love-base-last-pic-scan`、`love-base-pic-snooze`、`love-base-side`、`love-base-remind-seen`（看過的「明天是…」提醒）、`love-base-ios-snooze`（iPhone 加到主畫面提醒的延後時間），以及沒連伺服器時的整份資料 `love-base-v1`。
 
 ## 四、程式在哪裡（`app.js`，用函式名稱搜尋）
 
@@ -81,26 +81,29 @@
 | XP、稱號、連續天數、補簽卡 | `dayRecords`、`totalXP`、`streakBonus`、`renderStreak`、`renderHUD`，常數 `TITLES`、`DIARY_XP`、`DIARY_XP_END`、`PHOTO_BONUS`、`DRAW_XP`、`STREAK_STEP` |
 | 紀念日、生日倒數 | `renderAnniv`、`renderBdays`、`saveBday`，交往日 `LOVE_START` |
 | 每日照片、照片牆 | `renderTodayPhotos`、`renderWall`、`myPhotos`、`subPhotos` |
-| 照片上傳、壓縮 | `savePhoto`、`shrink`、`loadImg`、`uploadQueue`（日記照片排隊上傳） |
+| 照片上傳、壓縮 | `savePhoto`、`settlePhotos`（背景確認有沒有存到）、`shrinkFull`、`shrinkThumb`、`loadImg`、`uploadQueue`（日記照片排隊上傳） |
 | 照片大圖（雙指與雙擊縮放、左右滑、存到手機、寫一句話） | `openPhoto`、`lbStep`、`closePhoto`、`lbResetZoom` |
 | 寫日記、編輯、草稿 | `renderDiaryToday`、`diaryCard`、`diaryDl`、`diaryQuote`、`startEdit`、`endEdit`、`resetDiaryFields`、`saveDraft`、`restoreDraft` |
 | 全部日記、搜尋（含留言與照片說明） | `renderEntries`（只畫打開的月份，搜尋一次顯示 30 篇） |
 | 日記回應與表情貼圖 | `entryExtras`、`bindEntryActs`、`attachReply`、`REACTS`、`popFloat` |
 | 抽題 | `monthBank`、`turnOf`、`todayRound`、`shownRound`、`drawQ`、`renderDraw`、`renderLog` |
 | 願望（含分類） | `renderWishes`、`toggleWish`，分類 `WCATS` |
-| 月曆、回顧、那年今天、時光膠囊、回憶書 | `renderCalendar`、`renderCalDetail`、`onThisDayHits`、`renderOnThisDay`、`renderTodayFlashback`、`renderMemories`、`renderCapsules`、`renderCapNudge`、`setNudge`、`renderBook`、`renderBookShell` |
+| 月曆、回顧、那年今天、時光膠囊、回憶書 | `renderChart`（幸福指數曲線，手指左右滑看每一天）、`renderCalendar`、`renderCalDetail`、`onThisDayHits`、`renderOnThisDay`、`renderTodayFlashback`、`renderMemories`、`renderCapsules`、`renderCapNudge`、`setNudge`、`renderBook`、`renderBookShell` |
 | 星期日這週回顧 | `renderWeekRecap` |
 | 垃圾桶、二次確認 | `confirmTap`、`armDelete`、`renderTrash`、`restoreItem`、`archivePhoto`、`restoreReplaced`、`hardDelete`、`purgeExpired` |
-| 備份、補回、更換暗號 | `exportBackup`、`backupHtml`、`prepRestore`、`applyRestore`、`moveRoomBtn` |
+| 備份、補回、更換暗號 | `exportBackup`、`backupHtml`、`prepRestore`、`applyRestore`、`moveRoomBtn`；整月照片壓縮檔 `fillZipMonths`、`makeZip`（瀏覽器裡打包不壓縮的 zip，檔名 UTF-8） |
 | 選單、區塊順序、外觀 | `CATS`、`SEC_META`、`renderNav`、`applyLayout`、`setView` |
+| 左右滑換頁 | 搜尋「在頁面中間左右滑動切換頁面」：`inHScroll`（橫向捲動區塊不換頁）、`typing`（正在打字不換頁），從照片上開始滑要滑得更長才換頁 |
 | 震動回饋 | `haptic`（Android 用 `navigator.vibrate`，iPhone 用 `iosHaptic` 點隱藏的 iOS 18 開關元件）、`HAPTIC_LV`、`dragEndTick`、設定頁的「測試震動」 |
 | 手機推播通知 | `renderPush`、`notifyPartner`、`sendPush`、`ensurePushCfg`、`vapidAuth`、`encryptPushBody`（瀏覽器端用 Web Crypto API 簽署 VAPID 與 `aes128gcm` 加密，透過 Google Apps Script 轉發） |
 | 登入畫面、連線、資料同步 | `showGate`，以及檔案最後面的啟動程式（`onSnapshot` 都在那裡） |
 | 月曆特別日子、明天提醒 | `specialOf`（不論是否到了）、`calSpecial`（月曆用，未來的日子不顯示）、`isQixi`、`renderRemind`、`renderIosNudge` |
 | 長按日記表情、下拉重新整理 | 搜尋「長按日記卡片」「下拉重新整理」，常數 `MORE_REACTS` |
-| 重畫畫面 | `renderAll`，資料一變動就整個重畫 |
+| 重畫畫面 | `renderAll`（下一個畫面格才重畫，只畫打開的區塊） |
+| 存資料 | `addDoc`、`updDoc`、`delDoc`、`bindForm`、`commit`、`saveToast` |
+| 共用小工具 | `lsGet`、`lsSet`、`lsDel`（localStorage）、`downloadBlob`（下載檔案） |
 
-寫入一律包在 `commit()` 裡：離線時不等伺服器回應，資料先排隊，連上後自動送出。
+**存資料的方式：先更新畫面，再在背景存檔。** `addDoc`、`updDoc`、`delDoc`、寫日記、上傳照片都是先把資料放進畫面（使用者按下去馬上看到結果），再用 `commit()` 寫進 Firestore。`commit()` 最多等 2.5 秒（照片 5 秒），沒等到就先放行，資料留在本機佇列繼續同步，並提示「已先存在手機」。真的被伺服器拒絕時，會把剛加的東西從畫面拿掉、把使用者打的字放回表單，並提示沒存到。
 
 ## 五、做過的決定和原因
 
@@ -116,36 +119,35 @@
 
 ## 六、已知的限制和還沒做的事
 
-- **推播通知**：已在「更多 → 設定 → 🔔 手機推播通知」支援 Web Push（透過免費的 Google Apps Script 轉發，iPhone 需先加到主畫面）。
-- **推播郵差只能轉發到推播服務**：`GAS_PUSH_CODE` 裡的 `PUSH_HOSTS` 白名單只允許 Google（FCM）、Apple、Mozilla、Microsoft 的推播網址。郵差網址公開在 GitHub 上，沒有白名單的話別人可以拿它當免費轉發站。改了 `GAS_PUSH_CODE` 之後，使用者要自己到 Apps Script 重新部署「新版本」才會生效。
-- `diary` 和 `done` 每次都整包載入。靠 Firestore 的離線快取所以不慢，幾年後資料很多時可能要分批。
-- 月底總結已整合進「回憶書」，和年度總結放在一起切換。
+- **推播郵差只能轉發到推播服務**：手機推播透過免費的 Google Apps Script（專案「戀愛基地 通知」）轉發，iPhone 要先加到主畫面才收得到。`GAS_PUSH_CODE` 裡的 `PUSH_HOSTS` 白名單只允許 Google（FCM）、Apple、Mozilla、Microsoft 的推播網址，因為郵差網址公開在 GitHub 上，沒有白名單別人可以拿它當免費轉發站。改了 `GAS_PUSH_CODE` 之後，使用者要自己到 Apps Script 重新部署「新版本」才會生效。
+- `diary` 和 `done` 每次都整包載入。靠 Firestore 的離線快取所以不慢（用兩年份的假資料測過，切換頁面仍很順），更多年之後可能要分批。
+- 照片存在 Firestore 文件裡，免費方案總共 1 GB，估計 2029 年左右用滿；每月 1 號會自動檢查並在超過 700 MB 時推播。
 - 名字 `寒冰`、`夏夏` 是寫死的（`NAMES`），不支援第三個人。
 
-## 自動提醒（GitHub Actions）
+## 七、自動化（GitHub Actions）
 
-- `.github/workflows/remind.yml` 每天台灣時間晚上約 8 點跑 `tools/remind.mjs`：明天是週年、里程碑、生日、七夕或每月紀念日，或有到期的時光膠囊，就直接推播給 `done` 裡所有 `x~push~s_*` 裝置（用 `x~push~cfg` 的 VAPID 金鑰，不經過 Apps Script），並寫一筆 `x~remind~日期`（或 `x~remind~cap-膠囊id`），網站和下一次執行都不會重複發。
+### 每次推送：`.github/workflows/check.yml`
+
+- `tools/check.js`：`app.js` 語法、`questions.json` 格式和題數、版本號一致、排版、沒有寫死暗號、`index.html` 的 id 沒有重複。
+- `tools/test/browser-test.mjs`：用 `tools/test/fake-firebase.js`（假的 Firestore，資料只在記憶體）在模擬手機上跑網站：11 頁在深色 390px、淺色 390px、淺色 360px 都不能有程式錯誤或左右超出；寫日記、許願並完成、月曆今天的格子、幸福指數曲線、下載一個月的照片壓縮檔。暗號用 `test-only-123`，不會碰到真的資料。
+- GitHub 上那筆提交出現紅色叉叉就是沒過，點進去看是哪一項。
+
+### 每天晚上：`.github/workflows/remind.yml`
+
+- 台灣時間晚上約 8 點跑 `tools/remind.mjs`：明天是週年、里程碑、生日、七夕或每月紀念日，或有到期的時光膠囊，就直接推播給 `done` 裡所有 `x~push~s_*` 裝置（用 `x~push~cfg` 的 VAPID 金鑰，不經過 Apps Script），並寫一筆 `x~remind~日期`（或 `x~remind~cap-膠囊id`），網站和下一次執行都不會重複發。
+- 每月 1 號同一支程式會讀完 `pics` 的原圖算空間（REST 加 `mask.fieldPaths=img`），超過 `WARN_MB`（從 `app.js` 的備份程式碼讀，現在是 700）就推播，並寫一筆 `x~remind~space-YYYY-MM`。讀原圖一次最多約 1 GB 流量，所以一個月只做一次；本機測試可設 `FORCE_SPACE=1`。
 - 暗號放在 GitHub 的 **Secret `ROOM_CODE`**（Settings → Secrets and variables → Actions），沒設定時會直接略過。不能寫進程式或印到紀錄。
 - 判斷規則要和 `app.js` 的 `specialOf()` 一致；`LOVE_START`、`MILE_DAYS`、`NAMES` 是直接從 `app.js` 讀的。改了 `specialOf()` 的規則，`remind.mjs` 也要一起改。
-- 要手動測試：GitHub 的 Actions 頁籤 → 「紀念日前一天提醒」→ Run workflow。
-- 每月 1 號（台灣時間）同一支程式也會讀完 `pics` 的原圖算空間（REST 加 `mask.fieldPaths=img`），超過 `WARN_MB`（從 `app.js` 的備份程式碼讀，現在是 700）就推播，並寫一筆 `x~remind~space-YYYY-MM` 避免同月重發。讀原圖一次最多約 1 GB 流量，所以只在每月 1 號做；本機測試可設 `FORCE_SPACE=1`。
 - GitHub 會暫停 60 天沒有提交的 repo 的排程。`remind.yml` 最後一步用 `gh api -X PUT .../workflows/remind.yml/enable` 重新啟用（需要 `actions: write`），讓計時重算；這步失敗不影響提醒本身。
-- 「資料備份」裡的「下載這個月的照片」：用 `photos` 的 date 範圍查詢找出那個月的照片，逐張讀 `pics` 原圖（有 `picCache` 先用），在瀏覽器裡用 `makeZip()` 打包成不壓縮的 zip（檔名 UTF-8、`日期_名字_序號.jpg`），不需要外部函式庫。
+- 要手動測試：GitHub 的 Actions 頁籤 → 「紀念日前一天提醒」→ Run workflow。
 
-## 七、怎麼測試
+## 八、怎麼測試
 
 - 直接用瀏覽器打開 `index.html`，**用測試暗號**（例如 `test-only-123`），不要用真的暗號。
-- 每次推送到 GitHub，`.github/workflows/check.yml` 會自動檢查：`app.js` 語法、`questions.json` 格式和題數、三個版本號一致、`app.js` 排版、檔案裡沒有暗號。GitHub 上那筆提交出現紅色叉叉就是沒過，點進去看是哪一項。
-- 功能測試沒有自動化。之前的做法是用 Playwright 模擬手機，把 Firebase 的兩個 `<script>` 換成假的記憶體版本（實作 `collection`、`doc`、`set`、`update`、`get`、`delete`、`where`、`orderBy`、`limit`、`onSnapshot`），再用程式操作畫面並檢查結果。有改到資料讀寫時，建議照這個方法測過再推。
-- 改完檢查：`node --check app.js`、`questions.json` 是合法的 JSON、兩個版本號都加了（見 `GEMINI.md`）。
+- 自動手機測試在本機跑：`npm i --no-save playwright && npx playwright install chromium && node tools/test/browser-test.mjs`。
+- 改到資料讀寫時，可以在 `fake-firebase.js` 的 `set` 裡加延遲或丟出錯誤，模擬網路慢和伺服器拒絕，確認畫面先更新、失敗時會還原。
+- 推送前至少確認：`node --check app.js`、`node tools/check.js` 全部通過。
 
-## 八、改動紀錄
+## 九、改動紀錄
 
 `git log` 有完整紀錄，每一筆的訊息都用中文寫了改了什麼。目前的版本號看 `sw.js` 第 2 行。
-
-## 自動測試
-
-- `tools/check.js`：語法、題庫、版本號、排版、沒有寫死暗號。
-- `tools/test/browser-test.mjs`：用 `tools/test/fake-firebase.js`（假的 Firestore，資料只在記憶體）在模擬手機上跑網站：11 頁在深色 390px、淺色 390px、淺色 360px 都不能有程式錯誤或左右超出；寫日記、許願並完成、月曆今天的格子、下載一個月的照片壓縮檔。暗號用 `test-only-123`，不會碰到真的資料。
-- 兩個都在 `.github/workflows/check.yml`，每次推送自動跑。本機要跑瀏覽器測試：`npm i --no-save playwright && npx playwright install chromium && node tools/test/browser-test.mjs`。
-- 共用小工具：`lsGet/lsSet/lsDel`（localStorage，無痕模式不會出錯）、`downloadBlob(name, blob)`（下載檔案）。
