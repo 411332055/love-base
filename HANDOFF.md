@@ -35,7 +35,7 @@
 
 ### `photos`：縮圖和說明；`pics`：同一個 id 的原圖
 
-- `photos`：`date`、`by`、`th`（縮圖 data URL）、`cap`（一句話）、`at`、`entry`（屬於哪篇日記，每日照片沒有這欄）、`trashed`、`replaced`（被「換一張」換掉時，原本的 id）。
+- `photos`：`date`、`by`、`th`（縮圖 data URL）、`cap`（一句話）、`at`、`entry`（屬於哪篇日記，每日照片沒有這欄）、`trashed`、`replaced`（被「換我的照片」換掉時，原本的 id）。
 - `pics`：`img`（原圖 data URL，最長邊 1280、壓到約 300 KB，常數 `PHOTO_MAX`）、`date`、`by`。
 - id 格式：每日第一張 `日期_名字`；其他每日照片和日記照片 `日期_名字_亂數`；被換掉進垃圾桶的 `原id~亂數`。
 - 一天每人最多 9 張每日照片，一篇日記最多 9 張。上傳一律走 `savePhoto()`。

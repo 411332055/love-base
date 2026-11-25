@@ -702,22 +702,25 @@ function renderTodayPhotos() {
   const others = photosOn(k).filter((p) => p.by !== myName()),
     up = uploading === k,
     upText = uploadingProg ? `上傳中 ${uploadingProg}…` : "上傳中…";
-  let h = '<div class="ph-pair">';
-  h += mine
-    ? mineAll.map((p) => photoBtn(p, "ph-slot has" + (capEditing === p.id ? " editing" : ""), true)).join("") +
-      (mineAll.length < DAY_PH_MAX
+  // 順序：對方第一張、我的第一張（打開就看得到兩個人），再接對方其他張、我其他張、再加照片
+  const mineBtn = (p) => photoBtn(p, "ph-slot has" + (capEditing === p.id ? " editing" : ""), true),
+    otherBtn = (p) => photoBtn(p, "ph-slot has"),
+    addSlot = mine
+      ? mineAll.length < DAY_PH_MAX
         ? `<button type="button" class="ph-slot" data-up="${k}" ${up ? "disabled" : ""}>${up ? upText : "＋<br>再加照片"}</button>`
-        : "")
-    : `<button type="button" class="ph-slot" data-up="${k}" ${up ? "disabled" : ""}` +
-      `>${up ? upText : "📸<br>上傳我的照片<br><small>可以一次選很多張</small>"}</button>`;
-  h += others.length
-    ? others.map((p) => photoBtn(p, "ph-slot has")).join("")
-    : '<div class="ph-slot wait">等對方上傳…</div>';
+        : ""
+      : `<button type="button" class="ph-slot" data-up="${k}" ${up ? "disabled" : ""}` +
+        `>${up ? upText : "📸<br>上傳我的照片<br><small>可以一次選很多張</small>"}</button>`;
+  let h = '<div class="ph-pair">';
+  h += others.length ? otherBtn(others[0]) : '<div class="ph-slot wait">等對方上傳…</div>';
+  h += mine ? mineBtn(mine) : addSlot;
+  h += others.slice(1).map(otherBtn).join("");
+  if (mine) h += mineAll.slice(1).map(mineBtn).join("") + addSlot;
   h += "</div>";
   if (mine) {
     h +=
       `<div class="row"><button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
-      `>${up ? upText : mineAll.length > 1 ? "換第一張" : "換一張"}</button></div>`;
+      `>${up ? upText : mineAll.length > 1 ? "換我的第一張" : "換我的照片"}</button></div>`;
   }
   const allCaps = [...mineAll, ...others].filter((p) => p.cap);
   if (allCaps.length)
