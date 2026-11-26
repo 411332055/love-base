@@ -211,6 +211,7 @@ for (const [theme, width] of [
     await page.evaluate((id) => toggleWish(id), wid);
     await page.waitForTimeout(300);
     await page.fill(`input[data-plan="${wid}"]`, tmrK);
+    await page.locator(`input[data-plan="${wid}"]`).blur();
     await page.waitForTimeout(300);
     const planSaved = await page.evaluate(([p, id]) => window.__store[p][id].plan, [room("done"), wish[0]]);
     await go(page, "calendar");
