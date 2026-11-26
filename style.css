@@ -486,10 +486,13 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 /* 今天的照片：一次看一個人，右上角切換「對方／我」，照片是可以左右滑的大圖 */
 .ph-stage{position:relative}
 /* 切換按鈕浮在第一張照片的左上角（毛玻璃），左右滑照片時它不會跟著跑 */
-.ph-who{position:absolute;top:10px;left:10px;z-index:4;display:inline-flex;gap:2px;padding:3px;border-radius:99px;background:rgba(20,10,18,.55);border:.5px solid rgba(255,255,255,.35);-webkit-backdrop-filter:blur(10px) saturate(1.4);backdrop-filter:blur(10px) saturate(1.4);box-shadow:0 4px 14px -4px rgba(0,0,0,.35)}
-.ph-who button{position:relative;display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:14px;font-weight:700;color:rgba(255,255,255,.85);background:transparent;border:0;border-radius:99px;padding:7px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background-color .2s ease,color .2s ease}
+.ph-who{position:absolute;top:10px;left:10px;z-index:4;display:inline-grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:99px;background:rgba(20,10,18,.55);touch-action:none;-webkit-user-select:none;user-select:none;border:.5px solid rgba(255,255,255,.35);-webkit-backdrop-filter:blur(10px) saturate(1.4);backdrop-filter:blur(10px) saturate(1.4);box-shadow:0 4px 14px -4px rgba(0,0,0,.35)}
+.ph-who button{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;font:inherit;font-size:14px;font-weight:700;color:rgba(255,255,255,.85);background:transparent;border:0;border-radius:99px;padding:7px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background-color .2s ease,color .2s ease}
 .ph-who button::before{content:"";position:absolute;inset:-6px -2px}
-.ph-who button[aria-selected=true]{background:var(--pink);color:#fff;box-shadow:0 4px 12px -4px rgba(155,40,85,.45)}
+.ph-who button[aria-selected=true]{color:#fff}
+/* 粉紅色的膠囊可以用手指左右拖（--i：0 夏夏、1 我，拖的時候是中間的小數） */
+.ph-who::before{content:"";position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:99px;background:var(--pink);box-shadow:0 4px 12px -4px rgba(155,40,85,.45);transform:translate3d(calc(var(--i,0) * 100%),0,0);transition:transform .26s cubic-bezier(.22,1.22,.36,1);pointer-events:none}
+.ph-who.dragging::before{transition:none}
 .ph-who .n{font-size:12px;font-variant-numeric:tabular-nums;opacity:.75}
 .ph-big{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;align-items:stretch}
 .ph-big::-webkit-scrollbar{display:none}

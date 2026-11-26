@@ -706,6 +706,7 @@ function photoBtn(p, cls, editable = false) {
   );
 }
 let phWho = "other"; // 今天的照片正在看誰的：other（對方，預設）／mine
+let phSegI = 0; // 切換鈕膠囊上次停的位置，重畫時從那裡滑過去
 // 看過哪些對方今天的照片：停在「我」的畫面時，對方傳了新的，切換鈕上會亮小紅點
 const PH_SEEN_KEY = "love-base-ph-seen";
 function phSeen(k) {
@@ -824,9 +825,64 @@ function renderTodayPhotos() {
         i = strip.scrollLeft >= max - 4 ? dots.length - 1 : Math.round(strip.scrollLeft / step);
       dots.forEach((d, j) => d.classList.toggle("on", j === i));
     };
+  // 「對方｜我」切換鈕：點一下切換，也可以按住粉紅膠囊左右拖
+  const seg = box.querySelector(".ph-who"),
+    segI = showMine ? 1 : 0;
+  let segRect = null,
+    segIdx = segI,
+    segDragged = 0;
+  seg.style.setProperty("--i", phSegI);
+  requestAnimationFrame(() => seg.style.setProperty("--i", segI));
+  phSegI = segI;
+  const segSel = (i) =>
+    seg.querySelectorAll("[data-who]").forEach((b, j) => b.setAttribute("aria-selected", String(i === j)));
+  seg.addEventListener(
+    "touchstart",
+    () => {
+      segRect = seg.getBoundingClientRect();
+      segIdx = segI;
+    },
+    { passive: true },
+  );
+  seg.addEventListener(
+    "touchmove",
+    (ev) => {
+      const t = ev.touches[0];
+      if (!t || !segRect) return;
+      ev.preventDefault();
+      const w = (segRect.width - 6) / 2,
+        pos = Math.max(0, Math.min(1, (t.clientX - segRect.left - 3 - w / 2) / w)),
+        idx = Math.round(pos);
+      seg.classList.add("dragging");
+      seg.style.setProperty("--i", pos.toFixed(3));
+      if (idx !== segIdx) {
+        segIdx = idx;
+        segSel(idx);
+        sliderTick();
+      }
+    },
+    { passive: false },
+  );
+  const segEnd = () => {
+    if (!segRect) return;
+    segRect = null;
+    if (!seg.classList.contains("dragging")) return;
+    seg.classList.remove("dragging");
+    segDragged = Date.now();
+    seg.style.setProperty("--i", segIdx);
+    const who = segIdx ? "mine" : "other";
+    if (who !== phWho) {
+      phWho = who;
+      phSegI = segIdx;
+      setTimeout(renderTodayPhotos, 200);
+    }
+  };
+  seg.addEventListener("touchend", segEnd, { passive: true });
+  seg.addEventListener("touchcancel", segEnd, { passive: true });
   box.querySelectorAll("[data-who]").forEach(
     (b) =>
       (b.onclick = () => {
+        if (Date.now() - segDragged < 500) return;
         if (phWho === b.dataset.who) return;
         phWho = b.dataset.who;
         sliderTick();
