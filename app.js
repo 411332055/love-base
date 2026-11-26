@@ -831,8 +831,10 @@ function renderTodayPhotos() {
   let segRect = null,
     segIdx = segI,
     segDragged = 0;
+  // 先放在上次的位置、強制排版一次，再移到新位置，膠囊才會滑過去而不是直接跳
   seg.style.setProperty("--i", phSegI);
-  requestAnimationFrame(() => seg.style.setProperty("--i", segI));
+  void seg.offsetWidth;
+  seg.style.setProperty("--i", segI);
   phSegI = segI;
   const segSel = (i) =>
     seg.querySelectorAll("[data-who]").forEach((b, j) => b.setAttribute("aria-selected", String(i === j)));
