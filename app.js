@@ -696,13 +696,13 @@ function myPhotos(d) {
 function myPhoto(d) {
   return myPhotos(d)[0];
 }
-function photoBtn(p, cls, editable = false) {
+function photoBtn(p, cls, editable = false, eager = false) {
   const editBadge = editable
     ? `<span class="ph-edit" role="button" tabindex="0" data-capedit="${esc(p.id)}" aria-label="${p.cap ? "修改這張照片的一句話" : "幫這張照片寫一句話"}" title="${p.cap ? "改這句話" : "寫一句話"}">${p.cap ? "💬" : "✏️"}</span>`
     : "";
   return (
     `<button type="button" class="${cls}" data-open="${esc(p.id)}" aria-label="${esc(p.by)} 的照片${p.cap ? "：" + esc(p.cap) : ""}"><img src="${p.th}` +
-    `" alt="" loading="lazy" decoding="async"><span class="nm">${esc(p.by)}${p.by === myName() ? "（我）" : ""}${!editable && p.cap ? " 💬" : ""}</span>${editBadge}</button>`
+    `" alt="" loading="${eager ? "eager" : "lazy"}" decoding="async"><span class="nm">${esc(p.by)}${p.by === myName() ? "（我）" : ""}${!editable && p.cap ? " 💬" : ""}</span>${editBadge}</button>`
   );
 }
 let phWho = "other"; // 今天的照片正在看誰的：other（對方，預設）／mine
@@ -733,54 +733,86 @@ function renderTodayPhotos() {
     up = uploading === k,
     upText = uploadingProg ? `上傳中 ${uploadingProg}…` : "上傳中…";
   // 一次看一個人的照片：先看對方的，左上角切換「對方／我」；照片排成可以左右滑的大圖
-  const mineBtn = (p) => photoBtn(p, "ph-slot has" + (capEditing === p.id ? " editing" : ""), true),
-    otherBtn = (p) => photoBtn(p, "ph-slot has"),
+  // 今天的照片不要等「看得到才載入」：兩邊都先載好，切換時照片馬上出現
+  const mineBtn = (p) => photoBtn(p, "ph-slot has" + (capEditing === p.id ? " editing" : ""), true, true),
+    otherBtn = (p) => photoBtn(p, "ph-slot has", false, true),
     uploadBtn = (cls, label) =>
       `<button type="button" class="${cls}" data-up="${k}" ${up ? "disabled" : ""}>${up ? upText : label}</button>`,
     partner = NAMES.find((n) => n !== myName()) || "對方";
   if (capEditing || up) phWho = "mine";
-  const showMine = phWho === "mine",
-    seen = phSeen(k);
-  if (!showMine && others.some((p) => !seen.includes(p.id)))
-    lsSet(PH_SEEN_KEY, JSON.stringify({ date: k, ids: others.map((p) => p.id) }));
-  const fresh = showMine && others.some((p) => !seen.includes(p.id)),
+  const seen = phSeen(k),
+    fresh = others.some((p) => !seen.includes(p.id)),
     tab = (who, label, n) =>
-      `<button type="button" role="tab" aria-selected="${(who === "mine") === showMine}" data-who="${who}"` +
-      `${who === "other" && fresh ? ' class="fresh" aria-label="' + label + "，有新照片" + '"' : ""}>` +
-      `${label}<span class="n">${n}</span></button>`;
+      `<button type="button" role="tab" data-who="${who}"${who === "other" && fresh ? ' class="fresh"' : ""}>` +
+      `${label}<span class="n">${n}</span></button>`,
+    dotsOf = (list, who) =>
+      list.length > 1
+        ? `<div class="ph-dots" data-pane="${who}" aria-hidden="true">${list.map((_, i) => `<i${i ? "" : ' class="on"'}></i>`).join("")}</div>`
+        : "";
+  // 兩個人的照片一次都畫好，切換時只換顯示哪一邊，不用重畫、照片不用重新解碼，按下去馬上換
   let h =
     `<div class="ph-stage"><div class="ph-who" role="tablist" aria-label="看誰的照片">` +
     tab("other", esc(nameOf(partner)), others.length) +
     tab("mine", "我", mineAll.length) +
-    `</div>`;
-  const list = showMine ? mineAll : others;
-  h += `<div class="ph-big${list.length > 1 ? " multi" : ""}">`;
-  if (showMine) {
-    h += mineAll.map(mineBtn).join("");
-    if (!mine) h += uploadBtn("ph-slot", "📸<br>上傳我的照片<br><small>可以一次選很多張</small>");
-  } else {
-    h += others.length
+    `</div>` +
+    `<div class="ph-big${others.length > 1 ? " multi" : ""}" data-pane="other">` +
+    (others.length
       ? others.map(otherBtn).join("")
-      : `<div class="ph-slot wait">${esc(nameOf(partner))}今天還沒上傳<br><small>${mine ? "你已經傳了，等等對方吧" : "先傳你的吧 ↓"}</small></div>`;
-  }
-  h += "</div></div>";
-  // 多張時下面一排小圓點：看得出現在是第幾張、後面還有幾張
-  if (list.length > 1)
-    h += `<div class="ph-dots" aria-hidden="true">${list.map((_, i) => `<i${i ? "" : ' class="on"'}></i>`).join("")}</div>`;
+      : `<div class="ph-slot wait">${esc(nameOf(partner))}今天還沒上傳<br><small>${mine ? "你已經傳了，等等對方吧" : "先傳你的吧 ↓"}</small></div>`) +
+    `</div><div class="ph-big${mineAll.length > 1 ? " multi" : ""}" data-pane="mine">` +
+    (mine
+      ? mineAll.map(mineBtn).join("")
+      : uploadBtn("ph-slot", "📸<br>上傳我的照片<br><small>可以一次選很多張</small>")) +
+    `</div></div>` +
+    dotsOf(others, "other") +
+    dotsOf(mineAll, "mine");
   // 看對方的照片時，如果我今天還沒傳，下面直接給上傳按鈕，不用先切到「我」
-  if (!showMine && !mine) h += `<div class="row">${uploadBtn("btn", "📸 上傳我的照片")}</div>`;
-  if (showMine && mine)
+  if (!mine) h += `<div class="row" data-pane="other">${uploadBtn("btn", "📸 上傳我的照片")}</div>`;
+  else
     h +=
-      `<div class="row ph-acts">${mineAll.length < DAY_PH_MAX ? uploadBtn("btn", "＋ 再加照片") : ""}<button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
+      `<div class="row ph-acts" data-pane="mine">${mineAll.length < DAY_PH_MAX ? uploadBtn("btn", "＋ 再加照片") : ""}<button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
       `>${up ? upText : mineAll.length > 1 ? "換掉第一張" : "換一張"}</button></div>`;
   const allCaps = [...mineAll, ...others].filter((p) => p.cap);
   if (allCaps.length)
     h += allCaps.map((p) => `<div class="ph-note">${esc(nameOf(p.by))}：「${esc(p.cap)}」</div>`).join("");
   box.innerHTML = h;
-  const strip = box.querySelector(".ph-big"),
-    dots = box.querySelectorAll(".ph-dots i");
-  // 在照片上左右滑：滑到這個人的最後一張再往前滑，就換看另一個人（只有一張時直接換）
-  if (strip) {
+  const seg = box.querySelector(".ph-who"),
+    tabs = [...seg.querySelectorAll("[data-who]")],
+    segSel = (i) => tabs.forEach((b, j) => b.setAttribute("aria-selected", String(i === j)));
+  // 切換看誰：只改顯示哪一邊、膠囊位置和選取狀態
+  const show = (who, from) => {
+    phWho = who;
+    box.dataset.showing = who;
+    const i = who === "mine" ? 1 : 0;
+    segSel(i);
+    seg.style.setProperty("--i", i);
+    phSegI = i;
+    if (who === "other" && others.length) {
+      lsSet(PH_SEEN_KEY, JSON.stringify({ date: k, ids: others.map((p) => p.id) }));
+      const f = seg.querySelector(".fresh");
+      if (f) f.classList.remove("fresh");
+    }
+    if (from) {
+      const nb = box.querySelector(`.ph-big[data-pane="${who}"]`);
+      if (from === "end") nb.scrollLeft = nb.scrollWidth;
+      nb.classList.remove("from-r", "from-l");
+      void nb.offsetWidth;
+      nb.classList.add(from === "end" ? "from-l" : "from-r");
+    }
+  };
+  // 先放在上次的位置、強制排版一次，再移到新位置，膠囊才會滑過去而不是直接跳
+  seg.style.setProperty("--i", phSegI);
+  void seg.offsetWidth;
+  show(phWho);
+  const go = (who, from) => {
+    if (who === phWho) return;
+    sliderTick();
+    show(who, from);
+  };
+  box.querySelectorAll(".ph-big").forEach((strip) => {
+    const pane = strip.dataset.pane,
+      dots = box.querySelectorAll(`.ph-dots[data-pane="${pane}"] i`);
+    // 在照片上左右滑：滑到這個人的最後一張再往前滑，就換看另一個人（只有一張時直接換）
     let tx = null,
       ty = 0,
       tl = 0;
@@ -803,46 +835,29 @@ function renderTodayPhotos() {
           max = strip.scrollWidth - strip.clientWidth;
         tx = null;
         if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5 || capEditing || up) return;
-        const next = dx < 0 && !showMine && tl >= max - 4 ? "mine" : dx > 0 && showMine && tl <= 4 ? "other" : "";
-        if (!next) return;
-        phWho = next;
-        sliderTick();
-        renderTodayPhotos();
-        const nb = box.querySelector(".ph-big");
-        if (nb) {
-          if (next === "other") nb.scrollLeft = nb.scrollWidth;
-          nb.classList.add(next === "mine" ? "from-r" : "from-l");
-        }
+        if (dx < 0 && pane === "other" && tl >= max - 4) go("mine", "start");
+        else if (dx > 0 && pane === "mine" && tl <= 4) go("other", "end");
       },
       { passive: true },
     );
-  }
-  if (strip && dots.length)
-    strip.onscroll = () => {
-      const tile = strip.firstElementChild,
-        step = tile ? tile.offsetWidth + 10 : 1,
-        max = strip.scrollWidth - strip.clientWidth,
-        i = strip.scrollLeft >= max - 4 ? dots.length - 1 : Math.round(strip.scrollLeft / step);
-      dots.forEach((d, j) => d.classList.toggle("on", j === i));
-    };
+    if (dots.length)
+      strip.onscroll = () => {
+        const tile = strip.firstElementChild,
+          step = tile ? tile.offsetWidth + 10 : 1,
+          m = strip.scrollWidth - strip.clientWidth,
+          i = strip.scrollLeft >= m - 4 ? dots.length - 1 : Math.round(strip.scrollLeft / step);
+        dots.forEach((d, j) => d.classList.toggle("on", j === i));
+      };
+  });
   // 「對方｜我」切換鈕：點一下切換，也可以按住粉紅膠囊左右拖
-  const seg = box.querySelector(".ph-who"),
-    segI = showMine ? 1 : 0;
   let segRect = null,
-    segIdx = segI,
+    segIdx = 0,
     segDragged = 0;
-  // 先放在上次的位置、強制排版一次，再移到新位置，膠囊才會滑過去而不是直接跳
-  seg.style.setProperty("--i", phSegI);
-  void seg.offsetWidth;
-  seg.style.setProperty("--i", segI);
-  phSegI = segI;
-  const segSel = (i) =>
-    seg.querySelectorAll("[data-who]").forEach((b, j) => b.setAttribute("aria-selected", String(i === j)));
   seg.addEventListener(
     "touchstart",
     () => {
       segRect = seg.getBoundingClientRect();
-      segIdx = segI;
+      segIdx = phWho === "mine" ? 1 : 0;
     },
     { passive: true },
   );
@@ -857,10 +872,11 @@ function renderTodayPhotos() {
         idx = Math.round(pos);
       seg.classList.add("dragging");
       seg.style.setProperty("--i", pos.toFixed(3));
+      // 拖過中間就直接換照片，不用等放開
       if (idx !== segIdx) {
         segIdx = idx;
-        segSel(idx);
-        sliderTick();
+        go(idx ? "mine" : "other");
+        seg.style.setProperty("--i", pos.toFixed(3));
       }
     },
     { passive: false },
@@ -872,23 +888,14 @@ function renderTodayPhotos() {
     seg.classList.remove("dragging");
     segDragged = Date.now();
     seg.style.setProperty("--i", segIdx);
-    const who = segIdx ? "mine" : "other";
-    if (who !== phWho) {
-      phWho = who;
-      phSegI = segIdx;
-      setTimeout(renderTodayPhotos, 200);
-    }
   };
   seg.addEventListener("touchend", segEnd, { passive: true });
   seg.addEventListener("touchcancel", segEnd, { passive: true });
-  box.querySelectorAll("[data-who]").forEach(
+  tabs.forEach(
     (b) =>
       (b.onclick = () => {
         if (Date.now() - segDragged < 500) return;
-        if (phWho === b.dataset.who) return;
-        phWho = b.dataset.who;
-        sliderTick();
-        renderTodayPhotos();
+        go(b.dataset.who);
       }),
   );
   box.querySelectorAll("[data-capedit]").forEach((b) => {

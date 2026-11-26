@@ -492,6 +492,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 .ph-pair::-webkit-scrollbar{display:none}
 /* 今天的照片：一次看一個人，右上角切換「對方／我」，照片是可以左右滑的大圖 */
 .ph-stage{position:relative}
+#todayPhotos[data-showing=mine] [data-pane=other],#todayPhotos[data-showing=other] [data-pane=mine]{display:none}
 /* 切換按鈕浮在第一張照片的左上角（毛玻璃），左右滑照片時它不會跟著跑 */
 .ph-who{position:absolute;top:10px;left:10px;z-index:4;display:inline-grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:99px;background:rgba(20,10,18,.55);touch-action:none;-webkit-user-select:none;user-select:none;border:.5px solid rgba(255,255,255,.35);-webkit-backdrop-filter:blur(10px) saturate(1.4);backdrop-filter:blur(10px) saturate(1.4);box-shadow:0 4px 14px -4px rgba(0,0,0,.35)}
 .ph-who button{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;font:inherit;font-size:14px;font-weight:700;color:rgba(255,255,255,.85);background:transparent;border:0;border-radius:99px;padding:7px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background-color .2s ease,color .2s ease}
