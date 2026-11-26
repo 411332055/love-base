@@ -499,6 +499,14 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 .ph-big .ph-slot:not(.has){display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;padding:52px 16px 16px;line-height:1.5;aspect-ratio:auto;min-height:200px}
 /* 大螢幕：照片不要撐滿整個寬度，高度最多 400px，多張時一次看到兩張 */
 @media (min-width:700px){.ph-big .ph-slot.has{max-height:400px}.ph-big.multi .ph-slot{flex-basis:calc(50% - 5px);width:calc(50% - 5px)}}
+.ph-dots{display:flex;justify-content:center;gap:6px;margin:10px 0 2px}
+.ph-dots i{width:6px;height:6px;border-radius:99px;background:color-mix(in srgb,var(--muted) 45%,transparent);transition:width .2s,background .2s}
+.ph-dots i.on{width:18px;background:var(--pink)}
+.ph-who button.fresh::after{content:"";position:absolute;top:4px;right:6px;width:8px;height:8px;border-radius:99px;background:#ff3b5c;box-shadow:0 0 0 2px rgba(20,10,18,.55)}
+[data-open]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+[data-open] img{-webkit-user-drag:none;pointer-events:none}
+[data-open].saving{animation:phSaving .6s ease-in-out infinite alternate}
+@keyframes phSaving{to{opacity:.6;transform:scale(.97)}}
 .ph-acts{gap:8px}
 .ph-acts .btn{flex:1;white-space:nowrap}
 .ph-big .ph-slot .nm{font-size:13px;left:10px;bottom:10px}

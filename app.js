@@ -706,6 +706,12 @@ function photoBtn(p, cls, editable = false) {
   );
 }
 let phWho = "other"; // 今天的照片正在看誰的：other（對方，預設）／mine
+// 看過哪些對方今天的照片：停在「我」的畫面時，對方傳了新的，切換鈕上會亮小紅點
+const PH_SEEN_KEY = "love-base-ph-seen";
+function phSeen(k) {
+  const d = lsJson(PH_SEEN_KEY);
+  return d && d.date === k && Array.isArray(d.ids) ? d.ids : [];
+}
 function renderTodayPhotos() {
   const t = today(),
     k = key(t),
@@ -733,8 +739,13 @@ function renderTodayPhotos() {
     partner = NAMES.find((n) => n !== myName()) || "對方";
   if (capEditing || up) phWho = "mine";
   const showMine = phWho === "mine",
+    seen = phSeen(k);
+  if (!showMine && others.some((p) => !seen.includes(p.id)))
+    lsSet(PH_SEEN_KEY, JSON.stringify({ date: k, ids: others.map((p) => p.id) }));
+  const fresh = showMine && others.some((p) => !seen.includes(p.id)),
     tab = (who, label, n) =>
-      `<button type="button" role="tab" aria-selected="${(who === "mine") === showMine}" data-who="${who}">` +
+      `<button type="button" role="tab" aria-selected="${(who === "mine") === showMine}" data-who="${who}"` +
+      `${who === "other" && fresh ? ' class="fresh" aria-label="' + label + "，有新照片" + '"' : ""}>` +
       `${label}<span class="n">${n}</span></button>`;
   let h =
     `<div class="ph-stage"><div class="ph-who" role="tablist" aria-label="看誰的照片">` +
@@ -752,6 +763,9 @@ function renderTodayPhotos() {
       : `<div class="ph-slot wait">${esc(nameOf(partner))}今天還沒上傳<br><small>${mine ? "你已經傳了，等等對方吧" : "先傳你的吧 ↓"}</small></div>`;
   }
   h += "</div></div>";
+  // 多張時下面一排小圓點：看得出現在是第幾張、後面還有幾張
+  if (list.length > 1)
+    h += `<div class="ph-dots" aria-hidden="true">${list.map((_, i) => `<i${i ? "" : ' class="on"'}></i>`).join("")}</div>`;
   // 看對方的照片時，如果我今天還沒傳，下面直接給上傳按鈕，不用先切到「我」
   if (!showMine && !mine) h += `<div class="row">${uploadBtn("btn", "📸 上傳我的照片")}</div>`;
   if (showMine && mine)
@@ -762,6 +776,16 @@ function renderTodayPhotos() {
   if (allCaps.length)
     h += allCaps.map((p) => `<div class="ph-note">${esc(nameOf(p.by))}：「${esc(p.cap)}」</div>`).join("");
   box.innerHTML = h;
+  const strip = box.querySelector(".ph-big"),
+    dots = box.querySelectorAll(".ph-dots i");
+  if (strip && dots.length)
+    strip.onscroll = () => {
+      const tile = strip.firstElementChild,
+        step = tile ? tile.offsetWidth + 10 : 1,
+        max = strip.scrollWidth - strip.clientWidth,
+        i = strip.scrollLeft >= max - 4 ? dots.length - 1 : Math.round(strip.scrollLeft / step);
+      dots.forEach((d, j) => d.classList.toggle("on", j === i));
+    };
   box.querySelectorAll("[data-who]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -921,6 +945,58 @@ $("wallMore").onclick = () => {
   photoLimit += 30;
   subPhotos();
 };
+// 長按照片（約半秒）直接存原圖到手機，不用先點開大圖；手指移動、放開或開始滑動（pointercancel）就取消
+let lpTimer = 0,
+  lpXY = null,
+  lpFired = 0;
+const lpCancel = () => {
+  clearTimeout(lpTimer);
+  lpTimer = 0;
+  lpXY = null;
+};
+document.addEventListener("pointerdown", (ev) => {
+  const o = ev.button === 0 && ev.target.closest("[data-open]");
+  lpCancel();
+  if (!o || ev.target.closest("[data-capedit]")) return;
+  lpXY = [ev.clientX, ev.clientY];
+  lpTimer = setTimeout(async () => {
+    lpTimer = 0;
+    lpFired = Date.now();
+    if (navigator.vibrate) navigator.vibrate(15);
+    o.classList.add("saving");
+    toast("存照片中…", 1500);
+    try {
+      const f = await photoFile(o.dataset.open);
+      if (!f) throw new Error("no photo");
+      downloadBlob(f.name, f.blob);
+      toast("存好了 ⬇️");
+    } catch (e) {
+      toast("存不了，點開大圖再按「下載」試試");
+    } finally {
+      o.classList.remove("saving");
+    }
+  }, 550);
+});
+document.addEventListener("pointermove", (ev) => {
+  if (lpXY && Math.hypot(ev.clientX - lpXY[0], ev.clientY - lpXY[1]) > 10) lpCancel();
+});
+["pointerup", "pointercancel"].forEach((t) => document.addEventListener(t, lpCancel, true));
+// 長按存完照片後放開手指，不要又順便打開大圖
+document.addEventListener(
+  "click",
+  (ev) => {
+    if (lpFired && Date.now() - lpFired < 800 && ev.target.closest("[data-open]")) {
+      lpFired = 0;
+      ev.stopPropagation();
+      ev.preventDefault();
+    }
+  },
+  true,
+);
+// 照片上不要跳出瀏覽器自己的長按選單（那個只會存到小縮圖）
+document.addEventListener("contextmenu", (ev) => {
+  if (ev.target.closest("[data-open]")) ev.preventDefault();
+});
 document.addEventListener("click", (ev) => {
   const u = ev.target.closest("[data-up]");
   if (u && !u.disabled) {
@@ -1493,10 +1569,14 @@ $("lbCapForm").addEventListener("submit", async (ev) => {
   }
 });
 // 照片大圖：下載（直接存成檔案）和分享（叫出手機的分享選單）
-async function lbFile() {
-  const p = calAllPhotos().find((x) => x.id === lbId);
+function lbFile() {
+  return photoFile(lbId);
+}
+// 拿一張照片的原圖檔（大圖已經載好就直接用，不然去伺服器抓；抓不到就用縮圖）
+async function photoFile(id) {
+  const p = calAllPhotos().find((x) => x.id === id);
   if (!p) return null;
-  let src = lbFull;
+  let src = lbId === id ? lbFull : "";
   if (!src && db) {
     const img = await fetchPicImg(p.id).catch(() => "");
     if (img) {
@@ -4806,7 +4886,7 @@ function inHScroll(el) {
       sx = ev.touches[0].clientX;
       sy = ev.touches[0].clientY;
       st = Date.now();
-      onPhoto = !!ev.target.closest("img,.ph-slot,.ph-pair,.wall-grid,#wall,#todayPhotos");
+      onPhoto = !!ev.target.closest("img,[data-open],.ph-slot,.ph-big,.wall-grid,#wall,#todayPhotos");
     },
     { passive: true },
   );
