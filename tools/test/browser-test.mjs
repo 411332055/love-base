@@ -217,7 +217,7 @@ for (const [theme, width] of [
   else {
     await page.tap(".chart .tip");
     await page.waitForTimeout(400);
-    (await page.evaluate(() => location.hash)) === "#calendar"
+    (await page.evaluate(() => location.hash)).startsWith("#calendar")
       ? ok("點幸福指數會顯示分數，再點會跳到月曆那天")
       : fail("點幸福指數的提示沒有跳到月曆");
   }

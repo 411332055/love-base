@@ -2773,10 +2773,8 @@ function renderChart() {
   tip.onclick = () => {
     if (!picked) return;
     const d = key(picked.d);
-    calMonth = d.slice(0, 7);
-    calDay = d;
-    openFor("calendar");
-    history.pushState(null, "", "#calendar");
+    openFor("calendar:" + d);
+    history.pushState(null, "", "#calendar:" + d);
   };
 }
 // 統計小卡：數字大、單位小，排在同一行
@@ -4335,6 +4333,20 @@ function openFor(id, noScroll) {
   if (calTarget && view === "calendar") renderCalendar();
   for (let d = el.closest("details"); d; d = d.parentElement?.closest("details")) d.open = true;
   if (noScroll) return;
+  if (calTarget) {
+    // 指定某一天：捲到那天的日記和照片，並閃一下讓人知道在哪
+    scrollTo(0, 0);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const box = $("calDetail");
+        box.scrollIntoView({ block: "start", behavior: "smooth" });
+        box.classList.remove("flash");
+        void box.offsetWidth;
+        box.classList.add("flash");
+      }),
+    );
+    return;
+  }
   if (el === sec) scrollTo(0, 0);
   else el.scrollIntoView({ block: "start" });
 }
