@@ -81,7 +81,7 @@
 | XP、稱號、連續天數、補簽卡 | `dayRecords`、`totalXP`、`streakBonus`、`renderStreak`、`renderHUD`，常數 `TITLES`、`DIARY_XP`、`DIARY_XP_END`、`PHOTO_BONUS`、`DRAW_XP`、`STREAK_STEP` |
 | 紀念日、生日倒數 | `renderAnniv`、`renderBdays`、`saveBday`，交往日 `LOVE_START` |
 | 每日照片、照片牆 | `renderTodayPhotos`、`renderWall`、`myPhotos`、`subPhotos` |
-| 今天的照片 | `renderTodayPhotos`：左右各一格（左對方第一張、右我的第一張），多張時 `+N`（`duoOpen`）展開其他張；大圖可左右滑看同一個人的全部 |
+| 今天的照片 | `renderTodayPhotos`：一次看一個人（`phWho`，預設對方），左上角浮著「對方／我」切換鈕；照片在 `.ph-big` 裡左右滑；編輯說明或上傳中會自動切到「我」；看對方時我還沒傳，下面有上傳按鈕 |
 | 照片上傳、壓縮 | `savePhoto`、`settlePhotos`（背景確認有沒有存到）、`shrinkFull`、`shrinkThumb`、`loadImg`、`uploadQueue`（日記照片排隊上傳） |
 | 照片大圖（雙指與雙擊縮放、左右滑、存到手機、寫一句話） | `openPhoto`、`lbStep`、`closePhoto`、`lbResetZoom` |
 | 寫日記、編輯、草稿 | `renderDiaryToday`、`diaryCard`、`diaryDl`、`diaryQuote`、`startEdit`、`endEdit`、`resetDiaryFields`、`saveDraft`、`restoreDraft` |

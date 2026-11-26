@@ -483,15 +483,23 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 .gate-box h2{justify-content:center}
 .ph-pair{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 2px 4px;margin:-2px -2px -4px}
 .ph-pair::-webkit-scrollbar{display:none}
-.ph-duo{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.ph-cell{position:relative;min-width:0}
-.ph-cell .ph-slot{width:100%;height:auto;aspect-ratio:1;flex:none;font-size:14px}
-.ph-cell .ph-slot .nm{font-size:13px;left:8px;bottom:8px}
-.ph-cell .ph-edit{right:8px;bottom:8px;width:32px;height:32px;font-size:15px}
-.ph-more{position:absolute;top:8px;right:8px;z-index:3;min-width:38px;height:28px;padding:0 10px;border-radius:99px;border:.5px solid rgba(255,255,255,.4);background:rgba(20,10,18,.7);color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .15s ease,background-color .15s ease}
-.ph-more:active{transform:scale(.92)}
-.ph-more.on{background:var(--pink);border-color:#fff}
-.ph-all{margin-top:10px}
+/* 今天的照片：一次看一個人，右上角切換「對方／我」，照片是可以左右滑的大圖 */
+.ph-stage{position:relative}
+/* 切換按鈕浮在第一張照片的左上角（毛玻璃），左右滑照片時它不會跟著跑 */
+.ph-who{position:absolute;top:10px;left:10px;z-index:4;display:inline-flex;gap:2px;padding:3px;border-radius:99px;background:rgba(20,10,18,.55);border:.5px solid rgba(255,255,255,.35);-webkit-backdrop-filter:blur(10px) saturate(1.4);backdrop-filter:blur(10px) saturate(1.4);box-shadow:0 4px 14px -4px rgba(0,0,0,.35)}
+.ph-who button{position:relative;display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:14px;font-weight:700;color:rgba(255,255,255,.85);background:transparent;border:0;border-radius:99px;padding:7px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background-color .2s ease,color .2s ease}
+.ph-who button::before{content:"";position:absolute;inset:-6px -2px}
+.ph-who button[aria-selected=true]{background:var(--pink);color:#fff;box-shadow:0 4px 12px -4px rgba(155,40,85,.45)}
+.ph-who .n{font-size:12px;font-variant-numeric:tabular-nums;opacity:.75}
+.ph-big{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;align-items:stretch}
+.ph-big::-webkit-scrollbar{display:none}
+.ph-big .ph-slot{flex:0 0 100%;width:100%;height:auto;aspect-ratio:4/3;scroll-snap-align:start;font-size:15px}
+.ph-big.multi .ph-slot{flex-basis:80%;width:80%}
+.ph-big .ph-slot.add{flex-basis:34%;width:34%;aspect-ratio:auto}
+.ph-big .ph-slot small{font-size:12.5px;font-weight:500;opacity:.85}
+.ph-big .ph-slot:not(.has){display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;padding:52px 16px 16px;line-height:1.5}
+.ph-big .ph-slot .nm{font-size:13px;left:10px;bottom:10px}
+.ph-big .ph-edit{right:10px;bottom:10px;width:36px;height:36px;font-size:16px}
 .ph-slot{flex:0 0 116px;width:116px;height:116px;border-radius:16px;background:var(--sunk);box-shadow:var(--soft-rim);border:1.5px dashed color-mix(in srgb,var(--pink) 58%,var(--line));display:grid;place-items:center;overflow:hidden;position:relative;color:var(--pink);font-size:12.5px;font-weight:600;text-align:center;padding:4px;line-height:1.4;scroll-snap-align:start}
 .ph-slot.wait{background:var(--sunk);border-color:var(--line);color:var(--muted);font-weight:500}
 .ph-slot.has{border:0;padding:0;box-shadow:0 6px 16px -4px rgba(155,40,85,.22)}

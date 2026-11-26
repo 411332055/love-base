@@ -705,7 +705,7 @@ function photoBtn(p, cls, editable = false) {
     `" alt="" loading="lazy" decoding="async"><span class="nm">${esc(p.by)}${p.by === myName() ? "（我）" : ""}${!editable && p.cap ? " 💬" : ""}</span>${editBadge}</button>`
   );
 }
-let duoOpen = ""; // 今天的照片展開的是誰的：mine／other／空字串
+let phWho = "other"; // 今天的照片正在看誰的：other（對方，預設）／mine
 function renderTodayPhotos() {
   const t = today(),
     k = key(t),
@@ -725,61 +725,50 @@ function renderTodayPhotos() {
   const others = photosOn(k).filter((p) => p.by !== myName()),
     up = uploading === k,
     upText = uploadingProg ? `上傳中 ${uploadingProg}…` : "上傳中…";
-  // 左右各一格：左邊對方第一張、右邊我的第一張；多張時角落有「+N」，點了在下面展開那個人的全部照片
+  // 一次看一個人的照片：先看對方的，左上角切換「對方／我」；照片排成可以左右滑的大圖
   const mineBtn = (p) => photoBtn(p, "ph-slot has" + (capEditing === p.id ? " editing" : ""), true),
     otherBtn = (p) => photoBtn(p, "ph-slot has"),
-    more = (who, n) =>
-      n > 1
-        ? `<button type="button" class="ph-more${duoOpen === who ? " on" : ""}" data-more="${who}" aria-expanded="${duoOpen === who}"` +
-          ` aria-label="${duoOpen === who ? "收起" : `看全部 ${n} 張`}">${duoOpen === who ? "收起" : "+" + (n - 1)}</button>`
-        : "",
-    // 隱藏的清單讓大圖可以左右滑看同一個人的其他張
-    gallery = (list) =>
-      list
-        .slice(1)
-        .map((p) => `<span hidden data-open="${esc(p.id)}"></span>`)
-        .join(""),
     uploadBtn = (cls, label) =>
       `<button type="button" class="${cls}" data-up="${k}" ${up ? "disabled" : ""}>${up ? upText : label}</button>`,
     partner = NAMES.find((n) => n !== myName()) || "對方";
-  if (duoOpen === "mine" && mineAll.length < 2) duoOpen = "";
-  if (duoOpen === "other" && others.length < 2) duoOpen = "";
-  let h = '<div class="ph-duo">';
-  h +=
-    '<div class="ph-cell">' +
-    (others.length
-      ? otherBtn(others[0]) + more("other", others.length) + gallery(others)
-      : `<div class="ph-slot wait">等${esc(partner)}上傳…</div>`) +
-    "</div>";
-  h +=
-    '<div class="ph-cell">' +
-    (mine
-      ? mineBtn(mine) + more("mine", mineAll.length) + gallery(mineAll)
-      : uploadBtn("ph-slot", "📸<br>上傳我的照片<br><small>可以一次選很多張</small>")) +
-    "</div>";
-  h += "</div>";
-  if (duoOpen) {
-    const list = duoOpen === "mine" ? mineAll : others;
-    h += `<div class="ph-pair ph-all">${list
-      .slice(1)
-      .map(duoOpen === "mine" ? mineBtn : otherBtn)
-      .join("")}</div>`;
+  if (capEditing || up) phWho = "mine";
+  const showMine = phWho === "mine",
+    tab = (who, label, n) =>
+      `<button type="button" role="tab" aria-selected="${(who === "mine") === showMine}" data-who="${who}">` +
+      `${label}<span class="n">${n}</span></button>`;
+  let h =
+    `<div class="ph-stage"><div class="ph-who" role="tablist" aria-label="看誰的照片">` +
+    tab("other", esc(nameOf(partner)), others.length) +
+    tab("mine", "我", mineAll.length) +
+    `</div>`;
+  const list = showMine ? mineAll : others;
+  h += `<div class="ph-big${list.length + (showMine && mineAll.length < DAY_PH_MAX ? 1 : 0) > 1 ? " multi" : ""}">`;
+  if (showMine) {
+    h += mineAll.map(mineBtn).join("");
+    if (!mine) h += uploadBtn("ph-slot", "📸<br>上傳我的照片<br><small>可以一次選很多張</small>");
+    else if (mineAll.length < DAY_PH_MAX) h += uploadBtn("ph-slot add", "＋<br>再加照片");
+  } else {
+    h += others.length
+      ? others.map(otherBtn).join("")
+      : `<div class="ph-slot wait">${esc(nameOf(partner))}今天還沒上傳<br><small>${mine ? "你已經傳了，等等對方吧" : "先傳你的吧 ↓"}</small></div>`;
   }
-  if (mine) {
-    h += '<div class="row">';
-    if (mineAll.length < DAY_PH_MAX) h += uploadBtn("btn ghost", "＋ 再加照片");
+  h += "</div></div>";
+  // 看對方的照片時，如果我今天還沒傳，下面直接給上傳按鈕，不用先切到「我」
+  if (!showMine && !mine) h += `<div class="row">${uploadBtn("btn", "📸 上傳我的照片")}</div>`;
+  if (showMine && mine)
     h +=
-      `<button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
+      `<div class="row"><button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
       `>${up ? upText : mineAll.length > 1 ? "換我的第一張" : "換我的照片"}</button></div>`;
-  }
   const allCaps = [...mineAll, ...others].filter((p) => p.cap);
   if (allCaps.length)
     h += allCaps.map((p) => `<div class="ph-note">${esc(nameOf(p.by))}：「${esc(p.cap)}」</div>`).join("");
   box.innerHTML = h;
-  box.querySelectorAll("[data-more]").forEach(
+  box.querySelectorAll("[data-who]").forEach(
     (b) =>
       (b.onclick = () => {
-        duoOpen = duoOpen === b.dataset.more ? "" : b.dataset.more;
+        if (phWho === b.dataset.who) return;
+        phWho = b.dataset.who;
+        sliderTick();
         renderTodayPhotos();
       }),
   );
@@ -946,7 +935,7 @@ document.addEventListener("click", (ev) => {
   }
   const o = ev.target.closest("[data-open]");
   if (o) {
-    const box = o.closest("#wall") || o.closest(".wall-grid,.ph-pair,.ph-cell") || o.parentElement;
+    const box = o.closest("#wall") || o.closest(".wall-grid,.ph-pair,.ph-big") || o.parentElement;
     openPhoto(
       o.dataset.open,
       [...box.querySelectorAll("[data-open]")].map((x) => x.dataset.open),
