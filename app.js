@@ -681,8 +681,7 @@ let photos = [],
   photoErr = "",
   uploading = null,
   uploadingProg = "",
-  pendingDate = null,
-  pendingSwap = ""; // 要換掉的那張照片 id（按「換這張」時），空的就是新增
+  pendingDate = null;
 function photosOn(d) {
   return photos.filter((p) => p.date === d && !p.entry);
 }
@@ -770,8 +769,9 @@ function renderTodayPhotos() {
   if (!mine) h += `<div class="row" data-pane="other">${uploadBtn("btn", "📸 上傳我的照片")}</div>`;
   else
     h +=
-      `<div class="row ph-acts" data-pane="mine">${mineAll.length < DAY_PH_MAX ? uploadBtn("btn", "＋ 再加照片") : ""}<button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
-      `>${up ? upText : mineAll.length > 1 ? "換這張" : "換一張"}</button></div>`;
+      mineAll.length < DAY_PH_MAX
+        ? `<div class="row ph-acts" data-pane="mine">${uploadBtn("btn", "＋ 再加照片")}</div>`
+        : "";
   const allCaps = [...mineAll, ...others].filter((p) => p.cap);
   if (allCaps.length)
     h += allCaps.map((p) => `<div class="ph-note">${esc(nameOf(p.by))}：「${esc(p.cap)}」</div>`).join("");
@@ -1106,17 +1106,7 @@ document.addEventListener("click", (ev) => {
   if (u && !u.disabled) {
     if (!db || photoErr || uploading) return;
     pendingDate = u.dataset.up;
-    pendingSwap = "";
-    if (u.dataset.swap) {
-      // 換掉「現在看到的那一張」：從我的照片列捲到第幾張算出來
-      const strip = $("todayPhotos").querySelector('.ph-big[data-pane="mine"]'),
-        tiles = strip ? [...strip.querySelectorAll("[data-open]")] : [],
-        step = tiles[0] ? tiles[0].offsetWidth + 10 : 1,
-        m = strip ? strip.scrollWidth - strip.clientWidth : 0,
-        i = !strip ? 0 : strip.scrollLeft >= m - 4 ? tiles.length - 1 : Math.round(strip.scrollLeft / step);
-      pendingSwap = (tiles[i] || tiles[0])?.dataset.open || "";
-    }
-    $("photoFile").multiple = !pendingSwap;
+    $("photoFile").multiple = true;
     $("photoFile").value = "";
     $("photoFile").click();
     return;
@@ -1131,7 +1121,7 @@ document.addEventListener("click", (ev) => {
   }
 });
 // 上傳一張照片（每日照片和日記照片共用）：壓縮後存原圖到 pics、縮圖和說明到 photos
-// opt.id 不給就用「日期_名字_亂數」；opt.entry 是所屬日記；opt.replace 表示蓋掉同 id 的舊照片（舊的先進垃圾桶）
+// opt.id 不給就用「日期_名字_亂數」；opt.entry 是所屬日記
 const newPhotoId = (date) => `${date}_${myName()}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 async function savePhoto(file, date, opt = {}) {
   const { im, url, close } = await loadImg(file);
@@ -1141,12 +1131,8 @@ async function savePhoto(file, date, opt = {}) {
   if (close) close();
   else if (url) URL.revokeObjectURL(url);
   const id = opt.id || newPhotoId(date);
-  // 換照片時沿用舊照片的時間，換完還在原本的位置，不會跑到最後面
-  const meta = { date, by: myName(), th, cap: "", at: opt.at || nowIso() };
+  const meta = { date, by: myName(), th, cap: "", at: nowIso() };
   if (opt.entry) meta.entry = opt.entry;
-  if (opt.replace) {
-    await Promise.race([archivePhoto(id).catch(() => {}), new Promise((r) => setTimeout(r, 1800))]);
-  }
   // 同時寫入原圖、縮圖與每日打卡紀錄，確保弱網下 0.2 秒內全部鎖進本機離線佇列
   const pPic = db.collection("pics").doc(id).set({ img, date, by: myName() });
   const pMeta = db.collection("photos").doc(id).set(meta);
@@ -1198,13 +1184,10 @@ $("photoFile").addEventListener("change", async () => {
   }
   const mainId = date + "_" + myName(),
     hasMain = myPhotos(date).some((p) => p.id === mainId);
-  if (pendingSwap) files = files.slice(0, 1);
-  else {
-    const room = DAY_PH_MAX - myPhotos(date).length;
-    if (files.length > room) {
-      files = files.slice(0, Math.max(0, room));
-      toast(`一天最多 ${DAY_PH_MAX} 張，只放前 ${files.length} 張`);
-    }
+  const room = DAY_PH_MAX - myPhotos(date).length;
+  if (files.length > room) {
+    files = files.slice(0, Math.max(0, room));
+    toast(`一天最多 ${DAY_PH_MAX} 張，只放前 ${files.length} 張`);
   }
   if (!files.length) return;
   uploading = date;
@@ -1230,12 +1213,8 @@ $("photoFile").addEventListener("change", async () => {
         renderTodayPhotos();
       }
       try {
-        // 第一張用固定的 id（日期_名字），其他張加亂數；只有真的要換掉舊照片時才搬進垃圾桶
-        // 換照片：用同一個 id 存新的，舊的搬進垃圾桶（可以還原）
-        const old = pendingSwap && myPhotos(date).find((p) => p.id === pendingSwap);
-        const saved = pendingSwap
-          ? await savePhoto(files[i], date, { id: pendingSwap, replace: !!old, at: old && old.at })
-          : await savePhoto(files[i], date, !hasMain && i === 0 ? { id: mainId } : {});
+        // 第一張用固定的 id（日期_名字），其他張加亂數
+        const saved = await savePhoto(files[i], date, !hasMain && i === 0 ? { id: mainId } : {});
         writePs.push(saved._writeP);
         savedList.push(saved);
         ok++;
