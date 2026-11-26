@@ -682,7 +682,7 @@ let photos = [],
   uploading = null,
   uploadingProg = "",
   pendingDate = null,
-  pendingSwap = false;
+  pendingSwap = ""; // 要換掉的那張照片 id（按「換這張」時），空的就是新增
 function photosOn(d) {
   return photos.filter((p) => p.date === d && !p.entry);
 }
@@ -771,7 +771,7 @@ function renderTodayPhotos() {
   else
     h +=
       `<div class="row ph-acts" data-pane="mine">${mineAll.length < DAY_PH_MAX ? uploadBtn("btn", "＋ 再加照片") : ""}<button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
-      `>${up ? upText : mineAll.length > 1 ? "換掉第一張" : "換一張"}</button></div>`;
+      `>${up ? upText : mineAll.length > 1 ? "換這張" : "換一張"}</button></div>`;
   const allCaps = [...mineAll, ...others].filter((p) => p.cap);
   if (allCaps.length)
     h += allCaps.map((p) => `<div class="ph-note">${esc(nameOf(p.by))}：「${esc(p.cap)}」</div>`).join("");
@@ -1106,7 +1106,16 @@ document.addEventListener("click", (ev) => {
   if (u && !u.disabled) {
     if (!db || photoErr || uploading) return;
     pendingDate = u.dataset.up;
-    pendingSwap = !!u.dataset.swap;
+    pendingSwap = "";
+    if (u.dataset.swap) {
+      // 換掉「現在看到的那一張」：從我的照片列捲到第幾張算出來
+      const strip = $("todayPhotos").querySelector('.ph-big[data-pane="mine"]'),
+        tiles = strip ? [...strip.querySelectorAll("[data-open]")] : [],
+        step = tiles[0] ? tiles[0].offsetWidth + 10 : 1,
+        m = strip ? strip.scrollWidth - strip.clientWidth : 0,
+        i = !strip ? 0 : strip.scrollLeft >= m - 4 ? tiles.length - 1 : Math.round(strip.scrollLeft / step);
+      pendingSwap = (tiles[i] || tiles[0])?.dataset.open || "";
+    }
     $("photoFile").multiple = !pendingSwap;
     $("photoFile").value = "";
     $("photoFile").click();
@@ -1132,7 +1141,8 @@ async function savePhoto(file, date, opt = {}) {
   if (close) close();
   else if (url) URL.revokeObjectURL(url);
   const id = opt.id || newPhotoId(date);
-  const meta = { date, by: myName(), th, cap: "", at: nowIso() };
+  // 換照片時沿用舊照片的時間，換完還在原本的位置，不會跑到最後面
+  const meta = { date, by: myName(), th, cap: "", at: opt.at || nowIso() };
   if (opt.entry) meta.entry = opt.entry;
   if (opt.replace) {
     await Promise.race([archivePhoto(id).catch(() => {}), new Promise((r) => setTimeout(r, 1800))]);
@@ -1221,8 +1231,11 @@ $("photoFile").addEventListener("change", async () => {
       }
       try {
         // 第一張用固定的 id（日期_名字），其他張加亂數；只有真的要換掉舊照片時才搬進垃圾桶
-        const asMain = pendingSwap || (!hasMain && i === 0);
-        const saved = await savePhoto(files[i], date, asMain ? { id: mainId, replace: pendingSwap && hasMain } : {});
+        // 換照片：用同一個 id 存新的，舊的搬進垃圾桶（可以還原）
+        const old = pendingSwap && myPhotos(date).find((p) => p.id === pendingSwap);
+        const saved = pendingSwap
+          ? await savePhoto(files[i], date, { id: pendingSwap, replace: !!old, at: old && old.at })
+          : await savePhoto(files[i], date, !hasMain && i === 0 ? { id: mainId } : {});
         writePs.push(saved._writeP);
         savedList.push(saved);
         ok++;

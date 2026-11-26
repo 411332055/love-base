@@ -81,7 +81,7 @@
 | XP、稱號、連續天數、補簽卡 | `dayRecords`、`totalXP`、`streakBonus`、`renderStreak`、`renderHUD`，常數 `TITLES`、`DIARY_XP`、`DIARY_XP_END`、`PHOTO_BONUS`、`DRAW_XP`、`STREAK_STEP` |
 | 紀念日、生日倒數 | `renderAnniv`、`renderBdays`、`saveBday`，交往日 `LOVE_START` |
 | 每日照片、照片牆 | `renderTodayPhotos`、`renderWall`、`myPhotos`、`subPhotos` |
-| 今天的照片 | `renderTodayPhotos`：兩個人的照片都先畫好（`data-pane`），切換只改 `#todayPhotos[data-showing]` 不重畫；一次看一個人（`phWho`，預設對方），左上角浮著「對方／我」切換鈕（粉紅膠囊可以用手指拖，`phSegI` 記上次位置）；照片在 `.ph-big` 裡左右滑，「＋ 再加照片」「換一張」放在照片下面一排；編輯說明或上傳中會自動切到「我」；看對方時我還沒傳，下面有上傳按鈕；多張時下面有小圓點（`.ph-dots`）；停在「我」時對方傳新照片，切換鈕亮紅點（`PH_SEEN_KEY`）；在照片上左右滑到盡頭再滑會換人（`.ph-stage` 不觸發換頁） |
+| 今天的照片 | `renderTodayPhotos`：兩個人的照片都先畫好（`data-pane`），切換只改 `#todayPhotos[data-showing]` 不重畫；一次看一個人（`phWho`，預設對方），左上角浮著「對方／我」切換鈕（粉紅膠囊可以用手指拖，`phSegI` 記上次位置）；照片在 `.ph-big` 裡左右滑，「＋ 再加照片」「換這張」（換掉現在看到的那張，沿用原本的 id 和時間，舊的進垃圾桶）放在照片下面一排；編輯說明或上傳中會自動切到「我」；看對方時我還沒傳，下面有上傳按鈕；多張時下面有小圓點（`.ph-dots`）；停在「我」時對方傳新照片，切換鈕亮紅點（`PH_SEEN_KEY`）；在照片上左右滑到盡頭再滑會換人（`.ph-stage` 不觸發換頁） |
 | 長按存照片 | 任何 `[data-open]` 照片長按 550ms 用 `photoFile(id)` 抓原圖下載，之後那次 click 不會打開大圖；照片上的瀏覽器長按選單關掉 |
 | 照片上傳、壓縮 | `savePhoto`、`settlePhotos`（背景確認有沒有存到）、`shrinkFull`、`shrinkThumb`、`loadImg`、`uploadQueue`（日記照片排隊上傳） |
 | 照片大圖（雙指與雙擊縮放、左右滑、存到手機、寫一句話） | `openPhoto`、`lbStep`、`closePhoto`、`lbResetZoom` |
