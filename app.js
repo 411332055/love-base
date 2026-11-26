@@ -100,13 +100,28 @@ function esc(s) {
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
   );
 }
-function toast(msg, ms = 2200) {
+// action：{ label, fn }，例如刪除後的「復原」按鈕
+function toast(msg, ms = 2200, action) {
   const t = $("toast");
   t.textContent = msg;
+  t.classList.toggle("has-act", !!action);
+  if (action) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "toast-act";
+    b.textContent = action.label;
+    b.onclick = () => {
+      t.hidden = true;
+      action.fn();
+    };
+    t.append(b);
+  }
   t.hidden = false;
   clearTimeout(toast.h);
   toast.h = setTimeout(() => (t.hidden = true), ms);
 }
+// 刪除後的提示：附「復原」按鈕，按錯了點一下就回來（之後也可以到設定的垃圾桶找）
+const trashedToast = (c, id) => toast("移到垃圾桶了", 6000, { label: "↩︎ 復原", fn: () => restoreItem(c, id) });
 const HAPTIC_KEY = "love-base-haptic",
   HAPTIC_LV_KEY = "love-base-haptic-level";
 // 震動強度：網頁只能控制震多久，所以「強」就是震久一點（Android 才有效，iPhone 固定一種強度）
@@ -331,8 +346,7 @@ async function updDoc(c, id, data) {
     toast(NOSAVE);
   }
 }
-const TRASH_DAYS = 30,
-  TRASHED = "移到垃圾桶了，30 天內可以復原";
+const TRASH_DAYS = 30;
 const trashMark = () => ({ at: nowIso(), by: myName() });
 async function delDoc(c, id) {
   const item = store[c].find((x) => x.id === id);
@@ -343,7 +357,7 @@ async function delDoc(c, id) {
   renderAll();
   try {
     db ? await commit(xRef(c, id).update({ trashed: mark })) : saveLocal();
-    toast(TRASHED);
+    trashedToast(c, id);
   } catch (e) {
     store[c].push(item);
     trash[c] = trash[c].filter((x) => x.id !== id);
@@ -1569,14 +1583,16 @@ $("lbDel").onclick = async () => {
   const b = $("lbDel"),
     id = lbId;
   if (!id || !confirmTap(b, "確定刪除？再按一次", "刪除這張")) return;
+  const item = calAllPhotos().find((p) => p.id === id),
+    mark = trashMark();
   try {
-    await commit(db.collection("photos").doc(id).update({ trashed: trashMark() }));
-    picCache.delete(id);
+    await commit(db.collection("photos").doc(id).update({ trashed: mark }));
+    if (item && !trash.photos.some((x) => x.id === id)) trash.photos.push({ ...item, trashed: mark });
     photos = photos.filter((p) => p.id !== id);
     calPhotos = calPhotos.filter((p) => p.id !== id);
     closePhotoByUser();
     renderAll();
-    toast(TRASHED);
+    trashedToast("photos", id);
   } catch (e) {
     toast("刪除失敗，請再試一次");
   }
@@ -1765,7 +1781,7 @@ async function delEntry(id) {
   renderAll();
   try {
     db ? await commit(db.collection("diary").doc(id).update({ trashed: mark })) : saveLocal();
-    toast(TRASHED);
+    trashedToast("diary", id);
   } catch (e) {
     entries = old;
     trash.diary = trash.diary.filter((x) => x.id !== id);

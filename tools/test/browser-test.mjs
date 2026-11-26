@@ -184,6 +184,20 @@ for (const [theme, width] of [
     await page.waitForTimeout(400);
     const updated = await page.evaluate(([p, id]) => window.__store[p][id], [room("done"), wish[0]]);
     updated?.done ? ok("許願並完成願望正常") : fail("完成願望沒有存進資料庫");
+    // 完成的願望收在「已完成」裡，直接按它的刪除（要按兩次確認）
+    await page.evaluate((id) => {
+      const b = document.querySelector(`.wish .del[data-id="${id}"]`);
+      b.click();
+      b.click();
+    }, wid);
+    await page.waitForTimeout(300);
+    const trashed = await page.evaluate(([p, id]) => !!window.__store[p][id].trashed, [room("done"), wish[0]]);
+    await page.click("#toast .toast-act");
+    await page.waitForTimeout(400);
+    const back = await page.evaluate(([p, id]) => !window.__store[p][id].trashed, [room("done"), wish[0]]);
+    trashed && back
+      ? ok("刪除後按提示上的「復原」能救回來")
+      : fail(`刪除／復原不正常（刪除 ${trashed}，復原 ${back}）`);
   }
 
   await go(page, "calendar");
