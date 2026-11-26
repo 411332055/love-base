@@ -374,10 +374,20 @@ details.month summary::after,details.rules summary:has(>span)::after{margin-left
 :root.boot-in .wrap>section.current>*:nth-child(n+5){animation-delay:.7s}
 :root.boot-in .tabbar{animation:bootTab .38s cubic-bezier(.22,1.22,.36,1) .52s both}
 @keyframes secIn{from{opacity:.82;transform:translate3d(0,8px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes secInF{from{opacity:0;transform:translate3d(32px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes secInB{from{opacity:0;transform:translate3d(-32px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes secCard{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 @keyframes foldIn{from{opacity:0;transform:translate3d(0,-6px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 @keyframes gachaPop{0%{opacity:0;transform:translate3d(0,10px,0) scale(.95)}60%{opacity:1;transform:translate3d(0,-2px,0) scale(1.015)}100%{opacity:1;transform:translate3d(0,0,0) scale(1)}}
 .gacha-pop{animation:gachaPop .3s cubic-bezier(.34,1.56,.64,1)}
-.wrap>section.current{animation:secIn .2s cubic-bezier(.22,1,.36,1)}
+.wrap>section.current{animation:secIn .34s cubic-bezier(.22,1,.36,1)}
+/* 換頁：依方向從右或左滑進來，裡面的卡片一張接一張跟上 */
+:root[data-dir=f] .wrap>section.current{animation-name:secInF}
+:root[data-dir=b] .wrap>section.current{animation-name:secInB}
+:root[data-enter] .wrap>section.current>:not(.flash):not(.gacha-pop){animation:secCard .38s cubic-bezier(.22,1,.36,1) backwards}
+:root[data-enter] .wrap>section.current>*:nth-child(2){animation-delay:.03s}
+:root[data-enter] .wrap>section.current>*:nth-child(3){animation-delay:.06s}
+:root[data-enter] .wrap>section.current>*:nth-child(n+4){animation-delay:.09s}
 details.month[open]>.month-body,details.rules[open]>.custom,details.rules[open]>.log,details.rules[open]>ol{animation:foldIn .2s cubic-bezier(.22,1,.36,1)}
 .wrap>section:not(.current){display:none}
 :root[data-view]:not([data-view="today"]) .hud{display:none}

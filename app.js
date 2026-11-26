@@ -4540,6 +4540,16 @@ function setView(id) {
   if (booted && id !== view) sliderTick();
   const changed = id !== view;
   if (booted && changed && view) scrollPos[view] = scrollY;
+  // 換頁方向：往右邊的分頁走，內容從右邊滑進來；往左就從左邊
+  if (booted && changed && view) {
+    const order = CATS.flatMap((x) => x.secs);
+    const root = document.documentElement;
+    root.dataset.dir = order.indexOf(id) > order.indexOf(view) ? "f" : "b";
+    // 卡片依序浮上來的效果只在剛換頁時套用，0.6 秒後拿掉，不影響卡片自己的動畫
+    root.dataset.enter = "1";
+    clearTimeout(setView.t);
+    setView.t = setTimeout(() => delete root.dataset.enter, 600);
+  }
   view = id;
   const c = CATS.find((x) => x.secs.includes(id));
   lastSub[c.id] = id;
