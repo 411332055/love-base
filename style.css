@@ -551,3 +551,10 @@ details.rules>summary,details#prefs>summary{padding:10px 0;margin:-10px 0}
 #calDetail.flash>*{animation:dayFlash 1.4s ease-out}
 @keyframes dayFlash{0%,30%{box-shadow:0 0 0 3px var(--pink),var(--card-shadow)}100%{box-shadow:var(--card-shadow)}}
 @media (prefers-reduced-motion:reduce){#calDetail.flash>*{animation:none}}
+/* 空白日記送出時，第一格輕輕晃一下 */
+.nudge{animation:nudge .45s ease}
+@keyframes nudge{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+@media (prefers-reduced-motion:reduce){.nudge{animation:none}}
+/* 可以展開的列（設定、全部日記、已完成的願望）按下去也縮一下 */
+details>summary{transition:transform .15s ease,opacity .15s ease;-webkit-tap-highlight-color:transparent}
+details>summary:active{transform:scale(.98);opacity:.75;transition-duration:.08s}

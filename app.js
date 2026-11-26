@@ -1976,6 +1976,14 @@ $("diaryForm").addEventListener("submit", async (ev) => {
   };
   if (!e.mood && !e.food && !e.funny && !e.say && !e.s1 && !e.s2) {
     $("dMsg").textContent = "至少寫一格再存喔";
+    // 跳到第一格、輕震一下，讓人知道要先寫
+    haptic(30);
+    const first = $("dMood");
+    first.scrollIntoView({ block: "center", behavior: "smooth" });
+    first.focus({ preventScroll: true });
+    first.classList.remove("nudge");
+    void first.offsetWidth;
+    first.classList.add("nudge");
     return;
   }
   $("dSave").disabled = true;
@@ -4295,10 +4303,14 @@ applyLayout();
 renderLayoutList();
 
 // 一次只顯示一個區塊：底部分頁或側邊欄選分類，分類裡用上方的小標籤切換
+// 每一頁記住滑到哪裡，切回來時停在原本的位置
+const scrollPos = {};
 function setView(id) {
   const sec = $(id);
   if (!sec || sec.hidden || !CATS.some((c) => c.secs.includes(id))) id = "today";
   if (booted && id !== view) sliderTick();
+  const changed = id !== view;
+  if (booted && changed && view) scrollPos[view] = scrollY;
   view = id;
   const c = CATS.find((x) => x.secs.includes(id));
   lastSub[c.id] = id;
@@ -4310,6 +4322,13 @@ function setView(id) {
   });
   renderNav();
   renderOpen();
+  if (booted && changed) restoreScroll(id);
+}
+function restoreScroll(id) {
+  const y = scrollPos[id] || 0;
+  scrollTo(0, y);
+  // 內容還在畫時頁面可能不夠長，等畫好再捲一次
+  if (y) requestAnimationFrame(() => requestAnimationFrame(() => view === id && scrollTo(0, y)));
 }
 function openFor(id, noScroll) {
   let calTarget = "";
@@ -4347,7 +4366,7 @@ function openFor(id, noScroll) {
     );
     return;
   }
-  if (el === sec) scrollTo(0, 0);
+  if (el === sec) restoreScroll(sec.id);
   else el.scrollIntoView({ block: "start" });
 }
 document.addEventListener("click", (ev) => {
@@ -4514,9 +4533,6 @@ bindNavDrag(
   "--tab-i",
   () => CATS.filter((x) => catSecs(x).length).map((x) => x.id),
   (cid) => activateCat(cid, true),
-  (changed) => {
-    if (changed) scrollTo(0, 0);
-  },
 );
 bindNavDrag(
   "subNav",
@@ -6850,7 +6866,16 @@ renderInstall();
 showLastBackup();
 restoreDraft();
 restoreCapDraft();
+// 用 #頁面 的網址打開（例如點推播通知）時，瀏覽器會自己跳到那個區塊，把上面的標題擠出畫面；改成從頁面最上面開始
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 openFor(location.hash.slice(1) || "today");
+addEventListener(
+  "load",
+  () => {
+    if (!location.hash.startsWith("#calendar:")) restoreScroll(view);
+  },
+  { once: true },
+);
 booted = true;
 setTimeout(() => {
   document.documentElement.classList.remove("boot-in");
