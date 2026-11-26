@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
-<link rel="manifest" href="manifest.webmanifest?v=162">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=162">
+<link rel="manifest" href="manifest.webmanifest?v=164">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=164">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap"></noscript>
-<link rel="stylesheet" href="style.css?v=162">
+<link rel="stylesheet" href="style.css?v=164">
 </head>
 <body>
 
@@ -27,8 +27,11 @@
     <div class="splash-sub">我們的戀愛遊戲基地</div>
   </div>
 </div>
+<!-- 開場動畫（在一起第 N 天）一天只播一次，同一天再打開直接進去。
+     網址有 #頁面 時加 no-anchor：瀏覽器打開時會自己跳到那個區塊（畫面往下跳一下再彈回來），載入完才拿掉 -->
 <script>
-(function(){try{var t=localStorage.getItem("love-base-theme"),f=localStorage.getItem("love-base-font"),r=document.documentElement;r.classList.add("boot-in");if(t==="light"||t==="dark"){r.dataset.theme=t;var c=t==="dark"?"#0d0811":"#fff5f8";document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=c})}if(f)r.dataset.font=f;var d=new Date();d.setHours(0,0,0,0);var n=Math.round((d-new Date(2026,10,4))/864e5)+1,s=document.getElementById("splashNum");if(s&&n>0)s.textContent=n}catch(e){}})();
+if(location.hash.length>1)document.documentElement.classList.add("no-anchor");
+(function(){try{var t=localStorage.getItem("love-base-theme"),f=localStorage.getItem("love-base-font"),r=document.documentElement,dk=new Date().toDateString();if(localStorage.getItem("love-base-splash")===dk){var sp=document.getElementById("splash");if(sp)sp.hidden=true}else{localStorage.setItem("love-base-splash",dk);r.classList.add("boot-in")}if(t==="light"||t==="dark"){r.dataset.theme=t;var c=t==="dark"?"#0d0811":"#fff5f8";document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=c})}if(f)r.dataset.font=f;var d=new Date();d.setHours(0,0,0,0);var n=Math.round((d-new Date(2026,10,4))/864e5)+1,s=document.getElementById("splashNum");if(s&&n>0)s.textContent=n}catch(e){}})();
 (function(){var v="";try{v=localStorage.getItem("love-base-side")||""}catch(e){}document.documentElement.dataset.side=matchMedia("(max-width:859px)").matches?"mini":(v||"open")})();
 </script>
 <aside class="side" id="side">
@@ -417,7 +420,7 @@
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=162" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=164" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -443,6 +446,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=162"></script>
+<script src="app.js?v=164"></script>
 </body>
 </html>

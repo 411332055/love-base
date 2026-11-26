@@ -801,8 +801,9 @@ function renderTodayPhotos() {
     }
   };
   // 先放在上次的位置、強制排版一次，再移到新位置，膠囊才會滑過去而不是直接跳
+  const wantI = phWho === "mine" ? 1 : 0;
   seg.style.setProperty("--i", phSegI);
-  void seg.offsetWidth;
+  if (wantI !== phSegI) void seg.offsetWidth; // 位置沒變就不用強制排版
   show(phWho);
   const go = (who, from) => {
     if (who === phWho) return;
@@ -4595,7 +4596,10 @@ function openFor(id, noScroll) {
   if (calTarget && view === "calendar") renderCalendar();
   for (let d = el.closest("details"); d; d = d.parentElement?.closest("details")) d.open = true;
   if (noScroll) return;
+  // 要捲到頁面中間某個位置（例如「看那天」）時，開站時擋住瀏覽器自己跳的 no-anchor 先拿掉
+  const letScroll = () => document.documentElement.classList.remove("no-anchor");
   if (calTarget) {
+    letScroll();
     // 指定某一天：捲到那天的日記和照片，並閃一下讓人知道在哪
     scrollTo(0, 0);
     requestAnimationFrame(() =>
@@ -4610,7 +4614,10 @@ function openFor(id, noScroll) {
     return;
   }
   if (el === sec) restoreScroll(sec.id);
-  else el.scrollIntoView({ block: "start" });
+  else {
+    letScroll();
+    el.scrollIntoView({ block: "start" });
+  }
 }
 document.addEventListener("click", (ev) => {
   const a = ev.target.closest('a[href^="#"]');
@@ -7215,7 +7222,12 @@ openFor(location.hash.slice(1) || "today");
 addEventListener(
   "load",
   () => {
-    if (!location.hash.startsWith("#calendar:")) restoreScroll(view);
+    // 網址指到頁面中間的區塊（例如 #trash、#calendar:日期）時，不要再拉回最上面
+    const h = location.hash.slice(1),
+      target = h && !h.startsWith("calendar:") && document.getElementById(h);
+    if (!h.startsWith("calendar:") && (!target || target.tagName === "SECTION")) restoreScroll(view);
+    // 瀏覽器不會再自己跳到 #區塊 了，拿掉 no-anchor（之後點「看那天」等等的捲動照常）
+    requestAnimationFrame(() => document.documentElement.classList.remove("no-anchor"));
   },
   { once: true },
 );

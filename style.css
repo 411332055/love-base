@@ -54,6 +54,8 @@
   --tab-pill-shadow:var(--glass-rim); color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
+/* 連點按鈕時 iPhone 不要放大畫面（雙指縮放照樣可以） */
+html{touch-action:manipulation}
 /* 換頁滑動時頁面會暫時超出螢幕左右，裁掉，不然手機會把整個畫面撐寬、晃一下 */
 html,body{overscroll-behavior-y:contain;overflow-x:clip}
 :root.lb-lock,:root.lb-lock body{overflow:hidden}
@@ -66,6 +68,8 @@ h1,h2,h3{margin:0;text-wrap:balance;letter-spacing:-.02em}
 h2{font-size:20px;font-weight:800;display:flex;align-items:center;gap:8px}
 .sub{color:var(--muted);margin:2px 0 0;font-size:14px}
 section,#trash,.hug,.diary-block{scroll-margin-top:12px}
+/* 打開網站時瀏覽器會自己跳到網址的 #區塊：先把目標當成在很上面，跳也只會跳到最上面（載入完由程式拿掉） */
+:root.no-anchor *{scroll-margin-top:100000px!important}
 section{display:flex;flex-direction:column;gap:14px}
 button{font:inherit;cursor:pointer;transition:transform .26s cubic-bezier(.34,1.56,.64,1),box-shadow .18s ease,background-color .16s ease,color .16s ease,opacity .16s ease}
 button:active:not(:disabled){transform:scale(.95);transition-duration:.08s}
