@@ -88,6 +88,10 @@ function seed() {
     at: now.toISOString(),
   });
   put("done", "x~birthdays~寒冰", { m: 3, d: 14 });
+  const prevD = keyOf(new Date(now - 864e5));
+  put("done", "x~rounds~r0", { q: "最想一起去哪裡旅行？", day: prevD, by: "寒冰", at: now.toISOString() });
+  put("done", "x~answers~a0a", { round: "r0", text: "想去北海道看雪", by: "寒冰", at: now.toISOString() });
+  put("done", "x~answers~a0b", { round: "r0", text: "我想去京都旅行", by: "夏夏", at: now.toISOString() });
   return s;
 }
 
@@ -211,6 +215,26 @@ for (const [theme, width] of [
   }, room("done"));
   replyOk ? ok("日記表情貼圖與留言正常") : fail("日記表情貼圖或留言沒有存進資料庫");
 
+  // 搜尋日記標亮關鍵字＋一鍵清除
+  await go(page, "calendar");
+  await page.evaluate(() => (document.getElementById("diaryMore").open = true));
+  await page.fill("#dSearch", "拉麵");
+  await page.waitForTimeout(350);
+  const dHl1 = await page.evaluate(() => ({
+    marks: [...document.querySelectorAll("#entries mark.hl")].map((m) => m.textContent),
+    clrShown: !document.querySelector("#dSearch + .search-x").hidden,
+  }));
+  await page.click("#dSearch + .search-x");
+  await page.waitForTimeout(250);
+  const dHl2 = await page.evaluate(() => ({
+    val: document.getElementById("dSearch").value,
+    marks: document.querySelectorAll("#entries mark.hl").length,
+    clrHidden: document.querySelector("#dSearch + .search-x").hidden,
+  }));
+  dHl1.marks.includes("拉麵") && dHl1.clrShown && !dHl2.val && !dHl2.marks && dHl2.clrHidden
+    ? ok("搜尋日記會標亮關鍵字，點 ✕ 可一鍵清除")
+    : fail(`日記搜尋標亮或清除不正常（搜 ${JSON.stringify(dHl1)}，清 ${JSON.stringify(dHl2)}）`);
+
   // 抽題與作答
   await go(page, "draw");
   const canDraw = await page.evaluate(() => {
@@ -235,6 +259,25 @@ for (const [theme, width] of [
     );
   }, room("done"));
   drawOk ? ok("抽題與回答正常") : fail("抽題或回答沒有存進資料庫");
+
+  // 過關紀錄搜尋標亮關鍵字＋一鍵清除
+  await page.evaluate(() => (document.getElementById("lSearch").closest("details").open = true));
+  await page.fill("#lSearch", "旅行");
+  await page.waitForTimeout(350);
+  const lHl1 = await page.evaluate(() => ({
+    marks: [...document.querySelectorAll("#logList mark.hl")].map((m) => m.textContent),
+    clrShown: !document.querySelector("#lSearch + .search-x").hidden,
+  }));
+  await page.click("#lSearch + .search-x");
+  await page.waitForTimeout(250);
+  const lHl2 = await page.evaluate(() => ({
+    val: document.getElementById("lSearch").value,
+    marks: document.querySelectorAll("#logList mark.hl").length,
+    clrHidden: document.querySelector("#lSearch + .search-x").hidden,
+  }));
+  lHl1.marks.includes("旅行") && lHl1.clrShown && !lHl2.val && !lHl2.marks && lHl2.clrHidden
+    ? ok("過關紀錄搜尋會標亮關鍵字，點 ✕ 可一鍵清除")
+    : fail(`過關紀錄搜尋標亮或清除不正常（搜 ${JSON.stringify(lHl1)}，清 ${JSON.stringify(lHl2)}）`);
 
   // 討抱抱
   await go(page, "today");

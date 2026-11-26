@@ -108,6 +108,38 @@ function esc(s) {
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
   );
 }
+// 搜尋結果標亮關鍵字：只改純文字節點，不影響 HTML 標籤、連結與按鈕
+function markHits(root, q, sel) {
+  if (!q || !root) return;
+  const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+  root.querySelectorAll(sel).forEach((el) => {
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT),
+      nodes = [];
+    let n;
+    while ((n = w.nextNode())) {
+      rx.lastIndex = 0;
+      if (n.nodeValue && rx.test(n.nodeValue)) nodes.push(n);
+    }
+    for (const t of nodes) {
+      const frag = document.createDocumentFragment(),
+        s = t.nodeValue;
+      let last = 0,
+        m;
+      rx.lastIndex = 0;
+      while ((m = rx.exec(s))) {
+        if (m.index > last) frag.append(s.slice(last, m.index));
+        const mk = document.createElement("mark");
+        mk.className = "hl";
+        mk.textContent = m[0];
+        frag.append(mk);
+        last = m.index + m[0].length;
+        if (!m[0].length) break;
+      }
+      if (last < s.length) frag.append(s.slice(last));
+      t.replaceWith(frag);
+    }
+  });
+}
 // action：{ label, fn }，例如刪除後的「復原」按鈕
 function toast(msg, ms = 2200, action) {
   const t = $("toast");
@@ -1945,6 +1977,7 @@ function renderEntries() {
       }),
   );
   box.querySelectorAll("details.month[open]").forEach((d) => loadCalPhotos(d.dataset.m));
+  if (q) markHits(box, q, ".entry dd, .entry blockquote, .entry .reply-t, .entry .ph-cap");
   bindEntryActs(box, "list");
 }
 async function delEntry(id) {
@@ -2445,7 +2478,7 @@ function renderLog() {
         .includes(q),
     );
   const list = all.filter(hit);
-  $("lSearch").hidden = !all.length;
+  $("lSearch").parentNode.hidden = !all.length;
   $("lSearchN").textContent = q ? `找到 ${list.length} 題` : "";
   if (q && !list.length) {
     $("logList").innerHTML = `<div class="empty">找不到「${esc(q)}」的過關紀錄。</div>`;
@@ -2466,6 +2499,7 @@ function renderLog() {
         ? `<button class="btn ghost" type="button" id="logMore">看更早的紀錄（還有 ${list.length - logShown} 題）</button>`
         : "")
     : '<div class="empty">還沒有過關的題目。</div>';
+  if (q) markHits($("logList"), q, ".entry header b, .entry dd");
   if (list.length > logShown)
     $("logMore").onclick = () => {
       logShown += LOG_PAGE;
@@ -2641,7 +2675,7 @@ syncWCat();
 function renderWishes() {
   const box = $("wishList"),
     q = $("wSearch").value.trim().toLowerCase();
-  $("wSearch").hidden = !store.wishes.length;
+  $("wSearch").parentNode.hidden = !store.wishes.length;
   if (!store.wishes.length) {
     $("wCatFilter").innerHTML = "";
     $("wSearchN").textContent = "";
@@ -2757,6 +2791,7 @@ function renderWishes() {
     .querySelectorAll("input[data-plan]")
     .forEach((inp) => inp.addEventListener("change", () => setWishPlan(inp.dataset.plan, inp.value)));
   box.querySelectorAll("[data-planx]").forEach((b) => (b.onclick = () => setWishPlan(b.dataset.planx, "")));
+  if (q) markHits(box, q, ".wish .t b");
   armDelete(box, "wishes");
 }
 function setWishPlan(id, v) {
@@ -7296,9 +7331,32 @@ function loadLocal() {
   }
 }
 
-$("dSearch").addEventListener("input", debounce(renderEntries));
-$("wSearch").addEventListener("input", debounce(renderWishes));
-$("lSearch").addEventListener("input", debounce(renderLog));
+function bindSearch(id, render) {
+  const inp = $(id),
+    clr = inp && inp.parentNode ? inp.parentNode.querySelector(".search-x") : null,
+    run = debounce(render);
+  if (!inp) return;
+  const sync = () => {
+    if (clr) clr.hidden = !inp.value;
+  };
+  inp.addEventListener("input", () => {
+    sync();
+    run();
+  });
+  if (clr) {
+    clr.onmousedown = (ev) => ev.preventDefault();
+    clr.onclick = () => {
+      inp.value = "";
+      sync();
+      render();
+      inp.focus();
+    };
+  }
+  sync();
+}
+bindSearch("dSearch", renderEntries);
+bindSearch("wSearch", renderWishes);
+bindSearch("lSearch", renderLog);
 $("filter")
   .querySelectorAll("button")
   .forEach(
