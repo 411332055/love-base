@@ -495,9 +495,10 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 .ph-big::-webkit-scrollbar{display:none}
 .ph-big .ph-slot{flex:0 0 100%;width:100%;height:auto;aspect-ratio:4/3;scroll-snap-align:start;font-size:15px}
 .ph-big.multi .ph-slot{flex-basis:80%;width:80%}
-.ph-big .ph-slot.add{flex-basis:34%;width:34%;aspect-ratio:auto}
 .ph-big .ph-slot small{font-size:12.5px;font-weight:500;opacity:.85}
 .ph-big .ph-slot:not(.has){display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;padding:52px 16px 16px;line-height:1.5}
+.ph-acts{gap:8px}
+.ph-acts .btn{flex:1;white-space:nowrap}
 .ph-big .ph-slot .nm{font-size:13px;left:10px;bottom:10px}
 .ph-big .ph-edit{right:10px;bottom:10px;width:36px;height:36px;font-size:16px}
 .ph-slot{flex:0 0 116px;width:116px;height:116px;border-radius:16px;background:var(--sunk);box-shadow:var(--soft-rim);border:1.5px dashed color-mix(in srgb,var(--pink) 58%,var(--line));display:grid;place-items:center;overflow:hidden;position:relative;color:var(--pink);font-size:12.5px;font-weight:600;text-align:center;padding:4px;line-height:1.4;scroll-snap-align:start}

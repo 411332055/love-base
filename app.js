@@ -742,11 +742,10 @@ function renderTodayPhotos() {
     tab("mine", "我", mineAll.length) +
     `</div>`;
   const list = showMine ? mineAll : others;
-  h += `<div class="ph-big${list.length + (showMine && mineAll.length < DAY_PH_MAX ? 1 : 0) > 1 ? " multi" : ""}">`;
+  h += `<div class="ph-big${list.length > 1 ? " multi" : ""}">`;
   if (showMine) {
     h += mineAll.map(mineBtn).join("");
     if (!mine) h += uploadBtn("ph-slot", "📸<br>上傳我的照片<br><small>可以一次選很多張</small>");
-    else if (mineAll.length < DAY_PH_MAX) h += uploadBtn("ph-slot add", "＋<br>再加照片");
   } else {
     h += others.length
       ? others.map(otherBtn).join("")
@@ -757,8 +756,8 @@ function renderTodayPhotos() {
   if (!showMine && !mine) h += `<div class="row">${uploadBtn("btn", "📸 上傳我的照片")}</div>`;
   if (showMine && mine)
     h +=
-      `<div class="row"><button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
-      `>${up ? upText : mineAll.length > 1 ? "換我的第一張" : "換我的照片"}</button></div>`;
+      `<div class="row ph-acts">${mineAll.length < DAY_PH_MAX ? uploadBtn("btn", "＋ 再加照片") : ""}<button class="btn ghost" type="button" data-up="${k}" data-swap="1" ${up ? "disabled" : ""}` +
+      `>${up ? upText : mineAll.length > 1 ? "換掉第一張" : "換一張"}</button></div>`;
   const allCaps = [...mineAll, ...others].filter((p) => p.cap);
   if (allCaps.length)
     h += allCaps.map((p) => `<div class="ph-note">${esc(nameOf(p.by))}：「${esc(p.cap)}」</div>`).join("");
