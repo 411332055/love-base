@@ -181,6 +181,77 @@ for (const [theme, width] of [
   );
   wrote ? ok("寫日記會存進資料庫") : fail("寫日記沒有存進資料庫");
 
+  // 編輯日記、表情貼圖與留言
+  await page.click("#diaryToday article .edit");
+  await page.waitForTimeout(200);
+  await page.fill("#dMood", "修改後心情");
+  await page.click("#dSave");
+  await page.waitForTimeout(400);
+  const edited = await page.evaluate(
+    ([p, dk]) => {
+      const mine = Object.values(window.__store[p] || {}).filter((e) => e.date === dk && e.by === "寒冰");
+      return mine.length === 1 && mine[0].mood === "修改後心情";
+    },
+    [room("diary"), keyOf(new Date())],
+  );
+  edited ? ok("編輯日記正常且不會重複新增") : fail("編輯日記不正常");
+
+  await page.click("#diaryToday article [data-react]");
+  await page.waitForTimeout(300);
+  await page.click("#diaryToday article [data-reply]");
+  await page.waitForTimeout(200);
+  await page.fill("#replyText", "測試留言");
+  await page.click("#replySend");
+  await page.waitForTimeout(400);
+  const replyOk = await page.evaluate((p) => {
+    const rs = Object.entries(window.__store[p] || {})
+      .filter(([id]) => id.startsWith("x~replies~"))
+      .map(([, v]) => v);
+    return rs.some((r) => r.kind === "emo") && rs.some((r) => r.kind === "text" && r.text === "測試留言");
+  }, room("done"));
+  replyOk ? ok("日記表情貼圖與留言正常") : fail("日記表情貼圖或留言沒有存進資料庫");
+
+  // 抽題與作答
+  await go(page, "draw");
+  const canDraw = await page.evaluate(() => {
+    const b = document.getElementById("drawBtn");
+    return !b.hidden && !b.disabled;
+  });
+  if (canDraw) {
+    await page.click("#drawBtn");
+    await page.waitForTimeout(400);
+  } else {
+    await page.evaluate(() => addDoc("rounds", { q: "測試題目", day: key(today()), by: "夏夏", at: nowIso() }));
+    await page.waitForTimeout(300);
+  }
+  await page.fill("#ansText", "我的測試答案");
+  await page.click("#ansSave");
+  await page.waitForTimeout(400);
+  const drawOk = await page.evaluate((p) => {
+    const entries = Object.entries(window.__store[p] || {});
+    return (
+      entries.some(([id]) => id.startsWith("x~rounds~")) &&
+      entries.some(([id, v]) => id.startsWith("x~answers~") && v.text === "我的測試答案")
+    );
+  }, room("done"));
+  drawOk ? ok("抽題與回答正常") : fail("抽題或回答沒有存進資料庫");
+
+  // 討抱抱
+  await go(page, "today");
+  await page.click("#hugOpen");
+  await page.waitForTimeout(200);
+  await page.fill("#hugText", "今天好累想抱抱");
+  await page.click("#hugSave");
+  await page.waitForTimeout(400);
+  const hugOk = await page.evaluate(
+    (p) =>
+      Object.entries(window.__store[p] || {}).some(
+        ([id, v]) => id.startsWith("x~hugs~") && v.text === "今天好累想抱抱",
+      ),
+    room("done"),
+  );
+  hugOk ? ok("討抱抱正常") : fail("討抱抱沒有存進資料庫");
+
   await go(page, "wishes");
   await page.fill("#wText", "測試願望");
   await page.click("#wSave");
@@ -255,6 +326,25 @@ for (const [theme, width] of [
   else ok("月曆今天的格子正常");
 
   await go(page, "memories");
+  // 時光膠囊
+  const capD = new Date();
+  capD.setDate(capD.getDate() + 30);
+  const capK = keyOf(capD);
+  await page.evaluate(() => (document.getElementById("capsule").open = true));
+  await page.waitForTimeout(200);
+  await page.fill("#capText", "給未來的信");
+  await page.fill("#capDate", capK);
+  await page.click("#capSave");
+  await page.waitForTimeout(400);
+  const capOk = await page.evaluate(
+    ([p, d]) =>
+      Object.entries(window.__store[p] || {}).some(
+        ([id, v]) => id.startsWith("x~capsules~") && v.text === "給未來的信" && v.openDate === d,
+      ),
+    [room("done"), capK],
+  );
+  capOk ? ok("時光膠囊封存正常") : fail("時光膠囊沒有存進資料庫");
+
   const svgBox = await (await page.$(".chart svg")).boundingBox();
   await page.tap(".chart svg", { position: { x: svgBox.width * 0.6, y: svgBox.height / 2 } });
   await page.waitForTimeout(200);
@@ -285,6 +375,7 @@ for (const [theme, width] of [
 // 3. 今天的照片切換、對方新東西提醒、寫完日記的回饋、開場動畫一天一次、打開網站不亂跳
 {
   const today = keyOf(new Date()),
+    tmr = keyOf(new Date(Date.now() + 864e5)),
     now = new Date().toISOString();
   const extra = (s) => {
     const R = `rooms/${ROOM}/`;
@@ -292,6 +383,17 @@ for (const [theme, width] of [
     s[R + "photos"][`${today}_寒冰`] = { date: today, by: "寒冰", th: JPG, cap: "", at: now };
     s[R + "photos"][`${today}_寒冰_b`] = { date: today, by: "寒冰", th: JPG, cap: "", at: now };
     s[R + "diary"][`dT夏夏`] = { date: today, by: "夏夏", mood: "想你", say: "", at: now };
+    // 多放兩則提醒（到期膠囊＋明天約定），測超過 2 則自動收合
+    s[R + "done"]["x~capsules~cDue"] = { text: "到期囉", openDate: today, by: "夏夏", at: now };
+    s[R + "done"]["x~wishes~wPlan"] = {
+      text: "明天去約會",
+      cat: "go",
+      done: false,
+      doneDate: "",
+      plan: tmr,
+      by: "寒冰",
+      at: now,
+    };
     return s;
   };
   const { ctx, page, errors } = await phone({ extra, keepSplash: true });
@@ -312,6 +414,31 @@ for (const [theme, width] of [
   jumps.filter((y) => y > 5).length
     ? fail("用 #today 打開時畫面會自己往下跳：" + jumps.join(","))
     : ok("用 #today 打開時畫面不會亂跳");
+
+  // 超過 2 則提醒自動收合，點一下全部展開、再點收起
+  const noticeState = () =>
+    page.evaluate(() => ({
+      shown: document.querySelectorAll("#notices > .away:not([hidden]):not(.folded)").length,
+      folded: document.querySelectorAll("#notices > .away.folded").length,
+      btnHidden: document.getElementById("noticesMore").hidden,
+      btnText: document.getElementById("noticesMore").textContent,
+    }));
+  const ns1 = await noticeState();
+  await page.click("#noticesMore");
+  await page.waitForTimeout(150);
+  const ns2 = await noticeState();
+  await page.click("#noticesMore");
+  await page.waitForTimeout(150);
+  const ns3 = await noticeState();
+  ns1.shown === 2 &&
+  ns1.folded >= 1 &&
+  !ns1.btnHidden &&
+  ns2.folded === 0 &&
+  ns2.shown >= 3 &&
+  ns3.shown === 2 &&
+  ns3.folded >= 1
+    ? ok("今天頁提醒超過 2 則自動收合，點一下可展開與收起")
+    : fail(`提醒收合不正常（初始 ${JSON.stringify(ns1)}，展開 ${JSON.stringify(ns2)}，收起 ${JSON.stringify(ns3)}）`);
 
   // 今天頁提醒夏夏的新日記和照片，按「去看看」到日記頁、看過就不再提醒
   const nudge = () =>
@@ -398,10 +525,30 @@ for (const [theme, width] of [
     }
   });
   if (swiped.skip) ok("（這個瀏覽器不能模擬觸控，略過左右滑測試）");
-  else
+  else {
     /translate3d\(-/.test(swiped.mid) && swiped.now === "quests"
       ? ok("左右滑換頁：頁面跟著手指走，放開換到下一頁")
       : fail(`左右滑換頁不對（滑到一半 ${swiped.mid}，放開後在 ${swiped.now}）`);
+    // 從螢幕最左邊緣（< 24px）往右滑要讓給系統手勢，不觸發換頁
+    const edgeStayed = await page.evaluate(async () => {
+      const el = document.querySelector("#quests");
+      const mk = (type, x) =>
+        new TouchEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          touches: type === "touchend" ? [] : [new Touch({ identifier: 2, target: el, clientX: x, clientY: 300 })],
+          changedTouches: [new Touch({ identifier: 2, target: el, clientX: x, clientY: 300 })],
+        });
+      el.dispatchEvent(mk("touchstart", 10));
+      for (let i = 1; i <= 8; i++) el.dispatchEvent(mk("touchmove", 10 + i * 25));
+      el.dispatchEvent(mk("touchend", 210));
+      await new Promise((r) => setTimeout(r, 400));
+      return document.querySelector(".wrap>section.current").id;
+    });
+    edgeStayed === "quests"
+      ? ok("螢幕最邊緣滑動不搶系統手勢（不誤換頁）")
+      : fail(`螢幕最邊緣滑動誤換頁到了 ${edgeStayed}`);
+  }
 
   if (errors.length) fail("操作過程有程式錯誤：" + errors.join(" | "));
   await ctx.close();

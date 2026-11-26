@@ -2139,6 +2139,7 @@ $("dPromptBtn").onclick = () => {
 
 $("diaryForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
+  if ($("dSave").disabled) return;
   const e = {
     date: $("dDate").value,
     mood: $("dMood").value.trim(),
@@ -2511,6 +2512,7 @@ $("drawBtn").onclick = drawQ;
 function bindForm(form, btn, build, after) {
   $(form).addEventListener("submit", async (ev) => {
     ev.preventDefault();
+    if ($(btn).disabled) return;
     const data = build();
     if (!data) return;
     const fields = [...$(form).querySelectorAll("input:not([type=hidden]),textarea,select")],
@@ -2549,6 +2551,7 @@ $("ansText").addEventListener("input", () => {
 });
 $("ansForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
+  if ($("ansSave").disabled) return;
   const r = shownRound(),
     text = $("ansText").value.trim();
   if (!r || !text) return;
@@ -4326,18 +4329,31 @@ function renderTodo() {
     `<div class="row between"><h3>${all ? "今天都完成了 🎉" : "今天還差什麼"}</h3><span class="num">${n} / ${items.length}</span>` +
     `</div>${items.map(([ok, label, id]) => `<a class="todo-i ${ok ? "ok" : ""}" href="#${id}"><span class="tick" aria-hidden="true">✓</span>${label}${ok ? '<span class="sr-only">（已完成）</span>' : ""}</a>`).join("")}`;
 }
+const NOTICE_IDS = ["newNudge", "remindNudge", "planNudge", "iosNudge", "capNudge", "bkNudge", "picNudge", "awayCard"];
+let noticesExpanded = false;
 function syncNotices() {
-  $("notices").hidden = [
-    "newNudge",
-    "remindNudge",
-    "planNudge",
-    "iosNudge",
-    "capNudge",
-    "bkNudge",
-    "picNudge",
-    "awayCard",
-  ].every((id) => $(id).hidden);
+  const vis = [];
+  for (const id of NOTICE_IDS) {
+    const el = $(id);
+    el.classList.remove("folded");
+    if (!el.hidden) vis.push(el);
+  }
+  $("notices").hidden = !vis.length;
+  const more = $("noticesMore");
+  if (vis.length <= 2) {
+    noticesExpanded = false;
+    more.hidden = true;
+    return;
+  }
+  if (!noticesExpanded) vis.slice(2).forEach((el) => el.classList.add("folded"));
+  more.hidden = false;
+  more.setAttribute("aria-expanded", String(noticesExpanded));
+  more.textContent = noticesExpanded ? "收起提醒 ▴" : `還有 ${vis.length - 2} 則提醒 ▾`;
 }
+$("noticesMore").onclick = () => {
+  noticesExpanded = !noticesExpanded;
+  syncNotices();
+};
 // 對方今天有新東西（日記、照片）而我還沒看過：今天頁最上面提醒，點了直接去看
 const NEW_SEEN_KEY = "love-base-new-seen";
 function partnerNew() {
@@ -5090,7 +5106,10 @@ function inHScroll(el) {
         inHScroll(ev.target)
       )
         return;
-      sx = ev.touches[0].clientX;
+      const tx = ev.touches[0].clientX;
+      // 螢幕左右最邊緣留給手機系統手勢（例如 iPhone 返回上一頁），不要搶著換頁
+      if (tx < 24 || tx > innerWidth - 24) return;
+      sx = tx;
       sy = ev.touches[0].clientY;
       st = Date.now();
       dx = 0;
@@ -6742,6 +6761,7 @@ $("reviewText").addEventListener("input", () => {
 });
 $("reviewForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
+  if ($("reviewSave").disabled) return;
   const text = $("reviewText").value.trim();
   if (!text) return;
   const date = key(today()),
