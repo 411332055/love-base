@@ -81,6 +81,7 @@
 | XP、稱號、連續天數、補簽卡 | `dayRecords`、`totalXP`、`streakBonus`、`renderStreak`、`renderHUD`，常數 `TITLES`、`DIARY_XP`、`DIARY_XP_END`、`PHOTO_BONUS`、`DRAW_XP`、`STREAK_STEP` |
 | 紀念日、生日倒數 | `renderAnniv`、`renderBdays`、`saveBday`，交往日 `LOVE_START` |
 | 每日照片、照片牆 | `renderTodayPhotos`、`renderWall`、`myPhotos`、`subPhotos` |
+| 今天的照片 | `renderTodayPhotos`：左右各一格（左對方第一張、右我的第一張），多張時 `+N`（`duoOpen`）展開其他張；大圖可左右滑看同一個人的全部 |
 | 照片上傳、壓縮 | `savePhoto`、`settlePhotos`（背景確認有沒有存到）、`shrinkFull`、`shrinkThumb`、`loadImg`、`uploadQueue`（日記照片排隊上傳） |
 | 照片大圖（雙指與雙擊縮放、左右滑、存到手機、寫一句話） | `openPhoto`、`lbStep`、`closePhoto`、`lbResetZoom` |
 | 寫日記、編輯、草稿 | `renderDiaryToday`、`diaryCard`、`diaryDl`、`diaryQuote`、`startEdit`、`endEdit`、`resetDiaryFields`、`saveDraft`、`restoreDraft` |
@@ -93,6 +94,7 @@
 | 垃圾桶、二次確認 | `confirmTap`、`armDelete`、`renderTrash`、`restoreItem`、`archivePhoto`、`restoreReplaced`、`hardDelete`、`purgeExpired` |
 | 備份、補回、更換暗號 | `exportBackup`、`backupHtml`、`prepRestore`、`applyRestore`、`moveRoomBtn`；整月照片壓縮檔 `fillZipMonths`、`makeZip`（瀏覽器裡打包不壓縮的 zip，檔名 UTF-8） |
 | 選單、區塊順序、外觀 | `CATS`、`SEC_META`、`renderNav`、`applyLayout`、`setView` |
+| 換頁與捲動位置 | `setView` 換頁時把舊頁的捲動位置存進 `scrollPos`，`restoreScroll` 切回來時捲回去；`openFor("calendar:日期")` 會捲到那天的日記並閃一下（`#calDetail.flash`） |
 | 左右滑換頁 | 搜尋「在頁面中間左右滑動切換頁面」：`inHScroll`（橫向捲動區塊不換頁）、`typing`（正在打字不換頁），從照片上開始滑要滑得更長才換頁 |
 | 震動回饋 | `haptic`（Android 用 `navigator.vibrate`，iPhone 用 `iosHaptic` 點隱藏的 iOS 18 開關元件）、`HAPTIC_LV`、`dragEndTick`、設定頁的「測試震動」 |
 | 手機推播通知 | `renderPush`、`notifyPartner`、`sendPush`、`ensurePushCfg`、`vapidAuth`、`encryptPushBody`（瀏覽器端用 Web Crypto API 簽署 VAPID 與 `aes128gcm` 加密，透過 Google Apps Script 轉發） |
@@ -100,8 +102,8 @@
 | 月曆特別日子、明天提醒 | `specialOf`（不論是否到了）、`calSpecial`（月曆用，未來的日子不顯示）、`isQixi`、`renderRemind`、`renderIosNudge` |
 | 長按日記表情、下拉重新整理 | 搜尋「長按日記卡片」「下拉重新整理」，常數 `MORE_REACTS` |
 | 重畫畫面 | `renderAll`（下一個畫面格才重畫，只畫打開的區塊） |
-| 存資料 | `addDoc`、`updDoc`、`delDoc`、`bindForm`、`commit`、`saveToast` |
-| 共用小工具 | `lsGet`、`lsSet`、`lsDel`（localStorage）、`downloadBlob`（下載檔案） |
+| 存資料 | `addDoc`、`updDoc`、`delDoc`、`bindForm`、`commit`、`saveToast`；刪除後的「復原」提示 `trashedToast`（呼叫 `restoreItem`） |
+| 共用小工具 | `lsGet`、`lsSet`、`lsDel`（localStorage）、`downloadBlob`（下載檔案）、`esc`（轉義）、`escLink`（轉義並把網址變成連結）、`toast(文字, 毫秒, {label, fn})`（可帶一個按鈕） |
 
 **存資料的方式：先更新畫面，再在背景存檔。** `addDoc`、`updDoc`、`delDoc`、寫日記、上傳照片都是先把資料放進畫面（使用者按下去馬上看到結果），再用 `commit()` 寫進 Firestore。`commit()` 最多等 2.5 秒（照片 5 秒），沒等到就先放行，資料留在本機佇列繼續同步，並提示「已先存在手機」。真的被伺服器拒絕時，會把剛加的東西從畫面拿掉、把使用者打的字放回表單，並提示沒存到。
 

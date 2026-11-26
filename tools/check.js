@@ -52,12 +52,13 @@ try {
 // 3. 版本號一致：sw.js 的 CACHE、index.html 和 manifest 裡的 ?v=
 const sw = (fs.readFileSync("sw.js", "utf8").match(/love-base-v(\d+)/) || [])[1];
 const vers = new Set(
-  [...(fs.readFileSync("index.html", "utf8") + fs.readFileSync("manifest.webmanifest", "utf8")).matchAll(/\?v=(\d+)/g)].map(
-    (m) => m[1],
-  ),
+  [
+    ...(fs.readFileSync("index.html", "utf8") + fs.readFileSync("manifest.webmanifest", "utf8")).matchAll(/\?v=(\d+)/g),
+  ].map((m) => m[1]),
 );
 if (!sw) fail("sw.js 找不到 CACHE 版本號");
-else if (vers.size !== 1 || !vers.has(sw)) fail(`版本號不一致：sw.js 是 v${sw}，index.html／manifest 是 ${[...vers].map((v) => "v" + v).join("、")}`);
+else if (vers.size !== 1 || !vers.has(sw))
+  fail(`版本號不一致：sw.js 是 v${sw}，index.html／manifest 是 ${[...vers].map((v) => "v" + v).join("、")}`);
 else ok(`版本號一致（v${sw}）`);
 
 // 4. 改了網站檔案卻沒有加版本號（跟上一筆提交比）
@@ -65,7 +66,9 @@ try {
   const changed = execSync("git diff --name-only HEAD~1 HEAD", { stdio: "pipe" }).toString().split("\n");
   const site = ["index.html", "style.css", "app.js", "manifest.webmanifest"].filter((f) => changed.includes(f));
   if (site.length) {
-    const prev = (execSync("git show HEAD~1:sw.js", { stdio: "pipe" }).toString().match(/love-base-v(\d+)/) || [])[1];
+    const prev = (execSync("git show HEAD~1:sw.js", { stdio: "pipe" })
+      .toString()
+      .match(/love-base-v(\d+)/) || [])[1];
     if (prev && prev === sw) fail(`這次改了 ${site.join("、")}，但版本號還是 v${sw}，手機可能一直顯示舊版`);
     else ok("改了網站檔案，版本號也有加");
   }

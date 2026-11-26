@@ -96,7 +96,9 @@ async function picsMB() {
     count = 0,
     token = "";
   do {
-    const res = await fetch(`${base}?pageSize=30&mask.fieldPaths=img&key=${API_KEY}${token ? "&pageToken=" + token : ""}`);
+    const res = await fetch(
+      `${base}?pageSize=30&mask.fieldPaths=img&key=${API_KEY}${token ? "&pageToken=" + token : ""}`,
+    );
     if (!res.ok) throw new Error("讀取照片失敗：HTTP " + res.status);
     const j = await res.json();
     for (const d of j.documents || []) {
