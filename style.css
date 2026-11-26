@@ -507,6 +507,10 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 [data-open] img{-webkit-user-drag:none;pointer-events:none}
 [data-open].saving{animation:phSaving .6s ease-in-out infinite alternate}
 @keyframes phSaving{to{opacity:.6;transform:scale(.97)}}
+.ph-big.from-r{animation:phFromR .28s cubic-bezier(.22,1,.36,1)}
+.ph-big.from-l{animation:phFromL .28s cubic-bezier(.22,1,.36,1)}
+@keyframes phFromR{from{transform:translateX(40px);opacity:.3}}
+@keyframes phFromL{from{transform:translateX(-40px);opacity:.3}}
 .ph-acts{gap:8px}
 .ph-acts .btn{flex:1;white-space:nowrap}
 .ph-big .ph-slot .nm{font-size:13px;left:10px;bottom:10px}

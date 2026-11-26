@@ -778,6 +778,44 @@ function renderTodayPhotos() {
   box.innerHTML = h;
   const strip = box.querySelector(".ph-big"),
     dots = box.querySelectorAll(".ph-dots i");
+  // 在照片上左右滑：滑到這個人的最後一張再往前滑，就換看另一個人（只有一張時直接換）
+  if (strip) {
+    let tx = null,
+      ty = 0,
+      tl = 0;
+    strip.addEventListener(
+      "touchstart",
+      (ev) => {
+        tx = ev.touches.length === 1 ? ev.touches[0].clientX : null;
+        ty = tx === null ? 0 : ev.touches[0].clientY;
+        tl = strip.scrollLeft;
+      },
+      { passive: true },
+    );
+    strip.addEventListener(
+      "touchend",
+      (ev) => {
+        if (tx === null) return;
+        const t = ev.changedTouches[0],
+          dx = t.clientX - tx,
+          dy = t.clientY - ty,
+          max = strip.scrollWidth - strip.clientWidth;
+        tx = null;
+        if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5 || capEditing || up) return;
+        const next = dx < 0 && !showMine && tl >= max - 4 ? "mine" : dx > 0 && showMine && tl <= 4 ? "other" : "";
+        if (!next) return;
+        phWho = next;
+        sliderTick();
+        renderTodayPhotos();
+        const nb = box.querySelector(".ph-big");
+        if (nb) {
+          if (next === "other") nb.scrollLeft = nb.scrollWidth;
+          nb.classList.add(next === "mine" ? "from-r" : "from-l");
+        }
+      },
+      { passive: true },
+    );
+  }
   if (strip && dots.length)
     strip.onscroll = () => {
       const tile = strip.firstElementChild,
@@ -4876,7 +4914,7 @@ function inHScroll(el) {
       if (
         !$("lightbox").hidden ||
         !$("gate").hidden ||
-        ev.target.closest("select,input[type=range],#hearts,#subNav,#tabBar,.filter,.chart") ||
+        ev.target.closest("select,input[type=range],#hearts,#subNav,#tabBar,.filter,.chart,.ph-stage") ||
         typing() ||
         inHScroll(ev.target)
       ) {
