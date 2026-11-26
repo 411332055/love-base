@@ -496,7 +496,9 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 .ph-big .ph-slot{flex:0 0 100%;width:100%;height:auto;aspect-ratio:4/3;scroll-snap-align:start;font-size:15px}
 .ph-big.multi .ph-slot{flex-basis:80%;width:80%}
 .ph-big .ph-slot small{font-size:12.5px;font-weight:500;opacity:.85}
-.ph-big .ph-slot:not(.has){display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;padding:52px 16px 16px;line-height:1.5}
+.ph-big .ph-slot:not(.has){display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;padding:52px 16px 16px;line-height:1.5;aspect-ratio:auto;min-height:200px}
+/* 大螢幕：照片不要撐滿整個寬度，高度最多 400px，多張時一次看到兩張 */
+@media (min-width:700px){.ph-big .ph-slot.has{max-height:400px}.ph-big.multi .ph-slot{flex-basis:calc(50% - 5px);width:calc(50% - 5px)}}
 .ph-acts{gap:8px}
 .ph-acts .btn{flex:1;white-space:nowrap}
 .ph-big .ph-slot .nm{font-size:13px;left:10px;bottom:10px}
