@@ -1,7 +1,8 @@
 // 瀏覽器測試：用假的 Firebase（fake-firebase.js）在模擬手機上把網站跑一遍。
 // 不會連到真的資料庫。每次推送 GitHub 會自動跑（.github/workflows/check.yml）。
 // 本機執行：npm i playwright && npx playwright install chromium && node tools/test/browser-test.mjs
-import { chromium } from "playwright";
+// 用 iPhone 的瀏覽器核心跑：npx playwright install webkit && BROWSER=webkit node tools/test/browser-test.mjs
+import { chromium, webkit } from "playwright";
 import { createServer } from "node:http";
 import { readFileSync, existsSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
@@ -97,8 +98,12 @@ const fail = (msg) => {
   console.log("❌ " + msg);
 };
 
-const browser = await chromium.launch();
-async function phone({ theme = "dark", name = "寒冰", width = 390 } = {}) {
+const ENGINE = process.env.BROWSER === "webkit" ? "webkit" : "chromium";
+console.log(
+  `（瀏覽器核心：${ENGINE === "webkit" ? "WebKit，跟 iPhone Safari 一樣" : "Chromium，跟 Android Chrome 一樣"}）`,
+);
+const browser = await (ENGINE === "webkit" ? webkit : chromium).launch();
+async function phone({ theme = "dark", name = "寒冰", width = 390, extra = null, keepSplash = false } = {}) {
   const ctx = await browser.newContext({
     viewport: { width, height: 844 },
     isMobile: true,
@@ -115,13 +120,21 @@ async function phone({ theme = "dark", name = "寒冰", width = 390 } = {}) {
   );
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.fulfill({ body: "" }));
   await page.addInitScript(
-    ([sd, room, n]) => {
+    ([sd, room, n, ks]) => {
+      if (location.protocol === "about:") return; // 空白頁不用設定
       window.__SEED = sd;
       localStorage.setItem("love-base-room", room);
       localStorage.setItem("love-base-name", n);
       localStorage.setItem("love-base-seen", "9999");
+      // 開場動畫一天只播一次：測試預設當作今天已經播過（keepSplash 時才測第一次打開）
+      if (!ks && !sessionStorage.getItem("t-splash"))
+        localStorage.setItem("love-base-splash", new Date().toDateString());
+      if (ks && !sessionStorage.getItem("t-splash")) {
+        localStorage.removeItem("love-base-splash");
+        sessionStorage.setItem("t-splash", "1");
+      }
     },
-    [seed(), ROOM, name],
+    [extra ? extra(seed()) : seed(), ROOM, name, keepSplash],
   );
   return { ctx, page, errors };
 }
@@ -263,6 +276,129 @@ for (const [theme, width] of [
   const buf = readFileSync(await dl.path());
   const files = buf.toString("latin1").split("PK\x01\x02").length - 1;
   buf.readUInt32LE(0) === 0x04034b50 && files > 0 ? ok(`照片壓縮檔正常（${files} 張）`) : fail("照片壓縮檔格式不對");
+
+  if (errors.length) fail("操作過程有程式錯誤：" + errors.join(" | "));
+  await ctx.close();
+}
+
+// 3. 今天的照片切換、對方新東西提醒、寫完日記的回饋、開場動畫一天一次、打開網站不亂跳
+{
+  const today = keyOf(new Date()),
+    now = new Date().toISOString();
+  const extra = (s) => {
+    const R = `rooms/${ROOM}/`;
+    s[R + "photos"][`${today}_夏夏`] = { date: today, by: "夏夏", th: JPG, cap: "", at: now };
+    s[R + "photos"][`${today}_寒冰`] = { date: today, by: "寒冰", th: JPG, cap: "", at: now };
+    s[R + "photos"][`${today}_寒冰_b`] = { date: today, by: "寒冰", th: JPG, cap: "", at: now };
+    s[R + "diary"][`dT夏夏`] = { date: today, by: "夏夏", mood: "想你", say: "", at: now };
+    return s;
+  };
+  const { ctx, page, errors } = await phone({ extra, keepSplash: true });
+  // 第一次打開有開場動畫，同一天再打開就直接進去
+  await page.goto(BASE + "#today");
+  await page.waitForTimeout(300);
+  const splash1 = await page.evaluate(() => !document.getElementById("splash").hidden);
+  await page.waitForTimeout(1500);
+  const jumps = [];
+  await page.exposeFunction("__jump", (y) => jumps.push(y));
+  await page.addInitScript(() => addEventListener("scroll", () => window.__jump && window.__jump(Math.round(scrollY))));
+  // 像平常一樣重新打開（不是重新整理：重新整理時瀏覽器會沿用原本的捲動位置，測不出來）
+  await page.goto("about:blank");
+  await page.goto(BASE + "#today");
+  await page.waitForTimeout(1500);
+  const splash2 = await page.evaluate(() => !document.getElementById("splash").hidden);
+  splash1 && !splash2 ? ok("開場動畫一天只播一次") : fail(`開場動畫不對（第一次 ${splash1}，再打開 ${splash2}）`);
+  jumps.filter((y) => y > 5).length
+    ? fail("用 #today 打開時畫面會自己往下跳：" + jumps.join(","))
+    : ok("用 #today 打開時畫面不會亂跳");
+
+  // 今天頁提醒夏夏的新日記和照片，按「去看看」到日記頁、看過就不再提醒
+  const nudge = () =>
+    page.evaluate(() =>
+      document.getElementById("newNudge").hidden ? "" : document.getElementById("newNudge").textContent,
+    );
+  const n1 = await nudge();
+  await page.click("#newNudge a");
+  await page.waitForTimeout(500);
+  const there = await page.evaluate(() => document.querySelector(".wrap>section.current").id);
+  await go(page, "today");
+  const n2 = await nudge();
+  /寫了日記/.test(n1) && /照片/.test(n1) && there === "quests" && !n2
+    ? ok("今天頁會提醒對方的新日記和照片，看過就消失")
+    : fail(`對方新東西提醒不對（提醒「${n1}」，去了 ${there}，回來還有「${n2}」）`);
+
+  // 今天的照片：預設看對方，點「我」馬上換、照片不用重畫，小圓點數量對
+  await go(page, "quests");
+  await page.waitForTimeout(400);
+  await page.evaluate(() => {
+    window.__r = 0;
+    const f = window.renderTodayPhotos;
+    window.renderTodayPhotos = function () {
+      window.__r++;
+      return f.apply(this, arguments);
+    };
+  });
+  const showing = () => page.$eval("#todayPhotos", (b) => b.dataset.showing);
+  const s0 = await showing();
+  const imgBefore = await page.$('#todayPhotos .ph-big[data-pane="mine"] img');
+  await page.tap('#todayPhotos [data-who="mine"]');
+  await page.waitForTimeout(100);
+  const s1 = await showing();
+  const same = await page.evaluate(
+    (old) => document.querySelector('#todayPhotos .ph-big[data-pane="mine"] img') === old,
+    imgBefore,
+  );
+  const dots = await page.$$eval('#todayPhotos .ph-dots[data-pane="mine"] i', (a) => a.length);
+  const pill = await page.$eval("#todayPhotos .ph-who", (e) => e.style.getPropertyValue("--i"));
+  const redraws = await page.evaluate(() => window.__r);
+  s0 === "other" && s1 === "mine" && same && !redraws && dots === 2 && pill === "1"
+    ? ok("今天的照片：預設看對方，點「我」馬上換（不重畫），小圓點和膠囊位置正確")
+    : fail(`今天的照片切換不對（一開始 ${s0}，點了 ${s1}，沒重畫 ${same && !redraws}，圓點 ${dots}，膠囊 ${pill}）`);
+  await page.tap('#todayPhotos [data-who="other"]');
+  await page.waitForTimeout(100);
+
+  // 寫完日記：卡片彈一下、提示看對方寫了沒
+  await page.fill("#dMood", "測試回饋");
+  await page.click("#dSave");
+  await page.waitForTimeout(120);
+  const fb = await page.evaluate(() => ({
+    toast: document.getElementById("toast")?.textContent || "",
+    card: !!document.querySelector("#diaryToday article.just-in"),
+  }));
+  /你們兩個都寫了/.test(fb.toast) && fb.card
+    ? ok("寫完日記有彈一下的動畫和提示")
+    : fail(`寫完日記的回饋不對（提示「${fb.toast}」，動畫 ${fb.card}）`);
+
+  // 左右滑換頁：頁面跟著手指走，放開換到下一頁（不支援模擬觸控的瀏覽器就略過）
+  await go(page, "today");
+  const swiped = await page.evaluate(async () => {
+    try {
+      const el = document.querySelector("#today .hud") || document.querySelector("#today");
+      const mk = (type, x) =>
+        new TouchEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          touches: type === "touchend" ? [] : [new Touch({ identifier: 1, target: el, clientX: x, clientY: 300 })],
+          changedTouches: [new Touch({ identifier: 1, target: el, clientX: x, clientY: 300 })],
+        });
+      el.dispatchEvent(mk("touchstart", 320));
+      let mid = "";
+      for (let i = 1; i <= 10; i++) {
+        el.dispatchEvent(mk("touchmove", 320 - i * 22));
+        if (i === 6) mid = document.querySelector("#today").style.transform;
+      }
+      el.dispatchEvent(mk("touchend", 100));
+      await new Promise((r) => setTimeout(r, 600));
+      return { mid, now: document.querySelector(".wrap>section.current").id };
+    } catch (e) {
+      return { skip: String(e) };
+    }
+  });
+  if (swiped.skip) ok("（這個瀏覽器不能模擬觸控，略過左右滑測試）");
+  else
+    /translate3d\(-/.test(swiped.mid) && swiped.now === "quests"
+      ? ok("左右滑換頁：頁面跟著手指走，放開換到下一頁")
+      : fail(`左右滑換頁不對（滑到一半 ${swiped.mid}，放開後在 ${swiped.now}）`);
 
   if (errors.length) fail("操作過程有程式錯誤：" + errors.join(" | "));
   await ctx.close();

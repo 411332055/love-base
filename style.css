@@ -494,7 +494,7 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 .gate-box h2{justify-content:center}
 .ph-pair{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 2px 4px;margin:-2px -2px -4px}
 .ph-pair::-webkit-scrollbar{display:none}
-/* 今天的照片：一次看一個人，右上角切換「對方／我」，照片是可以左右滑的大圖 */
+/* 今天的照片：一次看一個人，左上角切換「對方／我」（兩邊都先畫好，用 data-showing 切換），照片是可以左右滑的大圖 */
 .ph-stage{position:relative}
 #todayPhotos[data-showing=mine] [data-pane=other],#todayPhotos[data-showing=other] [data-pane=mine]{display:none}
 /* 切換按鈕浮在第一張照片的左上角（毛玻璃），左右滑照片時它不會跟著跑 */

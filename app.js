@@ -788,7 +788,7 @@ function renderTodayPhotos() {
     seg.style.setProperty("--i", i);
     phSegI = i;
     // 只有真的在日記頁看到對方的照片才算看過（在別頁背景重畫不算）
-    if (who === "other" && others.length && view === "quests") {
+    if (who === "other" && others.length && view === "quests" && !document.hidden) {
       lsSet(PH_SEEN_KEY, JSON.stringify({ date: k, ids: others.map((p) => p.id) }));
       const f = seg.querySelector(".fresh");
       if (f) f.classList.remove("fresh");
@@ -1060,7 +1060,8 @@ const lpCancel = () => {
   lpXY = null;
 };
 document.addEventListener("pointerdown", (ev) => {
-  const o = ev.button === 0 && ev.target.closest("[data-open]");
+  // 只給手機觸控用：電腦上按住滑鼠不要下載
+  const o = ev.pointerType !== "mouse" && ev.button === 0 && ev.target.closest("[data-open]");
   lpCancel();
   if (!o || ev.target.closest("[data-capedit]")) return;
   lpXY = [ev.clientX, ev.clientY];
@@ -6527,6 +6528,11 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) hiddenAt = Date.now();
   else {
     checkRollover();
+    // 回到 App 時正停在日記頁：剛剛背景收到的對方日記／照片算看過
+    if (view === "quests" && db && dataReady && (partnerNew().diary.length || partnerNew().pics.length)) {
+      markPartnerSeen(phWho === "other" ? "all" : "diary");
+      renderAll();
+    }
     if (hiddenAt && Date.now() - hiddenAt > 15000) {
       reconnect();
       if (swReg && navigator.onLine) swReg.update().catch(() => {});
@@ -7305,6 +7311,8 @@ addEventListener(
   { once: true },
 );
 booted = true;
+// 網路很慢、遲遲等不到 load 時，最多 3 秒就拿掉 no-anchor，不擋住之後的捲動
+setTimeout(() => document.documentElement.classList.remove("no-anchor"), 3000);
 setTimeout(() => {
   document.documentElement.classList.remove("boot-in");
   if ($("splash")) $("splash").hidden = true;
