@@ -94,6 +94,14 @@ function today() {
 function dow(d) {
   return (d.getDay() + 6) % 7;
 } // Mon=0
+// 跟 esc 一樣，另外把 http(s) 網址變成可以點的連結（在新分頁打開）
+function escLink(s) {
+  return esc(s).replace(/https?:\/\/(?:(?!&quot;|&#39;|&lt;|&gt;)[^\s<>"'])+/g, (u) => {
+    const tail = (u.match(/[.,，。、！!？?)）\]」』]+$/) || [""])[0],
+      url = tail ? u.slice(0, -tail.length) : u;
+    return `<a class="lnk" href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${tail}`;
+  });
+}
 function esc(s) {
   return String(s ?? "").replace(
     /[&<>"']/g,
@@ -1646,7 +1654,7 @@ function diaryDl(e) {
     ["💞 想對你說", e.say],
   ]
     .filter((r) => r[1])
-    .map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`)
+    .map((r) => `<dt>${r[0]}</dt><dd>${escLink(r[1])}</dd>`)
     .join("");
 }
 function diaryQuote(e) {
@@ -2505,7 +2513,7 @@ function renderWishes() {
   const renderWishItem = (w) =>
     `<div class="wish ${w.done ? "done" : ""}"><button class="check" type="button" data-id="${esc(w.id)}` +
     `" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}：${w.done ? "已完成，點一下取消" : "標記完成"}">✓</button>` +
-    `<div class="t"><b>${esc(w.text)}</b><div><button type="button" class="cat" data-cat="${esc(w.id)}` +
+    `<div class="t"><b>${escLink(w.text)}</b><div><button type="button" class="cat" data-cat="${esc(w.id)}` +
     `" aria-label="分類：${WCATS[w.cat || ""]}，點一下換分類">${WCATS[w.cat || ""]}</button>${esc(w.by || "")}` +
     ` 許的${w.done ? ` · <span class="nw">${esc(shortDone(w.doneDate))} 完成</span>` : ""}</div></div>` +
     `<button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`;
@@ -4971,7 +4979,7 @@ function entryExtras(e, where) {
     .join("");
   return (
     `${phs.length ? `<div class="wall-grid">${phs.map((p) => photoBtn(p, "")).join("")}</div>` : ""}` +
-    `${texts.length ? `<div class="replies">${texts.map((r) => `<div class="reply ${r.by === me ? "me" : ""}"><b>${esc(r.by)}</b> ${esc(r.text)}` + `${r.by === me ? ` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>` : ""}` + `</div>`).join("")}` + `</div>` : ""}` +
+    `${texts.length ? `<div class="replies">${texts.map((r) => `<div class="reply ${r.by === me ? "me" : ""}"><b>${esc(r.by)}</b> ${escLink(r.text)}` + `${r.by === me ? ` <button type="button" class="reply-del" data-replydel="${esc(r.id)}" aria-label="刪除這則回應">✕</button>` : ""}` + `</div>`).join("")}` + `</div>` : ""}` +
     `<div class="reply-bar"><div class="react-bar">${reactBtns}<button type="button" class="react-btn react-more" ` +
     `data-reactmore="${esc(e.id)}" aria-label="更多表情" aria-haspopup="menu">＋</button></div><button type="button" class="btn ghost" data-reply="${esc(e.id)}" data-where="${where}` +
     `">💬 回應</button></div><div class="entry-acts">${addBtn}${acts}</div><div data-replyslot="${where}:${esc(e.id)}"></div>`

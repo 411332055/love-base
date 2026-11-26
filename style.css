@@ -2,7 +2,7 @@
 :root{
   --bg:#fff5f8; --off:.55; --off-f:grayscale(1) brightness(.72); --surface:rgba(255,255,255,.88); --sunk:rgba(250,224,236,.58); --line:rgba(235,69,126,.16);
   --fg:#2c1422; --muted:#866074;
-  --pink:#eb457e; --pink-soft:rgba(255,214,231,.78); --gold:#c88210; --gold-soft:rgba(255,238,198,.82); --ink:#3a162c;
+  --pink:#d23268; --pink-soft:rgba(255,214,231,.78); --gold:#c88210; --gold-soft:rgba(255,238,198,.82); --ink:#3a162c;
   --ok:#248a54; --ok-soft:rgba(214,245,228,.82);
   --glass-bg:linear-gradient(135deg,rgba(255,255,255,.95) 0%,rgba(255,246,250,.78) 48%,rgba(255,224,238,.62) 80%,rgba(255,240,218,.7) 100%);
   --glass-rim:inset 0 2px 1.5px rgba(255,255,255,1),inset 1.5px 0 1.5px rgba(255,255,255,.94),inset 0 -1.5px 2.5px rgba(235,69,126,.22),inset -1px 0 2px rgba(255,190,95,.18);
@@ -558,3 +558,5 @@ details.rules>summary,details#prefs>summary{padding:10px 0;margin:-10px 0}
 /* 可以展開的列（設定、全部日記、已完成的願望）按下去也縮一下 */
 details>summary{transition:transform .15s ease,opacity .15s ease;-webkit-tap-highlight-color:transparent}
 details>summary:active{transform:scale(.98);opacity:.75;transition-duration:.08s}
+/* 日記、願望、回應裡的網址：可以點，長網址會自動換行 */
+a.lnk{color:var(--pink);text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere;word-break:break-all;font-weight:600}
