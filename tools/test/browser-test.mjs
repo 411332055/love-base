@@ -360,7 +360,9 @@ for (const [theme, width] of [
   // 寫完日記：卡片彈一下、提示看對方寫了沒
   await page.fill("#dMood", "測試回饋");
   await page.click("#dSave");
-  await page.waitForTimeout(120);
+  await page
+    .waitForFunction(() => document.querySelector("#diaryToday article.just-in"), null, { timeout: 1000 })
+    .catch(() => {});
   const fb = await page.evaluate(() => ({
     toast: document.getElementById("toast")?.textContent || "",
     card: !!document.querySelector("#diaryToday article.just-in"),

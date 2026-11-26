@@ -98,7 +98,7 @@
 | 換頁與捲動位置 | `setView` 換頁時依前後順序設 `data-dir`（f／b），新頁從右或左滑進來；把舊頁的捲動位置存進 `scrollPos`，`restoreScroll` 切回來時捲回去；`openFor("calendar:日期")` 會捲到那天的日記並閃一下（`#calDetail.flash`） |
 | 開場與打開網站 | `index.html` 開頭的小程式：開場動畫（`#splash`＋`boot-in`）一天只播一次（`love-base-splash` 記日期）；網址有 `#區塊` 時加 `no-anchor`（CSS 把 scroll-margin 拉很大），擋住瀏覽器打開時自己跳到那個區塊，`load` 後或 `openFor` 要捲到中間區塊時拿掉 |
 | 對方新東西提醒 | 今天頁 `#newNudge`（`renderNewNudge`）：對方今天的日記（`NEW_SEEN_KEY`）或照片（`PH_SEEN_KEY`）我還沒看過就提醒；進日記頁（`setView`）或停在日記頁時對方寫新的（`renderDiaryToday`）算看過 |
-| 寫完日記的回饋 | 送出後等下一個畫面，新卡片加 `.just-in` 彈一下、`popFloat` 飄 💌，提示訊息看對方今天寫了沒 |
+| 寫完日記的回饋 | 送出時記下 `justIn`，新卡片畫出來時（`diaryCard`／`renderDiaryToday`）加 `.just-in` 彈一下、`popFloat` 飄 💌，只播一次；提示訊息看對方今天寫了沒 |
 | 左右滑換頁 | 搜尋「左右滑換分類頁」：頁面跟著手指走（touchmove 非 passive，判斷是左右滑才 preventDefault），放開時超過 22% 寬或滑得快就換頁，不然彈回；兩端沒有下一頁時像橡皮筋；`inHScroll`、`typing`、`.ph-stage` 不換頁，從照片上開始滑要更水平、更長；拿掉拖曳樣式後加 `.settled` 避免進場動畫重播 |
 | 震動回饋 | `haptic`（Android 用 `navigator.vibrate`，iPhone 用 `iosHaptic` 點隱藏的 iOS 18 開關元件）、`HAPTIC_LV`、`dragEndTick`、設定頁的「測試震動」 |
 | 手機推播通知 | `renderPush`、`notifyPartner`、`sendPush`、`ensurePushCfg`、`vapidAuth`、`encryptPushBody`（瀏覽器端用 Web Crypto API 簽署 VAPID 與 `aes128gcm` 加密，透過 Google Apps Script 轉發） |
@@ -135,7 +135,8 @@
 ### 每次推送：`.github/workflows/check.yml`
 
 - `tools/check.js`：`app.js` 語法、`questions.json` 格式和題數、版本號一致、排版、沒有寫死暗號、`index.html` 的 id 沒有重複。
-- `tools/test/browser-test.mjs`：用 `tools/test/fake-firebase.js`（假的 Firestore，資料只在記憶體）在模擬手機上跑網站：11 頁在深色 390px、淺色 390px、淺色 360px 都不能有程式錯誤或左右超出；寫日記、許願並完成、月曆今天的格子、幸福指數曲線、下載一個月的照片壓縮檔。暗號用 `test-only-123`，不會碰到真的資料。
+- `tools/test/browser-test.mjs`：用 `tools/test/fake-firebase.js`（假的 Firestore，資料只在記憶體）在模擬手機上跑網站：11 頁在深色 390px、淺色 390px、淺色 360px 都不能有程式錯誤或左右超出；寫日記、許願並完成、約定日期、刪除復原、月曆今天的格子、幸福指數曲線、下載一個月的照片壓縮檔；開場動畫一天一次、用 #today 打開不亂跳、對方新東西提醒、今天的照片切換不重畫、寫完日記的回饋、左右滑換頁跟手。暗號用 `test-only-123`，不會碰到真的資料。
+- 同一套測試跑兩次：Chromium（`browser-test`，跟 Android Chrome 一樣）和 WebKit（`browser-test-iphone`，跟 iPhone Safari 一樣，`BROWSER=webkit`）。WebKit 不能模擬觸控，左右滑那項會自動略過。
 - GitHub 上那筆提交出現紅色叉叉就是沒過，點進去看是哪一項。
 
 ### 每天晚上：`.github/workflows/remind.yml`

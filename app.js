@@ -1829,9 +1829,12 @@ function diaryQuote(e) {
     : "";
 }
 /* ===== 日記卡片、列表與表單 ===== */
+let justIn = null; // 剛寫好的日記 { id, popped }：畫出來時彈一下
 function diaryCard(e, where, n) {
   const me = myName(),
-    cls = e.by ? (e.by === me ? "me" : "them") : "",
+    cls =
+      (e.by ? (e.by === me ? "me" : "them") : "") +
+      (justIn && !justIn.popped && justIn.id === e.id && where === "today" ? " just-in" : ""),
     star = e.happy ? `⭐ ${esc(e.happy)}/10` : "";
   const head = n
     ? `<header><b>📖 我們的第 ${n} 篇日記</b><span>${esc(e.date)}${star ? " · " + star : ""}</span></header><div>${byChip(e.by)}</div>`
@@ -2203,17 +2206,13 @@ $("diaryForm").addEventListener("submit", async (ev) => {
   const partner = nameOf(NAMES.find((n) => n !== myName()) || "對方"),
     isToday = e.date === key(today()),
     both = entries.some((x) => x.date === e.date && x.by && x.by !== myName());
-  // renderAll 會在下一個畫面才畫，等畫好再找新的卡片
-  requestAnimationFrame(() =>
-    requestAnimationFrame(() => {
-      const card = isToday ? [...$("diaryToday").querySelectorAll("article.entry.me")].pop() : null;
-      if (card) {
-        card.classList.add("just-in");
-        setTimeout(() => card.classList.remove("just-in"), 1200);
-      }
-      popFloat(card || $("dSave"), "💌");
-    }),
-  );
+  // 新卡片畫出來時自己加 .just-in 彈一下並飄 💌（diaryCard／renderDiaryToday 處理），補寫以前的日子就從按鈕飄
+  if (isToday) {
+    justIn = { id, popped: false };
+    setTimeout(() => {
+      if (justIn && justIn.id === id) justIn = null;
+    }, 1500);
+  } else popFloat($("dSave"), "💌");
   saveToast(!isToday ? "補寫好了 💌" : both ? "寫好了 💌 今天你們兩個都寫了" : `寫好了 💌 等${partner}也來寫`);
   $("dSave").disabled = false;
   if (!db) {
@@ -5176,6 +5175,11 @@ function renderDiaryToday() {
   $("diaryN").textContent = `${entries.length} 篇`;
   const box = $("diaryToday");
   box.innerHTML = list.map((e) => diaryCard(e, "today")).join("");
+  const fresh = justIn && !justIn.popped && box.querySelector(".just-in");
+  if (fresh) {
+    justIn.popped = true;
+    popFloat(fresh, "💌");
+  }
   // 正在看日記頁時對方寫了新的：直接算看過，回到今天頁不會再提醒
   if (view === "quests" && !document.hidden && db && dataReady && partnerNew().diary.length) {
     markPartnerSeen("diary");
