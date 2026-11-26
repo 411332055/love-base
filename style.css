@@ -379,12 +379,12 @@ details.month summary::after,details.rules summary:has(>span)::after{margin-left
 :root.boot-in .wrap>section.current>*:nth-child(n+5){animation-delay:.7s}
 :root.boot-in .tabbar{animation:bootTab .38s cubic-bezier(.22,1.22,.36,1) .52s both}
 @keyframes secIn{from{opacity:.82;transform:translate3d(0,8px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
-@keyframes secInF{from{opacity:0;transform:translate3d(32px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
-@keyframes secInB{from{opacity:0;transform:translate3d(-32px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes secInF{from{opacity:.5;transform:translate3d(24px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes secInB{from{opacity:.5;transform:translate3d(-24px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 @keyframes foldIn{from{opacity:0;transform:translate3d(0,-6px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 @keyframes gachaPop{0%{opacity:0;transform:translate3d(0,10px,0) scale(.95)}60%{opacity:1;transform:translate3d(0,-2px,0) scale(1.015)}100%{opacity:1;transform:translate3d(0,0,0) scale(1)}}
 .gacha-pop{animation:gachaPop .3s cubic-bezier(.34,1.56,.64,1)}
-.wrap>section.current{animation:secIn .34s cubic-bezier(.22,1,.36,1)}
+.wrap>section.current{animation:secIn .26s cubic-bezier(.22,1,.36,1)}
 /* 換頁：整頁一起依方向從右或左滑進來 */
 :root[data-dir=f] .wrap>section.current{animation-name:secInF}
 :root[data-dir=b] .wrap>section.current{animation-name:secInB}
@@ -527,6 +527,9 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 @keyframes phFromR{from{transform:translateX(40px);opacity:.3}}
 @keyframes phFromL{from{transform:translateX(-40px);opacity:.3}}
 .ph-acts{gap:8px}
+/* 剛寫好的日記卡片彈一下、閃一圈粉紅光 */
+.entry.just-in{animation:justIn .9s cubic-bezier(.22,1.22,.36,1)}
+@keyframes justIn{0%{transform:scale(.94);opacity:.4;box-shadow:0 0 0 0 color-mix(in srgb,var(--pink) 55%,transparent)}35%{transform:scale(1.02);opacity:1}100%{transform:scale(1);box-shadow:0 0 0 14px transparent}}
 .ph-acts .btn{flex:1;white-space:nowrap}
 .ph-big .ph-slot .nm{font-size:13px;left:10px;bottom:10px}
 .ph-big .ph-edit{right:10px;bottom:10px;width:36px;height:36px;font-size:16px}

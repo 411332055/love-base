@@ -97,6 +97,8 @@
 | 選單、區塊順序、外觀 | `CATS`、`SEC_META`、`renderNav`、`applyLayout`、`setView` |
 | 換頁與捲動位置 | `setView` 換頁時依前後順序設 `data-dir`（f／b），新頁從右或左滑進來；把舊頁的捲動位置存進 `scrollPos`，`restoreScroll` 切回來時捲回去；`openFor("calendar:日期")` 會捲到那天的日記並閃一下（`#calDetail.flash`） |
 | 開場與打開網站 | `index.html` 開頭的小程式：開場動畫（`#splash`＋`boot-in`）一天只播一次（`love-base-splash` 記日期）；網址有 `#區塊` 時加 `no-anchor`（CSS 把 scroll-margin 拉很大），擋住瀏覽器打開時自己跳到那個區塊，`load` 後或 `openFor` 要捲到中間區塊時拿掉 |
+| 對方新東西提醒 | 今天頁 `#newNudge`（`renderNewNudge`）：對方今天的日記（`NEW_SEEN_KEY`）或照片（`PH_SEEN_KEY`）我還沒看過就提醒；進日記頁（`setView`）或停在日記頁時對方寫新的（`renderDiaryToday`）算看過 |
+| 寫完日記的回饋 | 送出後等下一個畫面，新卡片加 `.just-in` 彈一下、`popFloat` 飄 💌，提示訊息看對方今天寫了沒 |
 | 左右滑換頁 | 搜尋「左右滑換分類頁」：頁面跟著手指走（touchmove 非 passive，判斷是左右滑才 preventDefault），放開時超過 22% 寬或滑得快就換頁，不然彈回；兩端沒有下一頁時像橡皮筋；`inHScroll`、`typing`、`.ph-stage` 不換頁，從照片上開始滑要更水平、更長；拿掉拖曳樣式後加 `.settled` 避免進場動畫重播 |
 | 震動回饋 | `haptic`（Android 用 `navigator.vibrate`，iPhone 用 `iosHaptic` 點隱藏的 iOS 18 開關元件）、`HAPTIC_LV`、`dragEndTick`、設定頁的「測試震動」 |
 | 手機推播通知 | `renderPush`、`notifyPartner`、`sendPush`、`ensurePushCfg`、`vapidAuth`、`encryptPushBody`（瀏覽器端用 Web Crypto API 簽署 VAPID 與 `aes128gcm` 加密，透過 Google Apps Script 轉發） |

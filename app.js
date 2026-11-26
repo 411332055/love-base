@@ -787,7 +787,8 @@ function renderTodayPhotos() {
     segSel(i);
     seg.style.setProperty("--i", i);
     phSegI = i;
-    if (who === "other" && others.length) {
+    // 只有真的在日記頁看到對方的照片才算看過（在別頁背景重畫不算）
+    if (who === "other" && others.length && view === "quests") {
       lsSet(PH_SEEN_KEY, JSON.stringify({ date: k, ids: others.map((p) => p.id) }));
       const f = seg.querySelector(".fresh");
       if (f) f.classList.remove("fresh");
@@ -2197,7 +2198,22 @@ $("diaryForm").addEventListener("submit", async (ev) => {
   resetDiaryFields();
   renderAll();
   lastCommitSynced = navigator.onLine;
-  saveToast("寫好了 💌");
+  // 寫完的回饋：新日記卡片彈一下、飄出愛心，提示對方寫了沒
+  const partner = nameOf(NAMES.find((n) => n !== myName()) || "對方"),
+    isToday = e.date === key(today()),
+    both = entries.some((x) => x.date === e.date && x.by && x.by !== myName());
+  // renderAll 會在下一個畫面才畫，等畫好再找新的卡片
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      const card = isToday ? [...$("diaryToday").querySelectorAll("article.entry.me")].pop() : null;
+      if (card) {
+        card.classList.add("just-in");
+        setTimeout(() => card.classList.remove("just-in"), 1200);
+      }
+      popFloat(card || $("dSave"), "💌");
+    }),
+  );
+  saveToast(!isToday ? "補寫好了 💌" : both ? "寫好了 💌 今天你們兩個都寫了" : `寫好了 💌 等${partner}也來寫`);
   $("dSave").disabled = false;
   if (!db) {
     lsDel(SAVING_KEY);
@@ -4311,11 +4327,63 @@ function renderTodo() {
     `</div>${items.map(([ok, label, id]) => `<a class="todo-i ${ok ? "ok" : ""}" href="#${id}"><span class="tick" aria-hidden="true">✓</span>${label}${ok ? '<span class="sr-only">（已完成）</span>' : ""}</a>`).join("")}`;
 }
 function syncNotices() {
-  $("notices").hidden = ["remindNudge", "planNudge", "iosNudge", "capNudge", "bkNudge", "picNudge", "awayCard"].every(
-    (id) => $(id).hidden,
+  $("notices").hidden = [
+    "newNudge",
+    "remindNudge",
+    "planNudge",
+    "iosNudge",
+    "capNudge",
+    "bkNudge",
+    "picNudge",
+    "awayCard",
+  ].every((id) => $(id).hidden);
+}
+// 對方今天有新東西（日記、照片）而我還沒看過：今天頁最上面提醒，點了直接去看
+const NEW_SEEN_KEY = "love-base-new-seen";
+function partnerNew() {
+  const k = key(today()),
+    me = myName(),
+    d = lsJson(NEW_SEEN_KEY),
+    seenD = d && d.date === k && Array.isArray(d.ids) ? d.ids : [],
+    seenP = phSeen(k),
+    diary = entries.filter((x) => x.date === k && x.by && x.by !== me && !seenD.includes(x.id)),
+    pics = photosOn(k).filter((p) => p.by !== me && !seenP.includes(p.id));
+  return { k, diary, pics };
+}
+function markPartnerSeen(what = "all") {
+  const { k, diary, pics } = partnerNew();
+  if (what !== "pics" && diary.length) {
+    const d = lsJson(NEW_SEEN_KEY),
+      old = d && d.date === k && Array.isArray(d.ids) ? d.ids : [];
+    lsSet(NEW_SEEN_KEY, JSON.stringify({ date: k, ids: [...old, ...diary.map((x) => x.id)] }));
+  }
+  if (what !== "diary" && pics.length)
+    lsSet(PH_SEEN_KEY, JSON.stringify({ date: k, ids: [...phSeen(k), ...pics.map((p) => p.id)] }));
+}
+function renderNewNudge() {
+  const { diary, pics } = partnerNew(),
+    who = nameOf(NAMES.find((n) => n !== myName()) || "對方"),
+    parts = [diary.length ? "寫了日記" : "", pics.length ? `傳了 ${pics.length} 張照片` : ""].filter(Boolean),
+    show = !!(db && dataReady && parts.length);
+  setNudge(
+    "newNudge",
+    show,
+    `💕 ${esc(who)}今天${parts.join("、")}`,
+    "quests",
+    "去看看",
+    "等等再看",
+    () => {
+      markPartnerSeen();
+      renderNewNudge();
+    },
+    () => {
+      // 去看照片時先切到對方那邊
+      if (pics.length) phWho = "other";
+    },
   );
 }
 function renderToday() {
+  renderNewNudge();
   renderRemind();
   renderPlanNudge();
   renderIosNudge();
@@ -4558,6 +4626,13 @@ function setView(id) {
   });
   renderNav();
   renderOpen();
+  // 進到日記頁就算看過對方今天的日記（照片要停在對方那邊才算），今天頁的提醒跟著消失
+  if (id === "quests" && db && dataReady) {
+    const had = partnerNew();
+    markPartnerSeen(phWho === "other" ? "all" : "diary");
+    if (had.pics.length && phWho === "other") renderTodayPhotos();
+    renderNewNudge();
+  }
   if (booted && changed) restoreScroll(id);
 }
 function restoreScroll(id) {
@@ -5048,7 +5123,7 @@ function inHScroll(el) {
       // 這邊沒有下一頁：只讓它拉一點點，像橡皮筋
       const x = target ? dx : dx * 0.22;
       sec.style.transform = `translate3d(${x.toFixed(1)}px,0,0)`;
-      sec.style.opacity = target ? String(Math.max(0.35, 1 - Math.abs(dx) / innerWidth)) : "1";
+      sec.style.opacity = target ? String(Math.max(0.55, 1 - Math.abs(dx) / innerWidth / 1.5)) : "1";
     },
     { passive: false },
   );
@@ -5064,14 +5139,15 @@ function inHScroll(el) {
     if (!el) return;
     if (!go) return snapBack(el);
     // 舊頁往手指的方向滑出去一小段，新頁從另一邊接著滑進來
-    el.style.transition = "transform .14s ease-out,opacity .14s ease-out";
-    el.style.transform = `translate3d(${(dx + (dx < 0 ? -1 : 1) * innerWidth * 0.18).toFixed(1)}px,0,0)`;
-    el.style.opacity = "0";
+    el.style.transition = "transform .12s ease-out,opacity .12s ease-out";
+    el.style.transform = `translate3d(${(dx + (dx < 0 ? -1 : 1) * innerWidth * 0.12).toFixed(1)}px,0,0)`;
+    // 不要淡到全透明：深色模式下會像整個畫面閃一下空白
+    el.style.opacity = "0.4";
     const next = target;
     setTimeout(() => {
       clear(el);
       activateCat(next.id);
-    }, 140);
+    }, 120);
   };
   document.addEventListener("touchend", end, { passive: true });
   document.addEventListener(
@@ -5099,6 +5175,11 @@ function renderDiaryToday() {
   $("diaryN").textContent = `${entries.length} 篇`;
   const box = $("diaryToday");
   box.innerHTML = list.map((e) => diaryCard(e, "today")).join("");
+  // 正在看日記頁時對方寫了新的：直接算看過，回到今天頁不會再提醒
+  if (view === "quests" && !document.hidden && db && dataReady && partnerNew().diary.length) {
+    markPartnerSeen("diary");
+    renderNewNudge();
+  }
   bindEntryActs(box, "today");
 }
 $("diaryMore").addEventListener("toggle", () => {
