@@ -184,6 +184,38 @@ for (const [theme, width] of [
     await page.waitForTimeout(400);
     const updated = await page.evaluate(([p, id]) => window.__store[p][id], [room("done"), wish[0]]);
     updated?.done ? ok("許願並完成願望正常") : fail("完成願望沒有存進資料庫");
+    // 約定日期：選明天，月曆明天的格子要能點、有「約定」圓點，取消後清掉
+    const tmrD = new Date();
+    tmrD.setDate(tmrD.getDate() + 1);
+    const tmrK = keyOf(tmrD);
+    await page.evaluate(
+      ([id, v]) => {
+        const w = window.__store[`rooms/test-only-123/done`]["x~wishes~" + id];
+        if (w) w.done = false;
+      },
+      [wid, tmrK],
+    );
+    await page.evaluate((id) => toggleWish(id), wid);
+    await page.waitForTimeout(300);
+    await page.fill(`input[data-plan="${wid}"]`, tmrK);
+    await page.waitForTimeout(300);
+    const planSaved = await page.evaluate(([p, id]) => window.__store[p][id].plan, [room("done"), wish[0]]);
+    await go(page, "calendar");
+    if (tmrK.slice(0, 7) !== keyOf(new Date()).slice(0, 7)) await page.click("#calNext");
+    await page.waitForTimeout(200);
+    const cellOk = await page.evaluate((k) => {
+      const b = document.querySelector(`#calGrid [data-d="${k}"]`);
+      return !!b && !b.disabled && !!b.querySelector(".d-plan");
+    }, tmrK);
+    await go(page, "wishes");
+    await page.click(`[data-planx="${wid}"]`);
+    await page.waitForTimeout(300);
+    const planCleared = await page.evaluate(([p, id]) => !window.__store[p][id].plan, [room("done"), wish[0]]);
+    planSaved === tmrK && cellOk && planCleared
+      ? ok("願望約定日期：存得進去、月曆看得到、可以取消")
+      : fail(`約定日期不正常（存 ${planSaved}，月曆 ${cellOk}，取消 ${planCleared}）`);
+    await page.evaluate((id) => toggleWish(id), wid);
+    await page.waitForTimeout(300);
     // 完成的願望收在「已完成」裡，直接按它的刪除（要按兩次確認）
     await page.evaluate((id) => {
       const b = document.querySelector(`.wish .del[data-id="${id}"]`);

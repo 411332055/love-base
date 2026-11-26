@@ -1,6 +1,6 @@
 /* Layout: iOS 26 Liquid Glass System UI — Crystal Specular Rims, Fluid Capsules & Spring Physics */
 :root{
-  --bg:#fff5f8; --off:.55; --off-f:grayscale(1) brightness(.72); --surface:rgba(255,255,255,.88); --sunk:rgba(250,224,236,.58); --line:rgba(235,69,126,.16);
+  --bg:#fff5f8; --plan:#6d4fd6; --off:.55; --off-f:grayscale(1) brightness(.72); --surface:rgba(255,255,255,.88); --sunk:rgba(250,224,236,.58); --line:rgba(235,69,126,.16);
   --fg:#2c1422; --muted:#866074;
   --pink:#d23268; --pink-soft:rgba(255,214,231,.78); --gold:#c88210; --gold-soft:rgba(255,238,198,.82); --ink:#3a162c;
   --ok:#248a54; --ok-soft:rgba(214,245,228,.82);
@@ -21,7 +21,7 @@
   --r:22px; --side-w:216px; --rail-w:64px;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0d0811; --off:.35; --off-f:grayscale(1); --surface:rgba(56,32,52,.78); --sunk:rgba(24,13,25,.66); --line:rgba(255,225,240,.22);
+  --bg:#0d0811; --plan:#b7a2ff; --off:.35; --off-f:grayscale(1); --surface:rgba(56,32,52,.78); --sunk:rgba(24,13,25,.66); --line:rgba(255,225,240,.22);
   --fg:#fdf2f7; --muted:#c8acc0;
   --pink:#ff669a; --pink-soft:rgba(115,36,70,.72); --gold:#f7c654; --gold-soft:rgba(92,66,20,.72); --ink:#fdf2f7;
   --ok:#5cd696; --ok-soft:rgba(24,72,50,.72);
@@ -37,7 +37,7 @@
   --tab-shadow:var(--glass-rim),0 0 0 1px rgba(235,69,126,.14),0 14px 34px -6px rgba(90,20,55,.24);
   --tab-pill-shadow:var(--glass-rim); color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0d0811; --off:.35; --off-f:grayscale(1); --surface:rgba(56,32,52,.78); --sunk:rgba(24,13,25,.66); --line:rgba(255,225,240,.22);
+  --bg:#0d0811; --plan:#b7a2ff; --off:.35; --off-f:grayscale(1); --surface:rgba(56,32,52,.78); --sunk:rgba(24,13,25,.66); --line:rgba(255,225,240,.22);
   --fg:#fdf2f7; --muted:#c8acc0;
   --pink:#ff669a; --pink-soft:rgba(115,36,70,.72); --gold:#f7c654; --gold-soft:rgba(92,66,20,.72); --ink:#fdf2f7;
   --ok:#5cd696; --ok-soft:rgba(24,72,50,.72);
@@ -560,3 +560,15 @@ details>summary{transition:transform .15s ease,opacity .15s ease;-webkit-tap-hig
 details>summary:active{transform:scale(.98);opacity:.75;transition-duration:.08s}
 /* 日記、願望、回應裡的網址：可以點，長網址會自動換行 */
 a.lnk{color:var(--pink);text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere;word-break:break-all;font-weight:600}
+/* 願望：約定日期膠囊、完成後「看那天」 */
+.wish-extra{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.plan-wrap{display:inline-flex;align-items:center;gap:4px}
+.plan-pill{position:relative;display:inline-flex;align-items:center;gap:4px;border:1px dashed color-mix(in srgb,var(--plan) 55%,var(--line));color:var(--plan);background:transparent;border-radius:99px;padding:5px 12px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.plan-pill.on{border-style:solid;background:color-mix(in srgb,var(--plan) 14%,transparent)}
+.plan-pill.late{color:var(--muted);border-color:var(--line)}
+.plan-pill:active{transform:scale(.96)}
+/* 日期選擇器透明地蓋在膠囊上，點膠囊就會跳出手機的日曆（不用 showPicker，舊 iPhone 也能用） */
+.plan-pill input{position:absolute;inset:-8px 0;width:100%;height:calc(100% + 16px);opacity:0;cursor:pointer;font-size:16px;border:0;padding:0;margin:0}
+.plan-x{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--sunk);color:var(--muted);font-size:12px;display:grid;place-items:center;cursor:pointer;position:relative}
+.plan-x::before{content:"";position:absolute;inset:-8px}
+.d-plan{background:var(--plan)}

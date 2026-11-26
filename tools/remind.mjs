@@ -201,6 +201,26 @@ if (dueCaps.length && canPush) {
 const tmr = tomorrowTW(),
   tk = keyOf(tmr),
   sp = specialOf(tmr, birthdays);
+
+// 願望約定日期：明天有約好、還沒完成的願望就推播（id 跟網站共用 x~remind~plan-日期，不會重複發）
+const plans = Object.entries(done)
+  .filter(([id, v]) => id.startsWith("x~wishes~") && !v.trashed && !v.done && v.plan === tk)
+  .map(([, v]) => String(v.text || "").slice(0, 20));
+if (plans.length && canPush && !done["x~remind~plan-" + tk]) {
+  const sent = await pushAll(
+    cfg,
+    subs,
+    JSON.stringify({
+      title: "📅 明天約好了！",
+      body: `明天（${tmr.getUTCMonth() + 1}/${tmr.getUTCDate()}）約好要${plans.map((t) => `「${t}」`).join("、")}`,
+      url: "./#wishes",
+      tag: "plan-" + tk,
+    }),
+  );
+  console.log(`明天（${tk}）有 ${plans.length} 個約好的願望，推播送出 ${sent} / ${subs.length} 台。`);
+  if (sent) await markSent("x~remind~plan-" + tk, tk);
+}
+
 if (!sp) {
   console.log(`明天（${tk}）不是特別的日子。`);
   process.exit(0);

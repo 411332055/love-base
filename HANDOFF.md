@@ -47,7 +47,7 @@
 
 | 種類 | 內容 | 主要欄位 |
 |---|---|---|
-| `wishes` | 願望 | `text`、`cat`（eat/go/do/空字串）、`done`、`doneDate`、`by`、`at` |
+| `wishes` | 願望 | `text`、`cat`（eat/go/do/空字串）、`done`、`doneDate`、`by`、`at`、`plan`（約定日期 YYYY-MM-DD，可沒有） |
 | `rounds` | 抽到的題目 | `q`、`day`、`by`、`at` |
 | `answers` | 抽題的回答 | `round`、`text`、`by`、`at` |
 | `custom` | 自訂題目 | `kind:"q"`、`text`、`by`、`at` |
@@ -87,7 +87,7 @@
 | 全部日記、搜尋（含留言與照片說明） | `renderEntries`（只畫打開的月份，搜尋一次顯示 30 篇） |
 | 日記回應與表情貼圖 | `entryExtras`、`bindEntryActs`、`attachReply`、`REACTS`、`popFloat` |
 | 抽題 | `monthBank`、`turnOf`、`todayRound`、`shownRound`、`drawQ`、`renderDraw`、`renderLog` |
-| 願望（含分類） | `renderWishes`、`toggleWish`，分類 `WCATS` |
+| 願望（含分類、約定日期） | `renderWishes`、`toggleWish`、`setWishPlan`，分類 `WCATS`；約定日期 `planned`、`plansOn`，首頁提醒 `renderPlanNudge`（月曆有約定的未來日子可以點、可以往後翻到最後一個約定的月份） |
 | 月曆、回顧、那年今天、時光膠囊、回憶書 | `renderChart`（幸福指數曲線，手指左右滑看每一天）、`renderCalendar`、`renderCalDetail`、`onThisDayHits`、`renderOnThisDay`、`renderTodayFlashback`、`renderMemories`、`renderCapsules`、`renderCapNudge`、`setNudge`、`renderBook`、`renderBookShell` |
 | 星期日這週回顧 | `renderWeekRecap` |
 | 垃圾桶、二次確認 | `confirmTap`、`armDelete`、`renderTrash`、`restoreItem`、`archivePhoto`、`restoreReplaced`、`hardDelete`、`purgeExpired` |
@@ -134,7 +134,7 @@
 
 ### 每天晚上：`.github/workflows/remind.yml`
 
-- 台灣時間晚上約 8 點跑 `tools/remind.mjs`：明天是週年、里程碑、生日、七夕或每月紀念日，或有到期的時光膠囊，就直接推播給 `done` 裡所有 `x~push~s_*` 裝置（用 `x~push~cfg` 的 VAPID 金鑰，不經過 Apps Script），並寫一筆 `x~remind~日期`（或 `x~remind~cap-膠囊id`），網站和下一次執行都不會重複發。
+- 台灣時間晚上約 8 點跑 `tools/remind.mjs`：明天是週年、里程碑、生日、七夕或每月紀念日，或有到期的時光膠囊，就直接推播給 `done` 裡所有 `x~push~s_*` 裝置（用 `x~push~cfg` 的 VAPID 金鑰，不經過 Apps Script），並寫一筆 `x~remind~日期`（或 `x~remind~cap-膠囊id`、願望約定日期是 `x~remind~plan-日期`，網站和這支程式共用，不會重複發），網站和下一次執行都不會重複發。
 - 每月 1 號同一支程式會讀完 `pics` 的原圖算空間（REST 加 `mask.fieldPaths=img`），超過 `WARN_MB`（從 `app.js` 的備份程式碼讀，現在是 700）就推播，並寫一筆 `x~remind~space-YYYY-MM`。讀原圖一次最多約 1 GB 流量，所以一個月只做一次；本機測試可設 `FORCE_SPACE=1`。
 - 暗號放在 GitHub 的 **Secret `ROOM_CODE`**（Settings → Secrets and variables → Actions），沒設定時會直接略過。不能寫進程式或印到紀錄。
 - 判斷規則要和 `app.js` 的 `specialOf()` 一致；`LOVE_START`、`MILE_DAYS`、`NAMES` 是直接從 `app.js` 讀的。改了 `specialOf()` 的規則，`remind.mjs` 也要一起改。

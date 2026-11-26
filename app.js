@@ -2430,6 +2430,13 @@ $("ansForm").addEventListener("submit", async (ev) => {
 /* ===== 願望清單 ===== */
 // 願望分類：存在願望的 cat 欄位，舊願望沒有這個欄位就算「其他」
 const WCATS = { eat: "🍜 想吃", go: "📍 想去", do: "🎯 想做", "": "✨ 其他" };
+// 願望的約定日期（plan 欄位，YYYY-MM-DD）：還沒完成、有約日期的願望
+const planned = () => store.wishes.filter((w) => !w.done && /^\d{4}-\d{2}-\d{2}$/.test(String(w.plan || "")));
+const plansOn = (k) => planned().filter((w) => w.plan === k);
+const mdw = (k) => {
+  const d = fromKey(k);
+  return `${d.getMonth() + 1}/${d.getDate()}（${"日一二三四五六"[d.getDay()]}）`;
+};
 let wFilter = "all",
   wCat = "",
   wishDoneOpen = false;
@@ -2502,7 +2509,18 @@ function renderWishes() {
     box.innerHTML = `<div class="empty">${q ? `找不到「${esc(q)}」的願望。` : "這一類還沒有願望。"}</div>`;
     return;
   }
-  const open = wishes.filter((w) => !w.done).sort((a, b) => byAt(b, a));
+  const open = wishes
+    .filter((w) => !w.done)
+    .sort((a, b) => (a.plan && b.plan ? String(a.plan).localeCompare(b.plan) : a.plan ? -1 : b.plan ? 1 : byAt(b, a)));
+  const tkW = key(today());
+  // 約定日期：點膠囊選日期（日期選擇器蓋在膠囊上，iPhone 和 Android 都會跳出原生日曆）
+  const planPill = (w) =>
+    w.plan
+      ? `<span class="plan-wrap"><label class="plan-pill on${w.plan < tkW ? " late" : ""}">📅 ${esc(mdw(w.plan))}` +
+        `${w.plan === tkW ? " 就是今天" : w.plan < tkW ? " 過了" : ""}` +
+        `<input type="date" data-plan="${esc(w.id)}" value="${esc(w.plan)}" min="${tkW}" aria-label="改約定日期"></label>` +
+        `<button type="button" class="plan-x" data-planx="${esc(w.id)}" aria-label="取消約定日期">✕</button></span>`
+      : `<label class="plan-pill">📅 約定日期<input type="date" data-plan="${esc(w.id)}" min="${tkW}" aria-label="選一個約定日期"></label>`;
   const closed = wishes.filter((w) => w.done).sort((a, b) => String(b.doneDate).localeCompare(String(a.doneDate)));
   const shortDone = (d) => {
     const v = String(d || "");
@@ -2515,7 +2533,13 @@ function renderWishes() {
     `" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}：${w.done ? "已完成，點一下取消" : "標記完成"}">✓</button>` +
     `<div class="t"><b>${escLink(w.text)}</b><div><button type="button" class="cat" data-cat="${esc(w.id)}` +
     `" aria-label="分類：${WCATS[w.cat || ""]}，點一下換分類">${WCATS[w.cat || ""]}</button>${esc(w.by || "")}` +
-    ` 許的${w.done ? ` · <span class="nw">${esc(shortDone(w.doneDate))} 完成</span>` : ""}</div></div>` +
+    ` 許的${w.done ? ` · <span class="nw">${esc(shortDone(w.doneDate))} 完成</span>` : ""}</div>` +
+    (w.done
+      ? /^\d{4}-\d{2}-\d{2}$/.test(String(w.doneDate || ""))
+        ? `<div class="wish-extra"><button type="button" class="btn ghost small" data-wday="${esc(w.doneDate)}">看那天 ›</button></div>`
+        : ""
+      : `<div class="wish-extra">${planPill(w)}</div>`) +
+    `</div>` +
     `<button class="btn ghost del" type="button" data-id="${esc(w.id)}">刪除</button></div>`;
   box.innerHTML =
     open.map(renderWishItem).join("") +
@@ -2539,7 +2563,35 @@ function renderWishes() {
         updDoc("wishes", w.id, { cat: ks[(ks.indexOf(w.cat || "") + 1) % ks.length] });
       }),
   );
+  box.querySelectorAll("[data-wday]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        openFor("calendar:" + b.dataset.wday);
+        history.pushState(null, "", "#calendar:" + b.dataset.wday);
+      }),
+  );
+  box
+    .querySelectorAll("input[data-plan]")
+    .forEach((inp) => inp.addEventListener("change", () => setWishPlan(inp.dataset.plan, inp.value)));
+  box.querySelectorAll("[data-planx]").forEach((b) => (b.onclick = () => setWishPlan(b.dataset.planx, "")));
   armDelete(box, "wishes");
+}
+function setWishPlan(id, v) {
+  const w = store.wishes.find((x) => x.id === id);
+  if (!w || (w.plan || "") === v) return;
+  if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+  updDoc("wishes", id, { plan: v || null });
+  if (!v) {
+    toast("取消約定日期了");
+    return;
+  }
+  toast(`📅 約好 ${mdw(v)} 了`);
+  notifyPartner(
+    "📅 約好了！",
+    `${myName()}把願望「${String(w.text || "").slice(0, 22)}」約在 ${mdw(v)}`,
+    "#wishes",
+    "wish-plan-" + id,
+  );
 }
 function toggleWish(id) {
   const w = store.wishes.find((x) => x.id === id);
@@ -3064,7 +3116,8 @@ function renderCalendar() {
   $("calTitle").textContent = `${y} 年 ${m} 月`;
   $("calToday").hidden = calMonth === cur && calDay === tk;
   $("calPrev").disabled = calMonth <= earliest;
-  $("calNext").disabled = calMonth >= cur;
+  const lastPlanMonth = planned().reduce((a, w) => (w.plan.slice(0, 7) > a ? w.plan.slice(0, 7) : a), cur);
+  $("calNext").disabled = calMonth >= lastPlanMonth;
   let h = "<span></span>".repeat(offset);
   for (let d = 1; d <= count; d++) {
     const k = calMonth + "-" + pad(d);
@@ -3072,6 +3125,7 @@ function renderCalendar() {
       [diaryDays.has(k), "diary", "日記"],
       [photoDays.has(k), "photo", "照片"],
       [together.has(k), "task", "一起完成"],
+      [plansOn(k).length > 0, "plan", "約定"],
     ].filter((x) => x[0]);
     const sp = calSpecial(k),
       isToday = k === tk,
@@ -3089,7 +3143,7 @@ function renderCalendar() {
       `${both ? " both" : ""}${half ? " half" : ""}${sp ? " special" : ""}" aria-pressed="${k === calDay}"` +
       ` aria-label="${isToday ? "今天，" : ""}${m} 月 ${d} 日${halfText}${sp ? "，" + sp.text : ""}` +
       `${marks.length ? "，有" + marks.map((x) => x[2]).join("、") : ""}" ${sp ? `title="${sp.text}"` : ""}` +
-      ` ${k > tk ? "disabled" : ""}>` +
+      ` ${k > tk && !plansOn(k).length ? "disabled" : ""}>` +
       `${sp ? `<span class="cal-sp" aria-hidden="true">${sp.emo}</span>` : ""}${d}` +
       `<span class="dots">${marks.map((x) => `<i class="d-${x[1]}"></i>`).join("")}</span>` +
       `</button>`;
@@ -3124,13 +3178,15 @@ function renderCalDetail() {
     ws = store.wishes.filter((w) => w.done && w.doneDate === k),
     rs = store.rounds.filter((r) => roundDay(r) === k && pairOf(r.id).length >= need()).sort(byAt),
     revs = store.reviews.filter((r) => r.date === k).sort(byAt),
-    caps = store.capsules.filter((c) => c.openDate === k && c.openDate <= tk);
-  if (!es.length && !ps.length && !ws.length && !rs.length && !revs.length && !caps.length) {
+    caps = store.capsules.filter((c) => c.openDate === k && c.openDate <= tk),
+    pls = plansOn(k);
+  if (!es.length && !ps.length && !ws.length && !rs.length && !revs.length && !caps.length && !pls.length) {
     box.innerHTML = `<div class="empty">${label} 還沒有紀錄。</div>`;
     return;
   }
   box.innerHTML =
     `<article class="entry"><header><b>📅 ${label}</b></header>` +
+    `${pls.map((w) => `<div>📅 約好要：${escLink(w.text)}</div>`).join("")}` +
     `${ws.map((w) => `<div>🌠 達成願望：${esc(w.text)}</div>`).join("")}` +
     `${caps.map((c) => `<div>💌 打開時光膠囊（${esc(nameOf(c.by))}）：${esc(c.text)}</div>`).join("")}` +
     `${ps.length ? `<div class="wall-grid">${ps.map((p) => photoBtn(p, "")).join("")}</div>` : ""}</article>` +
@@ -4091,12 +4147,13 @@ function renderTodo() {
     `</div>${items.map(([ok, label, id]) => `<a class="todo-i ${ok ? "ok" : ""}" href="#${id}"><span class="tick" aria-hidden="true">✓</span>${label}${ok ? '<span class="sr-only">（已完成）</span>' : ""}</a>`).join("")}`;
 }
 function syncNotices() {
-  $("notices").hidden = ["remindNudge", "iosNudge", "capNudge", "bkNudge", "picNudge", "awayCard"].every(
+  $("notices").hidden = ["remindNudge", "planNudge", "iosNudge", "capNudge", "bkNudge", "picNudge", "awayCard"].every(
     (id) => $(id).hidden,
   );
 }
 function renderToday() {
   renderRemind();
+  renderPlanNudge();
   renderIosNudge();
   renderCapNudge();
   renderBackupNudge();
@@ -5269,6 +5326,42 @@ function renderRemind() {
   commit(xRef("remind", tmr).set({ date: tmr, by: myName(), at: nowIso() }))
     .then(() =>
       sendPush({ title: `${sp.emo} 明天是${sp.text}`, body: text, url: "./#calendar", tag: "remind-" + tmr }, "all"),
+    )
+    .catch(() => {});
+}
+// 願望約定日期提醒：今天或明天有約好的願望就提醒（明天的那則也推播，跟每晚的自動提醒共用同一筆紀錄，不會重複）
+const PLAN_SEEN = "love-base-plan-seen";
+function renderPlanNudge() {
+  const t = today(),
+    tk = key(t),
+    tmr = key(addDays(t, 1)),
+    td = plansOn(tk),
+    tm = plansOn(tmr),
+    list = (ws) => ws.map((w) => `「${esc(String(w.text).slice(0, 24))}」`).join("、"),
+    text = td.length
+      ? `📅 今天約好要${list(td)}，完成後記得在願望清單打勾`
+      : tm.length
+        ? `📅 明天 ${mdw(tmr)} 約好要${list(tm)}`
+        : "",
+    tag = (td.length ? tk : tmr) + ":" + [...td, ...tm].map((w) => w.id).join(",");
+  setNudge("planNudge", !!(text && dataReady && lsGet(PLAN_SEEN) !== tag), text, "wishes", "看願望", "知道了", () => {
+    lsSet(PLAN_SEEN, tag);
+    renderPlanNudge();
+  });
+  const rid = "plan-" + tmr;
+  if (!tm.length || !db || !dataReady || renderPlanNudge.sent === rid || store.remind.some((r) => r.id === rid)) return;
+  renderPlanNudge.sent = rid;
+  commit(xRef("remind", rid).set({ date: tmr, by: myName(), at: nowIso() }))
+    .then(() =>
+      sendPush(
+        {
+          title: "📅 明天約好了！",
+          body: `明天 ${mdw(tmr)} 約好要${tm.map((w) => `「${String(w.text).slice(0, 20)}」`).join("、")}`,
+          url: "./#wishes",
+          tag: rid,
+        },
+        "all",
+      ),
     )
     .catch(() => {});
 }
