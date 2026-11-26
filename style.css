@@ -383,6 +383,7 @@ details.month summary::after,details.rules summary:has(>span)::after{margin-left
 /* 換頁：整頁一起依方向從右或左滑進來 */
 :root[data-dir=f] .wrap>section.current{animation-name:secInF}
 :root[data-dir=b] .wrap>section.current{animation-name:secInB}
+.wrap>section.current.settled{animation:none}
 details.month[open]>.month-body,details.rules[open]>.custom,details.rules[open]>.log,details.rules[open]>ol{animation:foldIn .2s cubic-bezier(.22,1,.36,1)}
 .wrap>section:not(.current){display:none}
 :root[data-view]:not([data-view="today"]) .hud{display:none}

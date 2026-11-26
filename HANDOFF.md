@@ -95,8 +95,8 @@
 | 垃圾桶、二次確認 | `confirmTap`、`armDelete`、`renderTrash`、`restoreItem`、`archivePhoto`、`restoreReplaced`、`hardDelete`、`purgeExpired` |
 | 備份、補回、更換暗號 | `exportBackup`、`backupHtml`、`prepRestore`、`applyRestore`、`moveRoomBtn`；整月照片壓縮檔 `fillZipMonths`、`makeZip`（瀏覽器裡打包不壓縮的 zip，檔名 UTF-8） |
 | 選單、區塊順序、外觀 | `CATS`、`SEC_META`、`renderNav`、`applyLayout`、`setView` |
-| 換頁與捲動位置 | `setView` 換頁時把舊頁的捲動位置存進 `scrollPos`，`restoreScroll` 切回來時捲回去；`openFor("calendar:日期")` 會捲到那天的日記並閃一下（`#calDetail.flash`） |
-| 左右滑換頁 | 搜尋「在頁面中間左右滑動切換頁面」：`inHScroll`（橫向捲動區塊不換頁）、`typing`（正在打字不換頁），從照片上開始滑要滑得更長才換頁 |
+| 換頁與捲動位置 | `setView` 換頁時依前後順序設 `data-dir`（f／b），新頁從右或左滑進來；把舊頁的捲動位置存進 `scrollPos`，`restoreScroll` 切回來時捲回去；`openFor("calendar:日期")` 會捲到那天的日記並閃一下（`#calDetail.flash`） |
+| 左右滑換頁 | 搜尋「左右滑換分類頁」：頁面跟著手指走（touchmove 非 passive，判斷是左右滑才 preventDefault），放開時超過 22% 寬或滑得快就換頁，不然彈回；兩端沒有下一頁時像橡皮筋；`inHScroll`、`typing`、`.ph-stage` 不換頁，從照片上開始滑要更水平、更長；拿掉拖曳樣式後加 `.settled` 避免進場動畫重播 |
 | 震動回饋 | `haptic`（Android 用 `navigator.vibrate`，iPhone 用 `iosHaptic` 點隱藏的 iOS 18 開關元件）、`HAPTIC_LV`、`dragEndTick`、設定頁的「測試震動」 |
 | 手機推播通知 | `renderPush`、`notifyPartner`、`sendPush`、`ensurePushCfg`、`vapidAuth`、`encryptPushBody`（瀏覽器端用 Web Crypto API 簽署 VAPID 與 `aes128gcm` 加密，透過 Google Apps Script 轉發） |
 | 登入畫面、連線、資料同步 | `showGate`，以及檔案最後面的啟動程式（`onSnapshot` 都在那裡） |

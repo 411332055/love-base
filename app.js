@@ -4552,6 +4552,7 @@ function setView(id) {
   document.documentElement.dataset.view = c.id;
   document.querySelectorAll(".wrap>section").forEach((x) => {
     const on = x.id === id;
+    if (on && !x.classList.contains("current")) x.classList.remove("settled");
     x.classList.toggle("current", on);
     x.classList.toggle("open", on);
   });
@@ -4967,48 +4968,112 @@ function inHScroll(el) {
   }
   return false;
 }
+// 左右滑換分類頁：頁面跟著手指走，放開時滑得夠遠（或夠快）就換頁，不然彈回原位
 (() => {
   let sx = null,
     sy = 0,
     st = 0,
-    onPhoto = false;
+    onPhoto = false,
+    mode = "", // ""：還沒判斷方向；"h"：左右滑（跟手）；"v"：上下捲（不管）
+    sec = null,
+    target = null,
+    dx = 0;
+  const neighbor = (d) => {
+    const vis = CATS.filter((c) => catSecs(c).length),
+      cur = CATS.find((c) => c.secs.includes(view));
+    return vis[vis.indexOf(cur) + (d < 0 ? 1 : -1)] || null;
+  };
+  const clear = (el) => {
+    if (!el) return;
+    el.style.transition = el.style.transform = el.style.opacity = el.style.animation = "";
+    // 拿掉 animation:none 時不要讓進場動畫重播一次
+    el.classList.add("settled");
+  };
+  const snapBack = (el) => {
+    el.style.transition = "transform .26s cubic-bezier(.22,1.22,.36,1),opacity .2s ease";
+    el.style.transform = "translate3d(0,0,0)";
+    el.style.opacity = "1";
+    setTimeout(() => clear(el), 280);
+  };
   document.addEventListener(
     "touchstart",
     (ev) => {
+      sx = null;
+      mode = "";
       if (
+        ev.touches.length > 1 ||
         !$("lightbox").hidden ||
         !$("gate").hidden ||
         ev.target.closest("select,input[type=range],#hearts,#subNav,#tabBar,.filter,.chart,.ph-stage") ||
         typing() ||
         inHScroll(ev.target)
-      ) {
-        sx = null;
+      )
         return;
-      }
       sx = ev.touches[0].clientX;
       sy = ev.touches[0].clientY;
       st = Date.now();
+      dx = 0;
       onPhoto = !!ev.target.closest("img,[data-open],.ph-slot,.ph-big,.wall-grid,#wall,#todayPhotos");
+      sec = document.querySelector(".wrap>section.current");
     },
     { passive: true },
   );
   document.addEventListener(
-    "touchend",
+    "touchmove",
     (ev) => {
-      if (sx === null) return;
-      const dx = ev.changedTouches[0].clientX - sx,
-        dy = ev.changedTouches[0].clientY - sy;
+      if (sx === null || mode === "v") return;
+      const t = ev.touches[0],
+        mx = t.clientX - sx,
+        my = t.clientY - sy;
+      if (!mode) {
+        if (Math.abs(mx) < 10 && Math.abs(my) < 10) return;
+        // 照片上要更水平才算左右滑，避免看照片時不小心換頁
+        mode = Math.abs(mx) > Math.abs(my) * (onPhoto ? 2.5 : 1.2) ? "h" : "v";
+        if (mode === "v") return;
+        if (sec) {
+          sec.style.animation = "none";
+          sec.style.transition = "none";
+        }
+      }
+      ev.preventDefault();
+      dx = mx;
+      target = neighbor(dx);
+      if (!sec) return;
+      // 這邊沒有下一頁：只讓它拉一點點，像橡皮筋
+      const x = target ? dx : dx * 0.22;
+      sec.style.transform = `translate3d(${x.toFixed(1)}px,0,0)`;
+      sec.style.opacity = target ? String(Math.max(0.35, 1 - Math.abs(dx) / innerWidth)) : "1";
+    },
+    { passive: false },
+  );
+  const end = () => {
+    if (sx === null) return;
+    sx = null;
+    if (mode !== "h") return;
+    mode = "";
+    const el = sec,
+      ax = Math.abs(dx),
+      fast = ax >= 40 && ax / Math.max(1, Date.now() - st) > 0.45,
+      go = target && (ax > innerWidth * (onPhoto ? 0.3 : 0.22) || fast);
+    if (!el) return;
+    if (!go) return snapBack(el);
+    // 舊頁往手指的方向滑出去一小段，新頁從另一邊接著滑進來
+    el.style.transition = "transform .14s ease-out,opacity .14s ease-out";
+    el.style.transform = `translate3d(${(dx + (dx < 0 ? -1 : 1) * innerWidth * 0.18).toFixed(1)}px,0,0)`;
+    el.style.opacity = "0";
+    const next = target;
+    setTimeout(() => {
+      clear(el);
+      activateCat(next.id);
+    }, 140);
+  };
+  document.addEventListener("touchend", end, { passive: true });
+  document.addEventListener(
+    "touchcancel",
+    () => {
+      if (mode === "h" && sec) snapBack(sec);
       sx = null;
-      const ax = Math.abs(dx),
-        fast = ax >= 30 && ax / Math.max(1, Date.now() - st) > 0.3;
-      // 從照片上開始滑：要滑得很長、很水平才換頁，避免看照片時不小心跳走
-      if (onPhoto) {
-        if (ax < Math.max(110, innerWidth * 0.3) || ax < Math.abs(dy) * 2.5) return;
-      } else if ((ax < 50 && !fast) || ax < Math.abs(dy) * 1.2) return;
-      const vis = CATS.filter((c) => catSecs(c).length),
-        cur = CATS.find((c) => c.secs.includes(view)),
-        next = vis[vis.indexOf(cur) + (dx < 0 ? 1 : -1)];
-      if (next) activateCat(next.id);
+      mode = "";
     },
     { passive: true },
   );
