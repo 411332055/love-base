@@ -561,7 +561,7 @@ details>summary:active{transform:scale(.98);opacity:.75;transition-duration:.08s
 /* 日記、願望、回應裡的網址：可以點，長網址會自動換行 */
 a.lnk{color:var(--pink);text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere;word-break:break-all;font-weight:600}
 /* 願望：約定日期膠囊、完成後「看那天」 */
-.wish-extra{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.wish-extra{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .plan-wrap{display:inline-flex;align-items:center;gap:4px}
 .plan-pill{position:relative;display:inline-flex;align-items:center;gap:4px;border:1px dashed color-mix(in srgb,var(--plan) 55%,var(--line));color:var(--plan);background:transparent;border-radius:99px;padding:5px 12px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 .plan-pill.on{border-style:solid;background:color-mix(in srgb,var(--plan) 14%,transparent)}
@@ -569,6 +569,7 @@ a.lnk{color:var(--pink);text-decoration:underline;text-underline-offset:2px;over
 .plan-pill:active{transform:scale(.96)}
 /* 日期選擇器透明地蓋在膠囊上，點膠囊就會跳出手機的日曆（不用 showPicker，舊 iPhone 也能用） */
 .plan-pill input{position:absolute;inset:-8px 0;width:100%;height:calc(100% + 16px);opacity:0;cursor:pointer;font-size:16px;border:0;padding:0;margin:0}
-.plan-x{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--sunk);color:var(--muted);font-size:12px;display:grid;place-items:center;cursor:pointer;position:relative}
-.plan-x::before{content:"";position:absolute;inset:-8px}
+.plan-x{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--sunk);color:var(--muted);font-size:12px;display:grid;place-items:center;cursor:pointer;position:relative}
+.plan-x::before{content:"";position:absolute;inset:-6px}
 .d-plan{background:var(--plan)}
+.wish .cat::before{inset:-6px -2px}
