@@ -134,5 +134,39 @@ else ok("index.html 的 id 沒有重複");
   else ok(`使用者的字放進網頁前都有先處理（檢查了 ${count} 段 HTML）`);
 }
 
+// 9. 沒在用的樣式和函式：留著會讓之後改程式的人（或 AI）照著舊寫法寫
+{
+  const js = fs.readFileSync("app.js", "utf8"),
+    both = js + "\n" + htmlSrc;
+  const css = fs
+    .readFileSync("style.css", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/url\([^)]*\)/g, "url()");
+  const used = (name, text) => new RegExp(`(?<![\\w-])${name}(?![\\w-])`).test(text);
+  // 程式組出來的 class（"d-" + 類型、`d-${類型}`）只看得到前綴，這種前綴開頭的都算有用到
+  const prefixes = [...both.matchAll(/["'`\s]([a-z]\w*-)["'`]\s*\+|["'`\s]([a-z]\w*-)\$\{/g)].map((m) => m[1] || m[2]);
+  // 先把 { } 裡的屬性拿掉（避免 .5s、網址被當成 class），@media 裡的選擇器也會留下來檢查
+  const classes = [...new Set([...css.replace(/\{[^{}]*\}/g, "{}").matchAll(/\.([a-zA-Z_][\w-]*)/g)].map((m) => m[1]))];
+  const deadCss = classes.filter((c) => !used(c, both) && !prefixes.some((p) => c.startsWith(p)));
+  // 最外層的函式和變數（樣板字串裡的 Apps Script 程式碼不算），只出現一次就是沒人用
+  const spans = require("./esc-check.js")
+    .templates(js)
+    .map((t) => [t.start, t.end]);
+  const names = [
+    ...js.matchAll(/^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)|^(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/gm),
+  ]
+    .filter((m) => !spans.some(([a, b]) => m.index > a && m.index < b))
+    .map((m) => m[1] || m[2]);
+  const refs = (n) =>
+    [...js.matchAll(new RegExp(`(?<![\\w$])${n.replace(/\$/g, "\\$")}(?![\\w$])`, "g"))].filter(
+      (m) => !(js[m.index - 1] === "." && js[m.index - 2] !== "."), // obj.name 是別的東西的屬性，...name 才算用到
+    ).length;
+  const deadJs = names.filter((n) => refs(n) < 2 && !used(n, htmlSrc));
+  if (deadCss.length) fail(`style.css 有沒在用的樣式，刪掉吧：.${deadCss.join("、.")}`);
+  if (deadJs.length) fail(`app.js 有宣告了卻沒人用的函式／變數，刪掉吧：${deadJs.join("、")}`);
+  if (!deadCss.length && !deadJs.length)
+    ok(`沒有沒在用的樣式和函式（${classes.length} 個樣式、${names.length} 個函式／變數）`);
+}
+
 console.log(bad ? `\n共 ${bad} 項沒過` : "\n全部通過");
 process.exit(bad ? 1 : 0);

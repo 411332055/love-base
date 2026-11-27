@@ -86,7 +86,8 @@ XP 是兩個人共用的一個總分，所有加分都要兩個人一起達成�
 | `manifest.webmanifest`、`icon-*.png`、`apple-touch-icon.png` | 加到手機主畫面用的設定和圖示 |
 | `questions.json` | 每個月的抽題題庫 |
 | `firestore.rules` | Firebase 資料庫的安全規則 |
-| `tools/check.js` | 自動檢查：語法、題庫、版本號、排版、沒有寫死暗號 |
+| `tools/check.js` | 自動檢查：語法、題庫、版本號、排版、暗號沒寫進 repo、使用者的字有先處理、沒有用不到的程式 |
+| `tools/esc-check.js` | 給 `check.js` 用：找出使用者的字沒先 `esc()` 就放進網頁的地方 |
 | `tools/test/` | 自動手機測試：用假的資料庫在模擬手機上把網站跑一遍 |
 | `tools/remind.mjs` | 每天晚上的紀念日提醒和每月的照片空間檢查 |
 | `.github/workflows/` | 讓 GitHub 自動跑上面三個工具 |

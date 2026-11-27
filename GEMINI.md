@@ -48,7 +48,7 @@
 
 1. 開始前先 `git pull`（另一個 AI 助手 Claude 也會推送），推送前再 pull 一次。
 2. **改了 `index.html`、`style.css`、`app.js`、`manifest.webmanifest` 或圖示時，版本號要加 1**：`sw.js` 第 2 行的 `CACHE`（例如 `love-base-v7` → `love-base-v8`），以及 `index.html`、`manifest.webmanifest` 裡所有 `?v=7` 的數字，全部保持一樣。不然手機可能一直顯示舊版。
-3. 推送後 GitHub 會自動檢查（語法、題庫、版本號、排版），並用假資料庫在模擬手機上把網站跑一遍（`tools/test/browser-test.mjs`）。到 GitHub 上看那筆提交，出現紅色叉叉就要馬上修好。新功能可以順便在 `browser-test.mjs` 加一項測試。
+3. 推送後 GitHub 會自動檢查（語法、題庫、版本號、排版、暗號沒寫進 repo、使用者的字有先 `esc()`、沒有用不到的樣式和函式；細節見 HANDOFF.md「每次推送」），並用假資料庫在模擬手機上把網站跑一遍（`tools/test/browser-test.mjs`）。推送前先跑 `node tools/check.js`。到 GitHub 上看那筆提交，出現紅色叉叉就要馬上修好。新功能可以順便在 `browser-test.mjs` 加一項測試。
 4. 要用到新的集合或改規則時，先跟使用者說清楚：除了改 `firestore.rules`，**還要他自己到 Firebase 主控台的 Firestore「規則」頁貼上並發布**。能用 `done` + `x~種類~id` 解決就不要改規則。
 5. 改完跟使用者說：改了什麼、要怎麼測、有沒有需要他到 Firebase 或 Apps Script 做什麼。
 

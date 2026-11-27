@@ -135,7 +135,10 @@
 
 ### 每次推送：`.github/workflows/check.yml`
 
-- `tools/check.js`：`app.js` 語法、`questions.json` 格式和題數、版本號一致、排版、沒有寫死暗號、`index.html` 的 id 沒有重複。
+- `tools/check.js`：`app.js` 語法、`questions.json` 格式和題數、版本號一致、排版、`index.html` 的 id 沒有重複，還有下面三項把關：
+  - **暗號不能進 repo**：掃 repo 裡每個檔案，像真暗號（8～64 個英數、- 或 _）又不是 `test-` 開頭的寫法就擋（`love-base-room`、`ROOM`、`rooms/…/`、Apps Script 的 `ROOM_CODE`、工作流程裡寫死、印到紀錄裡）。在 GitHub 上跑時還會拿 Secret `ROOM_CODE` 的真暗號逐檔比對，只列檔名。測試請用 `test-` 開頭的假暗號。
+  - **使用者的字要先 `esc()`**（`tools/esc-check.js`）：會變成 HTML 的樣板字串裡，`x.cap`、`x.say`、`x.text`、`x.by`… 沒包在 `esc()`／`escLink()`／`byChip()` 裡就擋；只拿來判斷的（`x.cap ? …`、`x.by === me`）不算。確定安全但被誤判：那一行加 `// esc-ok: 原因`。`nameOf()` 不會 esc，要自己包。
+  - **沒在用的樣式和函式**：`style.css` 的 class 在 `app.js`／`index.html` 找不到、`app.js` 最外層的函式／變數只出現一次就擋。程式組出來的 class（`"d-" + x`、`` `d-${x}` ``）會自動認前綴。被擋時通常是真的該刪；如果是新寫法組 class，用上面那種「前綴-」寫法就認得到。
 - `tools/test/browser-test.mjs`：用 `tools/test/fake-firebase.js`（假的 Firestore，資料只在記憶體）在模擬手機上跑網站：11 頁在深色 390px、淺色 390px、淺色 360px 都不能有程式錯誤或左右超出；寫日記、許願並完成、約定日期、刪除復原、月曆今天的格子、幸福指數曲線、下載一個月的照片壓縮檔；開場動畫一天一次、用 #today 打開不亂跳、對方新東西提醒、今天的照片切換不重畫、寫完日記的回饋、左右滑換頁跟手。暗號用 `test-only-123`，不會碰到真的資料。
 - 同一套測試跑兩次：Chromium（`browser-test`，跟 Android Chrome 一樣）和 WebKit（`browser-test-iphone`，跟 iPhone Safari 一樣，`BROWSER=webkit`）。WebKit 不能模擬觸控，左右滑那項會自動略過。
 - GitHub 上那筆提交出現紅色叉叉就是沒過，點進去看是哪一項。

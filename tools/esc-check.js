@@ -91,7 +91,7 @@ function templates(src) {
       i++;
     }
     quasis.push(cur);
-    out.push({ start, quasis, exprs });
+    out.push({ start, end: i, quasis, exprs });
   }
   while (i < n) {
     const c = src[i];
