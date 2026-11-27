@@ -123,5 +123,16 @@ const dupIds = [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))];
 if (dupIds.length) fail(`index.html 有重複的 id：${dupIds.join("、")}`);
 else ok("index.html 的 id 沒有重複");
 
+// 8. 使用者打的字放進網頁前要先 esc()（細節和放行方式寫在 tools/esc-check.js 開頭）
+{
+  const { hits, count } = require("./esc-check.js").escCheck(fs.readFileSync("app.js", "utf8"));
+  if (hits.length)
+    fail(
+      "app.js 有使用者的字沒先用 esc() 處理就放進網頁（確定安全的話在那行加「// esc-ok: 原因」）：\n   " +
+        hits.join("\n   "),
+    );
+  else ok(`使用者的字放進網頁前都有先處理（檢查了 ${count} 段 HTML）`);
+}
+
 console.log(bad ? `\n共 ${bad} 項沒過` : "\n全部通過");
 process.exit(bad ? 1 : 0);

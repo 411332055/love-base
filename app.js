@@ -3382,8 +3382,8 @@ function renderCalendar() {
     h +=
       `<button type="button" data-d="${k}" class="${marks.length ? "has" : ""} ${isToday ? "today" : ""}` +
       `${both ? " both" : ""}${half ? " half" : ""}${sp ? " special" : ""}" aria-pressed="${k === calDay}"` +
-      ` aria-label="${isToday ? "今天，" : ""}${m} 月 ${d} 日${halfText}${sp ? "，" + sp.text : ""}` +
-      `${marks.length ? "，有" + marks.map((x) => x[2]).join("、") : ""}" ${sp ? `title="${sp.text}"` : ""}` +
+      ` aria-label="${isToday ? "今天，" : ""}${m} 月 ${d} 日${halfText}${sp ? "，" + esc(sp.text) : ""}` +
+      `${marks.length ? "，有" + marks.map((x) => x[2]).join("、") : ""}" ${sp ? `title="${esc(sp.text)}"` : ""}` +
       ` ${k > tk && !plansOn(k).length ? "disabled" : ""}>` +
       `${sp ? `<span class="cal-sp" aria-hidden="true">${sp.emo}</span>` : ""}${d}` +
       `<span class="dots">${marks.map((x) => `<i class="d-${x[1]}"></i>`).join("")}</span>` +
