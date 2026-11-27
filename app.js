@@ -745,6 +745,91 @@ function phSeen(k) {
   const d = lsJson(PH_SEEN_KEY);
   return d && d.date === k && Array.isArray(d.ids) ? d.ids : [];
 }
+// 照片列：在第一張往右滑（prev）或最後一張往左滑（next）時呼叫 onEdge，用來換看另一個人
+function bindStripEdgeSwipe(strip, onEdge) {
+  let tx = null,
+    ty = 0,
+    tl = 0;
+  strip.addEventListener(
+    "touchstart",
+    (ev) => {
+      tx = ev.touches.length === 1 ? ev.touches[0].clientX : null;
+      ty = tx === null ? 0 : ev.touches[0].clientY;
+      tl = strip.scrollLeft;
+    },
+    { passive: true },
+  );
+  strip.addEventListener(
+    "touchend",
+    (ev) => {
+      if (tx === null) return;
+      const t = ev.changedTouches[0],
+        dx = t.clientX - tx,
+        dy = t.clientY - ty,
+        max = strip.scrollWidth - strip.clientWidth;
+      tx = null;
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      if (dx < 0 && tl >= max - 4) onEdge("next");
+      else if (dx > 0 && tl <= 4) onEdge("prev");
+    },
+    { passive: true },
+  );
+}
+// 照片列下面的小圓點：捲到第幾張就亮第幾顆
+function bindStripDots(strip, dots) {
+  if (!dots.length) return;
+  strip.onscroll = () => {
+    const tile = strip.firstElementChild,
+      step = tile ? tile.offsetWidth + 10 : 1,
+      m = strip.scrollWidth - strip.clientWidth,
+      i = strip.scrollLeft >= m - 4 ? dots.length - 1 : Math.round(strip.scrollLeft / step);
+    dots.forEach((d, j) => d.classList.toggle("on", j === i));
+  };
+}
+// 兩格的切換鈕（粉紅膠囊用 --i 定位）：點一下切換，也可以按住膠囊左右拖，拖過中間就換
+function bindSegDrag(seg, tabs, curIdx, onPick) {
+  let rect = null,
+    idx = 0,
+    dragged = 0;
+  seg.addEventListener(
+    "touchstart",
+    () => {
+      rect = seg.getBoundingClientRect();
+      idx = curIdx();
+    },
+    { passive: true },
+  );
+  seg.addEventListener(
+    "touchmove",
+    (ev) => {
+      const t = ev.touches[0];
+      if (!t || !rect) return;
+      ev.preventDefault();
+      const w = (rect.width - 6) / 2,
+        pos = Math.max(0, Math.min(1, (t.clientX - rect.left - 3 - w / 2) / w)),
+        i = Math.round(pos);
+      seg.classList.add("dragging");
+      if (i !== idx) {
+        idx = i;
+        onPick(i);
+      }
+      seg.style.setProperty("--i", pos.toFixed(3)); // onPick 會把膠囊放到整數位置，拖曳中再放回手指的位置
+    },
+    { passive: false },
+  );
+  const end = () => {
+    if (!rect) return;
+    rect = null;
+    if (!seg.classList.contains("dragging")) return;
+    seg.classList.remove("dragging");
+    dragged = Date.now();
+    seg.style.setProperty("--i", idx);
+  };
+  seg.addEventListener("touchend", end, { passive: true });
+  seg.addEventListener("touchcancel", end, { passive: true });
+  // 拖完放開那一下不要再被當成點擊
+  tabs.forEach((b, i) => (b.onclick = () => Date.now() - dragged >= 500 && onPick(i)));
+}
 function renderTodayPhotos() {
   const t = today(),
     k = key(t),
@@ -845,93 +930,20 @@ function renderTodayPhotos() {
     show(who, from);
   };
   box.querySelectorAll(".ph-big").forEach((strip) => {
-    const pane = strip.dataset.pane,
-      dots = box.querySelectorAll(`.ph-dots[data-pane="${pane}"] i`);
-    // 在照片上左右滑：滑到這個人的最後一張再往前滑，就換看另一個人（只有一張時直接換）
-    let tx = null,
-      ty = 0,
-      tl = 0;
-    strip.addEventListener(
-      "touchstart",
-      (ev) => {
-        tx = ev.touches.length === 1 ? ev.touches[0].clientX : null;
-        ty = tx === null ? 0 : ev.touches[0].clientY;
-        tl = strip.scrollLeft;
-      },
-      { passive: true },
-    );
-    strip.addEventListener(
-      "touchend",
-      (ev) => {
-        if (tx === null) return;
-        const t = ev.changedTouches[0],
-          dx = t.clientX - tx,
-          dy = t.clientY - ty,
-          max = strip.scrollWidth - strip.clientWidth;
-        tx = null;
-        if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5 || capEditing || up) return;
-        if (dx < 0 && pane === "other" && tl >= max - 4) go("mine", "start");
-        else if (dx > 0 && pane === "mine" && tl <= 4) go("other", "end");
-      },
-      { passive: true },
-    );
-    if (dots.length)
-      strip.onscroll = () => {
-        const tile = strip.firstElementChild,
-          step = tile ? tile.offsetWidth + 10 : 1,
-          m = strip.scrollWidth - strip.clientWidth,
-          i = strip.scrollLeft >= m - 4 ? dots.length - 1 : Math.round(strip.scrollLeft / step);
-        dots.forEach((d, j) => d.classList.toggle("on", j === i));
-      };
+    const pane = strip.dataset.pane;
+    // 滑到這個人的最後一張再往前滑，就換看另一個人（只有一張時直接換）
+    bindStripEdgeSwipe(strip, (dir) => {
+      if (capEditing || up) return;
+      if (dir === "next" && pane === "other") go("mine", "start");
+      else if (dir === "prev" && pane === "mine") go("other", "end");
+    });
+    bindStripDots(strip, box.querySelectorAll(`.ph-dots[data-pane="${pane}"] i`));
   });
-  // 「對方｜我」切換鈕：點一下切換，也可以按住粉紅膠囊左右拖
-  let segRect = null,
-    segIdx = 0,
-    segDragged = 0;
-  seg.addEventListener(
-    "touchstart",
-    () => {
-      segRect = seg.getBoundingClientRect();
-      segIdx = phWho === "mine" ? 1 : 0;
-    },
-    { passive: true },
-  );
-  seg.addEventListener(
-    "touchmove",
-    (ev) => {
-      const t = ev.touches[0];
-      if (!t || !segRect) return;
-      ev.preventDefault();
-      const w = (segRect.width - 6) / 2,
-        pos = Math.max(0, Math.min(1, (t.clientX - segRect.left - 3 - w / 2) / w)),
-        idx = Math.round(pos);
-      seg.classList.add("dragging");
-      seg.style.setProperty("--i", pos.toFixed(3));
-      // 拖過中間就直接換照片，不用等放開
-      if (idx !== segIdx) {
-        segIdx = idx;
-        go(idx ? "mine" : "other");
-        seg.style.setProperty("--i", pos.toFixed(3));
-      }
-    },
-    { passive: false },
-  );
-  const segEnd = () => {
-    if (!segRect) return;
-    segRect = null;
-    if (!seg.classList.contains("dragging")) return;
-    seg.classList.remove("dragging");
-    segDragged = Date.now();
-    seg.style.setProperty("--i", segIdx);
-  };
-  seg.addEventListener("touchend", segEnd, { passive: true });
-  seg.addEventListener("touchcancel", segEnd, { passive: true });
-  tabs.forEach(
-    (b) =>
-      (b.onclick = () => {
-        if (Date.now() - segDragged < 500) return;
-        go(b.dataset.who);
-      }),
+  bindSegDrag(
+    seg,
+    tabs,
+    () => (phWho === "mine" ? 1 : 0),
+    (i) => go(i ? "mine" : "other"),
   );
   box.querySelectorAll("[data-capedit]").forEach((b) => {
     const toggle = (ev) => {
@@ -1148,7 +1160,7 @@ document.addEventListener("click", (ev) => {
   }
   const o = ev.target.closest("[data-open]");
   if (o) {
-    const box = o.closest("#wall") || o.closest(".wall-grid,.ph-pair,.ph-big") || o.parentElement;
+    const box = o.closest("#wall") || o.closest(".wall-grid,.ph-big") || o.parentElement;
     openPhoto(
       o.dataset.open,
       [...box.querySelectorAll("[data-open]")].map((x) => x.dataset.open),

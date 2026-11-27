@@ -503,8 +503,6 @@ details.rules ol{margin:10px 0 4px;padding-left:1.4em}
 .gate-box{background:var(--glass-bg);border:.5px solid var(--line);box-shadow:var(--card-shadow);border-radius:26px;padding:26px 24px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:14px}
 .gate-logo{width:76px;height:76px;border-radius:18px;align-self:center;box-shadow:0 8px 20px -4px rgba(232,62,120,.28)}
 .gate-box h2{justify-content:center}
-.ph-pair{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 2px 4px;margin:-2px -2px -4px}
-.ph-pair::-webkit-scrollbar{display:none}
 /* 今天的照片：一次看一個人，左上角切換「對方／我」（兩邊都先畫好，用 data-showing 切換），照片是可以左右滑的大圖 */
 .ph-stage{position:relative}
 #todayPhotos[data-showing=mine] [data-pane=other],#todayPhotos[data-showing=other] [data-pane=mine]{display:none}
