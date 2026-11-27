@@ -84,11 +84,38 @@ try {
   fail("app.js 排版跟 .prettierrc 不一致，請執行 npx prettier --write app.js");
 }
 
-// 6. 不能把暗號寫進公開的 repo：檢查程式裡有沒有寫死 love-base-room 的值
+// 6. 不能把暗號寫進公開的 repo（任何人都看得到，刪掉也還留在歷史紀錄裡）
 const htmlSrc = fs.readFileSync("index.html", "utf8");
-const src = fs.readFileSync("app.js", "utf8") + htmlSrc;
-if (/localStorage\.setItem\(\s*["']love-base-room["']\s*,\s*["'][^"']+["']/.test(src)) fail("程式裡寫死了暗號");
-else ok("沒有寫死暗號");
+const repoTexts = execSync("git ls-files", { stdio: "pipe" })
+  .toString()
+  .split("\n")
+  .filter((f) => f && !/\.(png|jpe?g|gif|ico|webp)$/i.test(f) && fs.existsSync(f))
+  .map((f) => [f, fs.readFileSync(f, "utf8")]);
+{
+  const leaks = [];
+  // (a) 在 GitHub 上跑時拿 Secret 裡真的暗號，逐一比對每個檔案（只列檔名，絕對不印暗號）
+  const real = process.env.ROOM_CODE || "";
+  if (real.length >= 8) for (const [f, t] of repoTexts) if (t.includes(real)) leaks.push(`${f}（出現真的暗號）`);
+  // (b) 常見的寫法：長得像暗號（網站規定 8～64 個英數、- 或 _）又不是 test- 開頭的假暗號就算外洩；
+  //     「暗號」「把這裡換成…」「__ROOM_CODE__」這種佔位文字不算
+  const okRoom = (v) => /^test-/.test(v) || !/^[\w-]{8,64}$/.test(v) || v === "__ROOM_CODE__";
+  const rules = [
+    [/localStorage\.setItem\(\s*["'`]love-base-room["'`]\s*,\s*["'`]([^"'`]+)["'`]/g, okRoom, "把 love-base-room 設成"],
+    [/\bROOM\s*=\s*["'`]([^"'`]+)["'`]/g, okRoom, "ROOM 設成"],
+    [/["'`]rooms\/([^/"'`$\s{}]+)\//g, okRoom, "資料庫路徑 rooms/"],
+    [/\bROOM_CODE\s*=\s*["'`]([^"'`]*)["'`]/g, okRoom, "ROOM_CODE 填了"],
+    [/\bROOM_CODE\s*:\s*(?!\$\{\{)(\S+)/g, () => false, "工作流程裡 ROOM_CODE 直接寫了值"],
+    [/console\.(?:log|warn|error|info)\([^)\n]*\bROOM\b(?!_)/g, () => false, "把暗號印到紀錄裡"],
+  ];
+  for (const [f, t] of repoTexts) {
+    if (f === "tools/check.js") continue; // 這個檔案本身寫著這些規則
+    for (const [re, allow, what] of rules)
+      for (const m of t.matchAll(re))
+        if (!allow(m[1] || "")) leaks.push(`${f} 第 ${t.slice(0, m.index).split("\n").length} 行：${what}`);
+  }
+  if (leaks.length) fail("可能把暗號寫進 repo 了（測試請用 test- 開頭的假暗號）：\n   " + leaks.join("\n   "));
+  else ok(`沒有把暗號寫進 repo（掃了 ${repoTexts.length} 個檔案${real.length >= 8 ? "，也比對過真的暗號" : ""}）`);
+}
 
 // 7. index.html 沒有重複的 id
 const ids = [...htmlSrc.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
