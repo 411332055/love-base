@@ -1,4 +1,7 @@
-// 每天晚上由 GitHub Actions 執行：明天是紀念日、生日或七夕的話，推播給兩個人的所有裝置。
+// 每天台灣時間 00:00 由 GitHub Actions 執行（GitHub 排程常會晚幾分鐘到半小時）：
+//   今天是紀念日、生日或七夕、今天約好的願望、到期的時光膠囊 → 推播給兩個人；
+//   今天輪到誰抽題、還沒抽 → 只推播給輪到的那個人；每月 1 號再檢查一次照片空間。
+// 前一天打開網站時，網站自己會先提醒「明天是…」（那則用 x~remind~日期），這裡用另外的 id，兩則都會收到。
 // 暗號從 GitHub Secret「ROOM_CODE」讀取，絕對不能寫進這個檔案或印到紀錄裡。
 // 規則要跟 app.js 的 specialOf() 一樣；LOVE_START、MILE_DAYS 直接從 app.js 讀，避免兩邊不同步。
 import fs from "node:fs";
@@ -51,11 +54,10 @@ async function loadDone() {
   return out;
 }
 
-// 台灣時間的「明天」
-function tomorrowTW() {
+// 台灣時間的「今天」（排程晚到也沒關係：只要還是同一天，算出來的日期就一樣）
+function todayTWDate() {
   const now = new Date(Date.now() + 8 * 3600e3);
-  const t = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
-  return t;
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 const keyOf = (d) => d.toISOString().slice(0, 10);
 
@@ -200,53 +202,70 @@ if (dueCaps.length && canPush) {
   }
 }
 
-const tmr = tomorrowTW(),
-  tk = keyOf(tmr),
-  sp = specialOf(tmr, birthdays);
+const td = todayTWDate(),
+  tk = keyOf(td),
+  md = `${td.getUTCMonth() + 1}/${td.getUTCDate()}`,
+  sp = specialOf(td, birthdays);
 
-// 願望約定日期：明天有約好、還沒完成的願望就推播（id 跟網站共用 x~remind~plan-日期，不會重複發）
+// 願望約定日期：今天有約好、還沒完成的願望（網站前一天提醒「明天」用 plan-日期，這裡用 planday-日期）
 const plans = Object.entries(done)
   .filter(([id, v]) => id.startsWith("x~wishes~") && !v.trashed && !v.done && v.plan === tk)
   .map(([, v]) => String(v.text || "").slice(0, 20));
-if (plans.length && canPush && !done["x~remind~plan-" + tk]) {
+if (plans.length && canPush && !done["x~remind~planday-" + tk]) {
   const sent = await pushAll(
     cfg,
     subs,
     JSON.stringify({
-      title: "📅 明天約好了！",
-      body: `明天（${tmr.getUTCMonth() + 1}/${tmr.getUTCDate()}）約好要${plans.map((t) => `「${t}」`).join("、")}`,
+      title: "📅 今天約好了！",
+      body: `今天（${md}）約好要${plans.map((t) => `「${t}」`).join("、")}，完成後記得打勾`,
       url: "./#wishes",
-      tag: "plan-" + tk,
+      tag: "planday-" + tk,
     }),
   );
-  console.log(`明天（${tk}）有 ${plans.length} 個約好的願望，推播送出 ${sent} / ${subs.length} 台。`);
-  if (sent) await markSent("x~remind~plan-" + tk, tk);
+  console.log(`今天（${tk}）有 ${plans.length} 個約好的願望，推播送出 ${sent} / ${subs.length} 台。`);
+  if (sent) await markSent("x~remind~planday-" + tk, tk);
 }
 
-if (!sp) {
-  console.log(`明天（${tk}）不是特別的日子。`);
-  process.exit(0);
-}
-if (done["x~remind~" + tk]) {
-  console.log(`明天（${tk}）的提醒已經發過了。`);
-  process.exit(0);
-}
-if (!canPush) {
-  console.log("還沒有裝置開啟推播，略過。");
-  process.exit(0);
-}
-
-const m = tmr.getUTCMonth() + 1,
-  d = tmr.getUTCDate();
-const sent = await pushAll(
-  cfg,
-  subs,
-  JSON.stringify({
-    title: `${sp.emo} 明天是${sp.text}`,
-    body: `${sp.emo} 明天（${m}/${d}）是${sp.text}，記得準備一下喔`,
-    url: "./#calendar",
-    tag: "remind-" + tk,
-  }),
+// 抽題：今天輪到的人（跟網站 turnOf() 一樣，寒冰、夏夏隔天輪）還沒抽，就只推播給他
+const turn = NAMES[Math.floor(td.getTime() / 864e5) % 2];
+const dayOfTW = (iso) => (iso ? new Date(new Date(iso).getTime() + 8 * 3600e3).toISOString().slice(0, 10) : "");
+const drawn = Object.entries(done).some(
+  ([id, v]) => id.startsWith("x~rounds~") && !v.trashed && (v.day || dayOfTW(v.at)) === tk,
 );
-console.log(`明天（${tk}）是${sp.text}，推播送出 ${sent} / ${subs.length} 台。`);
-if (sent) await markSent("x~remind~" + tk, tk);
+const turnSubs = subs.filter((s) => s.by === turn);
+if (drawn) console.log(`今天（${tk}）已經抽過題了。`);
+else if (done["x~remind~draw-" + tk]) console.log(`今天（${tk}）的抽題提醒已經發過了。`);
+else if (!cfg || !turnSubs.length) console.log(`今天輪到${turn}抽題，但他的裝置沒有開推播，略過。`);
+else {
+  const sent = await pushAll(
+    cfg,
+    turnSubs,
+    JSON.stringify({
+      title: "🎲 今天輪到你抽題囉",
+      body: "新的一天開始了！抽一題今天的題目，兩個人都答完就會揭曉",
+      url: "./#draw",
+      tag: "draw-" + tk,
+    }),
+  );
+  console.log(`今天輪到${turn}抽題，推播送出 ${sent} / ${turnSubs.length} 台。`);
+  if (sent) await markSent("x~remind~draw-" + tk, tk);
+}
+
+// 紀念日、生日、七夕：今天就是那天（網站前一天的「明天是…」用 x~remind~日期，這裡用 day-日期）
+if (!sp) console.log(`今天（${tk}）不是特別的日子。`);
+else if (done["x~remind~day-" + tk]) console.log(`今天（${tk}）的紀念日推播已經發過了。`);
+else if (!canPush) console.log("還沒有裝置開啟推播，略過。");
+else {
+  const sent = await pushAll(
+    cfg,
+    subs,
+    JSON.stringify({
+      title: `${sp.emo} 今天是${sp.text}！`,
+      body: `${sp.emo} 今天（${md}）是${sp.text}，一起好好過這一天 💕`,
+      url: "./#calendar",
+      tag: "day-" + tk,
+    }),
+  );
+  console.log(`今天（${tk}）是${sp.text}，推播送出 ${sent} / ${subs.length} 台。`);
+  if (sent) await markSent("x~remind~day-" + tk, tk);
+}
