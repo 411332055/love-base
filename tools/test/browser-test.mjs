@@ -7,6 +7,7 @@ import { createServer } from "node:http";
 import { readFileSync, existsSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const FAKE = readFileSync(join(ROOT, "tools/test/fake-firebase.js"), "utf8");
@@ -593,6 +594,78 @@ for (const [theme, width] of [
       : fail(`螢幕最邊緣滑動誤換頁到了 ${edgeStayed}`);
   }
 
+  if (errors.length) fail("操作過程有程式錯誤：" + errors.join(" | "));
+  await ctx.close();
+}
+
+// 4. 照片原圖存到 Google 雲端（用假的 Google Apps Script，不會碰到真的雲端硬碟）
+{
+  const GAS = "https://script.google.com/macros/s/AKfyTEST/exec",
+    HASH = createHash("sha256").update(ROOM).digest("hex"),
+    drive = {};
+  let down = false;
+  const { ctx, page, errors } = await phone();
+  await ctx.route(/script\.google\.com/, (r) => {
+    const d = JSON.parse(r.request().postData() || "{}");
+    if (down) return r.fulfill({ status: 500, body: "busy" });
+    let out = { ok: false, error: "key" };
+    if (d.k === HASH) {
+      if (d.a === "ping") out = { ok: true };
+      else if (d.a === "put") {
+        const fid = "F" + Object.keys(drive).length;
+        drive[fid] = d;
+        out = { ok: true, fid };
+      } else if (d.a === "get")
+        out = drive[d.fid]
+          ? { ok: true, mime: drive[d.fid].mime, name: drive[d.fid].name, data: drive[d.fid].data }
+          : { ok: false };
+    }
+    r.fulfill({ contentType: "application/json", body: JSON.stringify(out) });
+  });
+  await page.goto(BASE + "#tools");
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => (document.getElementById("origBox").open = true));
+  await page.fill("#origUrlIn", GAS);
+  await page.click("#origSave");
+  await page.waitForTimeout(600);
+  const saved = /連上了/.test(await page.textContent("#origMsg"));
+  // 做一張 2400×1800 的照片當原圖上傳
+  const big = Buffer.from(
+    await page.evaluate(() => {
+      const c = document.createElement("canvas");
+      c.width = 2400;
+      c.height = 1800;
+      const x = c.getContext("2d");
+      for (let i = 0; i < 3000; i++) {
+        x.fillStyle = `hsl(${i % 360},80%,50%)`;
+        x.fillRect((i * 37) % 2400, (i * 91) % 1800, 40, 40);
+      }
+      return c.toDataURL("image/jpeg", 0.97).split(",")[1];
+    }),
+    "base64",
+  );
+  await go(page, "quests");
+  const [fc] = await Promise.all([page.waitForEvent("filechooser"), page.click("#todayPhotos [data-up]:visible")]);
+  await fc.setFiles({ name: "IMG_1.jpg", mimeType: "image/jpeg", buffer: big });
+  for (let t = 0; t < 80 && !Object.keys(drive).length; t++) await page.waitForTimeout(100); // 等原圖在背景傳完
+  const same = Object.values(drive).some((d) => Buffer.from(d.data, "base64").equals(big));
+  await page.click('.ph-big[data-pane="mine"] [data-open]');
+  await page.waitForTimeout(500);
+  const [dl] = await Promise.all([
+    page.waitForEvent("download", { timeout: 8000 }).catch(() => null),
+    page.click("#lbSave"),
+  ]);
+  const gotOrig = !!dl && readFileSync(await dl.path()).equals(big);
+  // Google 那邊掛掉時，下載改用網站上壓小的版本
+  down = true;
+  const [dl2] = await Promise.all([
+    page.waitForEvent("download", { timeout: 8000 }).catch(() => null),
+    page.click("#lbSave"),
+  ]);
+  const fallback = !!dl2 && readFileSync(await dl2.path()).length < big.length;
+  saved && same && gotOrig && fallback
+    ? ok("照片原圖：設定、原圖上傳到雲端、下載拿到原圖，雲端掛掉時改用壓小的版本")
+    : fail(`照片原圖不對（設定 ${saved}，上傳一樣 ${same}，下載原圖 ${gotOrig}，備援 ${fallback}）`);
   if (errors.length) fail("操作過程有程式錯誤：" + errors.join(" | "));
   await ctx.close();
 }

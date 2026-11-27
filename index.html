@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
-<link rel="manifest" href="manifest.webmanifest?v=172">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=172">
+<link rel="manifest" href="manifest.webmanifest?v=173">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=173">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap"></noscript>
-<link rel="stylesheet" href="style.css?v=172">
+<link rel="stylesheet" href="style.css?v=173">
 </head>
 <body>
 
@@ -372,6 +372,23 @@ if(location.hash.length>1)document.documentElement.classList.add("no-anchor");
         <p class="sub" id="picMsg"></p>
       </div>
     </details>
+    <details class="rules" id="origBox">
+      <summary>📷 照片原圖<span id="origN"></span></summary>
+      <div class="custom">
+        <p class="sub">網站上的照片會壓小，畫面才跑得快，但下載下來會比較糊。設定好之後，每張新照片的原圖也會另外存到你的 Google 雲端硬碟「戀愛基地原圖」資料夾（免費 15 GB），下載、長按存照片、打包一個月的照片時拿到的就是原圖。只要一個人設定，兩個人傳的照片都會存進去。</p>
+        <p class="sub" id="origState"></p>
+        <ol class="sub">
+          <li>用電腦打開 <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>。設定過「每月自動備份」就打開那個專案；沒有的話點左上角「新專案」。</li>
+          <li>把原本的程式碼全選刪掉，按下面「📋 複製程式碼」貼上，按儲存（會自動帶入暗號，請勿分享這個專案）。</li>
+          <li>右上角「部署」→「新增部署作業」→ 左邊齒輪選「網頁應用程式」→ 執行身分選「我」、誰可以存取選「<b>所有人</b>」→ 部署。第一次會要你允許存取 Google 雲端硬碟，按允許。</li>
+          <li>複製「網頁應用程式」的網址（https://script.google.com/macros/s/…/exec），貼到下面，按「測試並儲存」。</li>
+        </ol>
+        <div class="row"><button class="btn ghost small" type="button" id="origCopy">📋 複製程式碼</button></div>
+        <div class="row"><input id="origUrlIn" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" aria-label="網頁應用程式網址"><button class="btn" type="button" id="origSave">測試並儲存</button></div>
+        <p class="sub" id="origMsg"></p>
+        <p class="sub">以後網站說要更新程式碼時：貼上新程式碼 → 部署 →「管理部署作業」→ 鉛筆 → 版本選「新版本」→ 部署（網址不會變）。設定之前傳的照片沒有原圖，原圖在上傳的人自己的手機相簿裡。</p>
+      </div>
+    </details>
     <details class="rules" id="trash">
       <summary>🗑️ 垃圾桶<span id="trashN">0 項</span></summary>
       <div class="custom">
@@ -422,7 +439,7 @@ if(location.hash.length>1)document.documentElement.classList.add("no-anchor");
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=172" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=173" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -448,6 +465,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=172"></script>
+<script src="app.js?v=173"></script>
 </body>
 </html>

@@ -74,6 +74,7 @@ const store = {
   wrote: [],
   push: [],
   remind: [],
+  orig: [], // 照片原圖設定（cfg：Google Apps Script 網址）
 };
 // 刪除時在原本的資料上標記 trashed，30 天後才真的清掉
 const trash = { diary: [], photos: [], wishes: [], capsules: [], custom: [] };
@@ -1178,6 +1179,7 @@ async function savePhoto(file, date, opt = {}) {
   // 照片已經在畫面上了，不等伺服器回覆；呼叫的地方用 _commit 在背景確認有沒有存到
   item._writeP = writeP;
   item._commit = commit(writeP, 5000);
+  origEnqueue(id, file);
   return item;
 }
 // 背景確認一批照片有沒有存到：沒存成功的從畫面拿掉並提示，存在手機還沒上傳的提醒一下
@@ -1706,6 +1708,15 @@ function lbFile() {
 async function photoFile(id) {
   const p = calAllPhotos().find((x) => x.id === id);
   if (!p) return null;
+  // 有存原圖就拿原圖（Google 雲端），拿不到再用網站上壓小的版本
+  if (p.orig && origUrl()) {
+    toast("下載原圖中…", 2500);
+    const o = await origFetch(p);
+    if (o) {
+      const name = `love-base-${p.date}-${p.by}.${o.ext}`;
+      return { p, blob: o.blob, name, file: new File([o.blob], name, { type: o.blob.type }), orig: true };
+    }
+  }
   let src = lbId === id ? lbFull : "";
   if (!src && db) {
     const img = await fetchPicImg(p.id).catch(() => "");
@@ -3873,7 +3884,21 @@ $("zipGo").onclick = async () => {
         const files = [],
           seq = {};
         let miss = 0;
+        let origN = 0;
         for (const p of list) {
+          const o = await origFetch(p);
+          if (o) {
+            const k = p.date + "_" + (p.by || "照片");
+            seq[k] = (seq[k] || 0) + 1;
+            files.push({
+              name: `${k}_${seq[k]}.${o.ext}`,
+              date: p.date,
+              data: new Uint8Array(await o.blob.arrayBuffer()),
+            });
+            origN++;
+            zipMsg(`打包中… ${files.length} / ${list.length}（原圖 ${origN} 張）`);
+            continue;
+          }
           let img = picCache.get(p.id);
           if (!img) {
             const doc = await db.collection("pics").doc(p.id).get();
@@ -3893,7 +3918,12 @@ $("zipGo").onclick = async () => {
         const blob = makeZip(files);
         downloadBlob(`戀愛基地照片_${m}.zip`, blob);
         zipMsg(
-          `下載好了：${files.length} 張，約 ${(blob.size / 1048576).toFixed(1)} MB。` +
+          `下載好了：${files.length} 張，約 ${(blob.size / 1048576).toFixed(1)} MB` +
+            (!origUrl() || !origN
+              ? "。"
+              : origN === files.length
+                ? "，全部都是原圖。"
+                : `，其中 ${origN} 張是原圖（其他是還沒設定原圖前傳的，只有壓小的版本）。`) +
             (miss ? `有 ${miss} 張讀不到原圖。` : "") +
             "解壓縮後就是一張張的照片，可以直接傳到 Google 相簿或雲端。",
         );
@@ -4441,6 +4471,7 @@ function renderToday() {
   renderCapNudge();
   renderBackupNudge();
   renderPicNudge();
+  renderOrigState();
   renderAway();
   renderHug();
   renderTodo();
@@ -5816,10 +5847,13 @@ function renderPicNudge() {
 }
 
 // Google 雲端每月自動備份程式碼（貼到個人 Google Apps Script 使用）
-const GAS_BACKUP_CODE = `// 我們的戀愛遊戲基地 — Google 雲端每月自動備份小幫手
+const GAS_BACKUP_CODE = `// 我們的戀愛遊戲基地 — Google 雲端小幫手（每月自動備份＋存照片原圖）
 // 1. 確認下方 ROOM_CODE 是你們的基地暗號（請勿分享此專案給別人）
-// 2. 在上方函式選單選擇「setupMonthlyTrigger」並按「執行」授權即可完成
+// 2. 每月自動備份：在上方函式選單選擇「setupMonthlyTrigger」並按「執行」授權
+// 3. 存照片原圖：右上角「部署」→「新增部署作業」→ 類型選「網頁應用程式」，
+//    執行身分選「我」、誰可以存取選「所有人」→ 部署，把網址貼回網站的「設定 → 照片原圖」
 const ROOM_CODE = "__ROOM_CODE__";
+const ORIG_FOLDER = "戀愛基地原圖";
 const FOLDER_NAME = "戀愛基地備份";
 const WARN_MB = 700;
 const PROJECT_ID = "love-base-eec24";
@@ -6116,7 +6150,55 @@ function runMonthlyBackup() {
       (warn ? "\\n\\n⚠️ 提醒：照片空間已超過 " + WARN_MB + " MB，可以準備考慮升級空間或搬移照片囉！" : "");
     MailApp.sendEmail(me, subject, body);
   }
-}`;
+}
+
+// ===== 照片原圖：網站上傳原圖時存進「戀愛基地原圖」資料夾，下載時再拿出來 =====
+// 網站送來的 k 是暗號的 SHA-256，對得上才處理，別人拿到網址也存取不了
+function roomHash_() {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, ROOM_CODE, Utilities.Charset.UTF_8)
+    .map(function (b) {
+      return ("0" + (b & 255).toString(16)).slice(-2);
+    })
+    .join("");
+}
+function origFolder_() {
+  const it = DriveApp.getFoldersByName(ORIG_FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(ORIG_FOLDER);
+}
+function out_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+function inFolder_(file, folder) {
+  const ps = file.getParents();
+  while (ps.hasNext()) if (ps.next().getId() === folder.getId()) return true;
+  return false;
+}
+function doPost(e) {
+  try {
+    const d = JSON.parse(e.postData.contents);
+    if (!d || d.k !== roomHash_()) return out_({ ok: false, error: "key" });
+    const folder = origFolder_();
+    if (d.a === "ping") return out_({ ok: true, folder: folder.getUrl() });
+    if (d.a === "put") {
+      const name = String(d.name || d.id || "photo").replace(/[^0-9A-Za-z._~一-鿿-]/g, "_");
+      const old = folder.getFilesByName(name);
+      while (old.hasNext()) old.next().setTrashed(true);
+      const blob = Utilities.newBlob(Utilities.base64Decode(d.data), d.mime || "image/jpeg", name);
+      const file = folder.createFile(blob);
+      return out_({ ok: true, fid: file.getId(), size: file.getSize() });
+    }
+    if (d.a === "get") {
+      const file = DriveApp.getFileById(String(d.fid));
+      if (!inFolder_(file, folder)) return out_({ ok: false, error: "folder" });
+      const b = file.getBlob();
+      return out_({ ok: true, mime: b.getContentType(), name: file.getName(), data: Utilities.base64Encode(b.getBytes()) });
+    }
+    return out_({ ok: false, error: "action" });
+  } catch (err) {
+    return out_({ ok: false, error: String(err) });
+  }
+}
+`;
 
 if ($("appVer")) {
   const s = document.querySelector('script[src*="app.js?v="]');
@@ -6147,6 +6229,203 @@ if ($("bkAutoCopy")) {
     toast(code ? "已複製（已自動帶入暗號，請勿外傳）📋" : "已複製自動備份程式碼 📋");
   };
 }
+
+/* ===== 照片原圖：另外存到 Google 雲端（用 Google Apps Script 網頁應用程式轉存） =====
+   網站上顯示的還是壓小的照片（快）；原圖在背景上傳，下載／長按存照片／打包一個月時拿原圖。
+   還沒傳完的原圖先放在手機的 IndexedDB，關掉 App 也不會丟，下次打開或連上網路時繼續傳。 */
+const ORIG_MAX = 40 * 1048576; // 超過 40 MB 的照片不傳原圖（Google 那邊一次最多收 50 MB）
+const origUrl = () => store.orig.find((x) => x.id === "cfg")?.url || "";
+let roomHashMemo = ["", ""];
+async function roomHash() {
+  const r = getRoom() || "";
+  if (roomHashMemo[0] !== r) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(r));
+    roomHashMemo = [r, [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("")];
+  }
+  return roomHashMemo[1];
+}
+// 送暗號的 SHA-256（不是暗號本身），Google 那邊對得上才處理
+async function origPost(body, url = origUrl(), ms = 180000) {
+  if (!url) throw new Error("沒有設定原圖網址");
+  const ac = new AbortController(),
+    t = setTimeout(() => ac.abort(), ms);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ k: await roomHash(), ...body }),
+      signal: ac.signal,
+    });
+    const j = await res.json();
+    if (!j || !j.ok) throw new Error((j && j.error) || "失敗");
+    return j;
+  } finally {
+    clearTimeout(t);
+  }
+}
+function blobToB64(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1] || "");
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+function b64ToBlob(b64, type) {
+  const bin = atob(b64),
+    out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return new Blob([out], { type: type || "image/jpeg" });
+}
+const extOf = (type, name) =>
+  (/\.([a-z0-9]{2,5})$/i.exec(name || "") || [])[1]?.toLowerCase() ||
+  { "image/png": "png", "image/heic": "heic", "image/heif": "heif", "image/webp": "webp" }[type] ||
+  "jpg";
+// 等著上傳的原圖（IndexedDB：love-base-orig / q）
+function origIdb() {
+  return new Promise((res, rej) => {
+    if (!("indexedDB" in window)) return rej(new Error("no idb"));
+    const r = indexedDB.open("love-base-orig", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("q", { keyPath: "id" });
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function origQ(mode, fn) {
+  const d = await origIdb();
+  return new Promise((res, rej) => {
+    const tx = d.transaction("q", mode),
+      req = fn(tx.objectStore("q"));
+    tx.oncomplete = () => {
+      d.close();
+      res(req ? req.result : undefined);
+    };
+    tx.onerror = tx.onabort = () => {
+      d.close();
+      rej(tx.error);
+    };
+  });
+}
+let origPending = 0;
+async function origCount() {
+  try {
+    const all = (await origQ("readonly", (st) => st.getAll())) || [];
+    origPending = all.filter((x) => x.room === getRoom()).length;
+  } catch (e) {
+    origPending = 0;
+  }
+  renderOrigState();
+  return origPending;
+}
+// 上傳照片時呼叫：有設定才把原圖排進佇列
+function origEnqueue(id, file) {
+  if (!origUrl() || !file || !file.size || file.size > ORIG_MAX || !db) return;
+  origQ("readwrite", (st) =>
+    st.put({ id, room: getRoom(), blob: file, name: file.name || "", type: file.type || "image/jpeg", at: Date.now() }),
+  )
+    .then(() => origFlush())
+    .catch(() => {});
+}
+let origBusy = false,
+  origRetry = 0;
+async function origFlush() {
+  if (origBusy || !origUrl() || !db || !navigator.onLine) return origCount();
+  origBusy = true;
+  clearTimeout(origRetry);
+  try {
+    const all = ((await origQ("readonly", (st) => st.getAll())) || [])
+      .filter((x) => x.room === getRoom())
+      .sort((a, b) => a.at - b.at);
+    origPending = all.length;
+    renderOrigState();
+    for (const it of all) {
+      const ext = extOf(it.type, it.name);
+      const j = await origPost({
+        a: "put",
+        id: it.id,
+        name: `${it.id}.${ext}`,
+        mime: it.type,
+        data: await blobToB64(it.blob),
+      });
+      // 照片紀錄加上 orig（雲端檔案 id）；照片已經被刪掉就算了
+      await db
+        .collection("photos")
+        .doc(it.id)
+        .update({ orig: j.fid })
+        .catch(() => {});
+      [photos, calPhotos].forEach((arr) => arr.forEach((p) => p.id === it.id && (p.orig = j.fid)));
+      await origQ("readwrite", (st) => st.delete(it.id));
+      origPending--;
+      renderOrigState();
+    }
+  } catch (e) {
+    // 網路不穩或 Google 那邊忙：一分鐘後再試，App 重新打開或連上網路時也會再試
+    origRetry = setTimeout(origFlush, 60000);
+  } finally {
+    origBusy = false;
+  }
+  return origCount();
+}
+window.addEventListener("online", () => origFlush());
+// 下載原圖：成功回傳 { blob, ext }，失敗回傳 null（呼叫的地方改用壓小的版本）
+async function origFetch(p) {
+  if (!p || !p.orig || !origUrl() || !navigator.onLine) return null;
+  try {
+    const j = await origPost({ a: "get", fid: p.orig });
+    return { blob: b64ToBlob(j.data, j.mime), ext: extOf(j.mime, j.name) };
+  } catch (e) {
+    return null;
+  }
+}
+function renderOrigState() {
+  const el = $("origState");
+  if (!el) return;
+  const url = origUrl();
+  el.textContent = !url
+    ? "還沒設定：照片只有網站上壓小的版本（原圖在上傳的人自己的手機相簿裡）。"
+    : "✅ 已設定：新傳的照片原圖會存到 Google 雲端「戀愛基地原圖」資料夾。" +
+      (origPending ? `還有 ${origPending} 張原圖等著上傳（App 開著、有網路就會自動傳）。` : "");
+  if ($("origN")) $("origN").textContent = url ? (origPending ? `上傳中 ${origPending}` : "已設定") : "";
+  if ($("origUrlIn") && url && !$("origUrlIn").value) $("origUrlIn").value = url;
+}
+if ($("origCopy"))
+  $("origCopy").onclick = async () => {
+    const code = lsGet(ROOM_KEY);
+    await copyText(GAS_BACKUP_CODE.replace("__ROOM_CODE__", code || "把這裡換成你們的基地暗號"));
+    toast(code ? "已複製（已自動帶入暗號，請勿外傳）📋" : "已複製程式碼 📋");
+  };
+if ($("origSave"))
+  $("origSave").onclick = async () => {
+    const url = $("origUrlIn").value.trim(),
+      msg = (t) => ($("origMsg").textContent = t);
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url)) {
+      msg("網址要長得像 https://script.google.com/macros/s/……/exec（部署完「網頁應用程式」那一欄的網址）。");
+      return;
+    }
+    if (!db || !navigator.onLine) {
+      msg("要連上網路才能測試。");
+      return;
+    }
+    $("origSave").disabled = true;
+    msg("測試連線中…（第一次可能要等幾秒）");
+    try {
+      await origPost({ a: "ping" }, url, 30000);
+      const doc = { url, by: myName(), at: nowIso() };
+      await commit(xRef("orig", "cfg").set(doc));
+      store.orig = store.orig.filter((x) => x.id !== "cfg").concat([{ id: "cfg", ...doc }]);
+      msg("連上了 🎉 之後兩個人新傳的照片，原圖都會存到你的 Google 雲端。");
+      renderOrigState();
+      origFlush();
+    } catch (e) {
+      msg(
+        /key/.test(e.message)
+          ? "連上了，但暗號對不上：請重新按「複製程式碼」貼到 Google 那邊，再「管理部署作業」部署新版本。"
+          : "連不上：確認部署時「誰可以存取」選了「所有人」，而且網址是 /exec 結尾。（" + e.message + "）",
+      );
+    } finally {
+      $("origSave").disabled = false;
+    }
+  };
 
 // 照片空間
 let packList = [];
@@ -7501,6 +7780,7 @@ $("logout").onclick = () => {
       syncPhotoBonus();
       syncDiaryMarks();
       syncDrawMarks();
+      origFlush(); // 上次沒傳完的原圖繼續傳
     }
   };
   const upsertById = (arr, item) => {
