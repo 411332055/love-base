@@ -6419,6 +6419,7 @@ function renderOrigState() {
       (origPending ? `還有 ${origPending} 張原圖等著上傳（App 開著、有網路就會自動傳）。` : "");
   if ($("origN")) $("origN").textContent = url ? (origPending ? `上傳中 ${origPending}` : "已設定") : "";
   if ($("origUrlIn") && url && !$("origUrlIn").value) $("origUrlIn").value = url;
+  if ($("origFillRow")) $("origFillRow").hidden = !url;
 }
 if ($("origCopy"))
   $("origCopy").onclick = async () => {
@@ -6458,6 +6459,117 @@ if ($("origSave"))
       $("origSave").disabled = false;
     }
   };
+
+// ===== 補傳以前的原圖：從相簿一次選很多張，跟自己傳過的照片比對長得一不一樣，配對到的就補傳原圖 =====
+// 比對方式：把照片縮成 16×16 灰階再算平均差異（不看檔名和日期，因為上傳日跟拍照日常常不同）
+const SIG = 16;
+function sigOf(src) {
+  const w = src.naturalWidth || src.width,
+    h = src.naturalHeight || src.height;
+  // 每次縮一半、慢慢縮到 64×64 再縮成 16×16：大照片一次縮很小會有雜訊，原圖和縮圖就對不上
+  let cur = src,
+    cw = w,
+    ch = h;
+  const tmp = [];
+  while (cw > 128 || ch > 128) {
+    cw = Math.max(64, Math.round(cw / 2));
+    ch = Math.max(64, Math.round(ch / 2));
+    const c = document.createElement("canvas");
+    c.width = cw;
+    c.height = ch;
+    const x = c.getContext("2d");
+    x.imageSmoothingQuality = "high";
+    x.drawImage(cur, 0, 0, cw, ch);
+    tmp.push(c);
+    cur = c;
+  }
+  const c = document.createElement("canvas");
+  c.width = c.height = SIG;
+  const x = c.getContext("2d");
+  x.imageSmoothingQuality = "high";
+  x.drawImage(cur, 0, 0, SIG, SIG);
+  const d = x.getImageData(0, 0, SIG, SIG).data,
+    g = new Float32Array(SIG * SIG);
+  let sum = 0;
+  for (let i = 0; i < g.length; i++) sum += g[i] = d[i * 4] * 0.299 + d[i * 4 + 1] * 0.587 + d[i * 4 + 2] * 0.114;
+  // 減掉平均亮度：同一張照片壓縮後亮度略有不同也對得上
+  const avg = sum / g.length;
+  for (let i = 0; i < g.length; i++) g[i] -= avg;
+  tmp.concat([c]).forEach((t) => (t.width = t.height = 0));
+  return { g, r: w / h };
+}
+function sigDist(a, b) {
+  if (Math.abs(Math.log(a.r / b.r)) > 0.08) return 999; // 長寬比不同就不是同一張
+  let s = 0;
+  for (let i = 0; i < a.g.length; i++) s += Math.abs(a.g[i] - b.g[i]);
+  return s / a.g.length;
+}
+const SIG_OK = 5; // 平均每格差不到 5（0～255）才算同一張：同一張壓縮前後約差 1～4，連拍、捲動過一點的相似照片約差 6 以上
+if ($("origFill")) {
+  const msg = (t) => ($("origMsg").textContent = t);
+  $("origFill").onclick = () => {
+    if (!origUrl()) return msg("要先設定好上面的網址。");
+    if (!db || !navigator.onLine) return msg("要連上網路才能補傳。");
+    $("origFillFile").value = "";
+    $("origFillFile").click();
+  };
+  $("origFillFile").onchange = async () => {
+    const files = [...($("origFillFile").files || [])];
+    if (!files.length) return;
+    $("origFill").disabled = true;
+    try {
+      msg("讀取你傳過的照片中…");
+      const s = await db.collection("photos").where("by", "==", myName()).get();
+      const mine = s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => !p.trashed && !p.orig && p.th);
+      if (!mine.length) return msg("你傳過的照片都已經有原圖了 👍");
+      const cands = [];
+      for (let i = 0; i < mine.length; i++) {
+        try {
+          cands.push({ p: mine[i], sig: sigOf(await loadSrc(mine[i].th)) });
+        } catch (e) {}
+        if (i % 20 === 19) {
+          msg(`讀取你傳過的照片中… ${i + 1} / ${mine.length}`);
+          await yieldFrame();
+        }
+      }
+      const best = new Map(); // 照片 id → { file, d, d2 }（d2：第二接近的那張）
+      for (let i = 0; i < files.length; i++) {
+        msg(`比對中… ${i + 1} / ${files.length}`);
+        let fs;
+        try {
+          const { im, close } = await loadImg(files[i]);
+          fs = sigOf(im);
+          if (close) close();
+        } catch (e) {
+          continue;
+        }
+        for (const c of cands) {
+          const d = sigDist(fs, c.sig),
+            b = best.get(c.p.id);
+          if (!b) best.set(c.p.id, { file: files[i], d, d2: 999 });
+          else if (d < b.d) best.set(c.p.id, { file: files[i], d, d2: b.d });
+          else if (d < b.d2) b.d2 = d;
+        }
+        await yieldFrame();
+      }
+      // 夠像、而且明顯比第二像的那張更像才算（兩張幾乎一樣的照片分不出來就跳過，不要配錯）
+      for (const [id, b] of best) if (!(b.d < SIG_OK && (b.d2 >= SIG_OK || b.d < b.d2 * 0.7))) best.delete(id);
+      const used = new Set([...best.values()].map((b) => b.file));
+      for (const [id, b] of best) await origEnqueue(id, b.file);
+      const miss = files.length - used.size;
+      msg(
+        best.size
+          ? `配對到 ${best.size} 張 👍 正在背景補傳原圖（App 開著就會繼續傳）。` +
+              (miss ? `另外 ${miss} 張找不到對應的照片（可能不是你傳的，或傳之前有裁切過），已經跳過。` : "")
+          : "選的照片都對不上你傳過的照片。要選「當初上傳的那幾張」，而且是你自己傳的（夏夏的要在她手機上補）。",
+      );
+    } catch (e) {
+      msg("讀取失敗，等一下再試試。");
+    } finally {
+      $("origFill").disabled = false;
+    }
+  };
+}
 
 // 照片空間
 let packList = [];
@@ -7606,6 +7718,7 @@ function renderOpen() {
   if (needRender("tools")) {
     safeRun(renderTrash);
     safeRun(renderPush);
+    safeRun(renderOrigState);
   }
   if (needRender("book")) safeRun(renderBook);
 }
