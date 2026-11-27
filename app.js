@@ -6153,13 +6153,23 @@ function runMonthlyBackup() {
 }
 
 // ===== 照片原圖：網站上傳原圖時存進「戀愛基地原圖」資料夾，下載時再拿出來 =====
-// 網站送來的 k 是暗號的 SHA-256，對得上才處理，別人拿到網址也存取不了
-function roomHash_() {
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, ROOM_CODE, Utilities.Charset.UTF_8)
-    .map(function (b) {
-      return ("0" + (b & 255).toString(16)).slice(-2);
-    })
-    .join("");
+// 網站送來的 k 是暗號的 SHA-256，對得上才處理，別人拿到網址也存取不了。
+// 上面 ROOM_CODE 有填暗號就用它；沒填的話，網站第一次「測試並儲存」時記住那組 k，之後只認它。
+function roomHash_(k) {
+  if (ROOM_CODE && ROOM_CODE.indexOf("把這裡換成") < 0 && ROOM_CODE.indexOf("__ROOM") < 0) {
+    return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, ROOM_CODE, Utilities.Charset.UTF_8)
+      .map(function (b) {
+        return ("0" + (b & 255).toString(16)).slice(-2);
+      })
+      .join("");
+  }
+  const props = PropertiesService.getScriptProperties();
+  let h = props.getProperty("ROOM_HASH");
+  if (!h && /^[0-9a-f]{64}$/.test(String(k || ""))) {
+    props.setProperty("ROOM_HASH", k);
+    h = k;
+  }
+  return h || "";
 }
 function origFolder_() {
   const it = DriveApp.getFoldersByName(ORIG_FOLDER);
@@ -6176,7 +6186,7 @@ function inFolder_(file, folder) {
 function doPost(e) {
   try {
     const d = JSON.parse(e.postData.contents);
-    if (!d || d.k !== roomHash_()) return out_({ ok: false, error: "key" });
+    if (!d || !d.k || d.k !== roomHash_(d.a === "ping" ? d.k : "")) return out_({ ok: false, error: "key" });
     const folder = origFolder_();
     if (d.a === "ping") return out_({ ok: true, folder: folder.getUrl() });
     if (d.a === "put") {
