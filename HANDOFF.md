@@ -98,8 +98,7 @@
 | 換頁與捲動位置 | `setView` 換頁時依前後順序設 `data-dir`（f／b），新頁從右或左滑進來；把舊頁的捲動位置存進 `scrollPos`，`restoreScroll` 切回來時捲回去；`openFor("calendar:日期")` 會捲到那天的日記並閃一下（`#calDetail.flash`） |
 | 開場與打開網站 | `index.html` 開頭的小程式：開場動畫（`#splash`＋`boot-in`）一天只播一次（`love-base-splash` 記日期）；網址有 `#區塊` 時加 `no-anchor`（CSS 把 scroll-margin 拉很大），擋住瀏覽器打開時自己跳到那個區塊，`load` 後或 `openFor` 要捲到中間區塊時拿掉 |
 | 對方新東西提醒 | 今天頁 `#newNudge`（`renderNewNudge`）：對方今天的日記（`NEW_SEEN_KEY`）或照片（`PH_SEEN_KEY`）我還沒看過就提醒；進日記頁（`setView`）或停在日記頁時對方寫新的（`renderDiaryToday`）算看過 |
-| 照片原圖 | 網站上存壓小的版本（`pics`，最長邊 1280）；設定「照片原圖」後（`x~orig~cfg` 存 Apps Script 網址），`savePhoto` 會 `origEnqueue` 把原圖放進 IndexedDB（`love-base-orig`），`origFlush` 在背景 POST 到 Apps Script（`GAS_BACKUP_CODE` 的 `doPost`，用暗號 SHA-256 驗證）存進雲端硬碟「戀愛基地原圖」，成功後照片紀錄加 `orig`（檔案 id）；下載／長按／打包用 `origFetch` 拿原圖，失敗就用壓小的版本 |
-| 補傳以前的原圖 | 「照片原圖」裡的「📥 補傳以前的原圖」：從相簿多選，`sigOf`（逐步縮半到 16×16 灰階、減平均亮度）跟自己傳過、還沒有 `orig` 的照片縮圖比對，`sigDist` 小於 `SIG_OK`（5）且明顯比第二像的更像才配對，配到的用 `origEnqueue` 補傳；Apps Script 沒填暗號時，第一次 ping 會記住暗號的 SHA-256（Script Properties `ROOM_HASH`） |
+| 照片原圖 | 網站上存壓小的版本（`pics`，最長邊 1280）；設定「照片原圖」後（`x~orig~cfg` 存 Apps Script 網址），`savePhoto` 會 `origEnqueue` 把原圖放進 IndexedDB（`love-base-orig`），`origFlush` 在背景 POST 到 Apps Script（`GAS_BACKUP_CODE` 的 `doPost`，用暗號 SHA-256 驗證）存進雲端硬碟「戀愛基地原圖」，成功後照片紀錄加 `orig`（檔案 id）；下載／長按／打包用 `origFetch` 拿原圖，失敗就用壓小的版本；Apps Script 沒填暗號時，第一次 ping 會記住暗號的 SHA-256（Script Properties `ROOM_HASH`），之後只認它 |
 | 寫完日記的回饋 | 送出時記下 `justIn`，新卡片畫出來時（`diaryCard`／`renderDiaryToday`）加 `.just-in` 彈一下、`popFloat` 飄 💌，只播一次；提示訊息看對方今天寫了沒 |
 | 左右滑換頁 | 搜尋「左右滑換分類頁」：頁面跟著手指走（touchmove 非 passive，判斷是左右滑才 preventDefault），放開時超過 22% 寬或滑得快就換頁，不然彈回；兩端沒有下一頁時像橡皮筋；`inHScroll`、`typing`、`.ph-stage` 不換頁，從照片上開始滑要更水平、更長；拿掉拖曳樣式後加 `.settled` 避免進場動畫重播 |
 | 震動回饋 | `haptic`（Android 用 `navigator.vibrate`，iPhone 用 `iosHaptic` 點隱藏的 iOS 18 開關元件）、`HAPTIC_LV`、`dragEndTick`、設定頁的「測試震動」 |

@@ -665,62 +665,6 @@ for (const [theme, width] of [
     page.click("#lbSave"),
   ]);
   const fallback = !!dl2 && readFileSync(await dl2.path()).length < big.length;
-  // 補傳以前的原圖：選一張舊照片的原圖＋一張不相干的，只有配對到的那張會補傳
-  down = false;
-  const before = Object.keys(drive).length;
-  const oldId = Object.keys(await page.evaluate(() => window.__store["rooms/test-only-123/photos"])).find(
-    (k) => k.includes("寒冰") && !k.startsWith(keyOf(new Date())),
-  );
-  const pair = await page.evaluate(async (id) => {
-    const mk = (hue) => {
-      const c = document.createElement("canvas");
-      c.width = 2000;
-      c.height = 1500;
-      const x = c.getContext("2d");
-      const g = x.createLinearGradient(0, 0, 2000, 1500);
-      g.addColorStop(0, `hsl(${hue},70%,40%)`);
-      g.addColorStop(1, `hsl(${hue + 150},60%,70%)`);
-      x.fillStyle = g;
-      x.fillRect(0, 0, 2000, 1500);
-      for (let i = 0; i < 9; i++) {
-        x.fillStyle = `hsl(${hue + i * 40},80%,${30 + i * 5}%)`;
-        x.beginPath();
-        x.arc((i * 211 + hue) % 2000, (i * 137 + hue) % 1500, 120 + i * 20, 0, 7);
-        x.fill();
-      }
-      return c;
-    };
-    const a = mk(20),
-      t = document.createElement("canvas");
-    t.width = 420;
-    t.height = 315;
-    t.getContext("2d").drawImage(a, 0, 0, 420, 315);
-    window.__store["rooms/test-only-123/photos"][id].th = t.toDataURL("image/jpeg", 0.72);
-    return [a.toDataURL("image/jpeg", 0.92).split(",")[1], mk(200).toDataURL("image/jpeg", 0.92).split(",")[1]];
-  }, oldId);
-  await page.keyboard.press("Escape"); // 關掉剛剛打開的大圖
-  await page.waitForTimeout(300);
-  await go(page, "tools");
-  await page.evaluate(() => (document.getElementById("origBox").open = true));
-  await page.waitForTimeout(200);
-  const [fc2] = await Promise.all([page.waitForEvent("filechooser"), page.click("#origFill")]);
-  await fc2.setFiles(
-    pair.map((b, i) => ({ name: `old${i}.jpg`, mimeType: "image/jpeg", buffer: Buffer.from(b, "base64") })),
-  );
-  await page
-    .waitForFunction(() => /配對到|對不上|失敗/.test(document.getElementById("origMsg").textContent), null, {
-      timeout: 20000,
-    })
-    .catch(() => {});
-  for (let t = 0; t < 50 && Object.keys(drive).length === before; t++) await page.waitForTimeout(100);
-  const added = Object.values(drive).slice(before);
-  const fillOk =
-    added.length === 1 &&
-    added[0].id === oldId &&
-    Buffer.from(added[0].data, "base64").equals(Buffer.from(pair[0], "base64"));
-  fillOk
-    ? ok("補傳以前的原圖：只補配對到的那張，不相干的照片會跳過")
-    : fail(`補傳以前的原圖不對（補了 ${added.map((d) => d.id).join(",") || "沒有"}，應該是 ${oldId}）`);
   saved && same && gotOrig && fallback
     ? ok("照片原圖：設定、原圖上傳到雲端、下載拿到原圖，雲端掛掉時改用壓小的版本")
     : fail(

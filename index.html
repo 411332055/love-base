@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我們的戀愛遊戲基地</title>
-<link rel="manifest" href="manifest.webmanifest?v=176">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=176">
+<link rel="manifest" href="manifest.webmanifest?v=177">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=177">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="戀愛基地">
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap"></noscript>
-<link rel="stylesheet" href="style.css?v=176">
+<link rel="stylesheet" href="style.css?v=177">
 </head>
 <body>
 
@@ -385,10 +385,8 @@ if(location.hash.length>1)document.documentElement.classList.add("no-anchor");
         </ol>
         <div class="row"><button class="btn ghost small" type="button" id="origCopy">📋 複製程式碼</button></div>
         <div class="row"><input id="origUrlIn" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" aria-label="網頁應用程式網址"><button class="btn" type="button" id="origSave">測試並儲存</button></div>
-        <div class="row" id="origFillRow" hidden><button class="btn ghost" type="button" id="origFill">📥 補傳以前的原圖</button></div>
-        <input type="file" id="origFillFile" accept="image/*" multiple hidden>
         <p class="sub" id="origMsg"></p>
-        <p class="sub">以後網站說要更新程式碼時：貼上新程式碼 → 部署 →「管理部署作業」→ 鉛筆 → 版本選「新版本」→ 部署（網址不會變）。設定之前傳的照片：按「📥 補傳以前的原圖」，從相簿一次選很多張（多選沒關係），網站會自動找出是你傳過的哪一張並補上原圖；夏夏的照片要在她的手機上補。</p>
+        <p class="sub">以後網站說要更新程式碼時：貼上新程式碼 → 部署 →「管理部署作業」→ 鉛筆 → 版本選「新版本」→ 部署（網址不會變）。設定之前傳的照片沒有原圖，原圖在上傳的人自己的手機相簿裡。</p>
       </div>
     </details>
     <details class="rules" id="trash">
@@ -441,7 +439,7 @@ if(location.hash.length>1)document.documentElement.classList.add("no-anchor");
 
 <div class="gate" id="gate" hidden>
   <form class="gate-box" id="gateForm" autocomplete="off">
-    <img class="gate-logo" src="icon-192.png?v=176" alt="" width="76" height="76">
+    <img class="gate-logo" src="icon-192.png?v=177" alt="" width="76" height="76">
     <h2>🔐 進入你們的基地</h2>
     <p class="sub">兩個人輸入同一組暗號，就會進到同一個基地、看到同一份進度。暗號只有你們知道，別人猜不到就進不來。</p>
     <label>暗號<input id="gateCode" placeholder="例：bear-and-bunny-2026"></label>
@@ -467,6 +465,6 @@ const FIREBASE_CONFIG = {
   appId: "1:252296258877:web:a2e5600c3d5e693361d154"
 };
 </script>
-<script src="app.js?v=176"></script>
+<script src="app.js?v=177"></script>
 </body>
 </html>
