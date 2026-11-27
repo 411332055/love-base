@@ -6307,35 +6307,50 @@ async function origQ(mode, fn) {
   });
 }
 let origPending = 0;
-async function origCount() {
+// IndexedDB 不能用時（例如 iPhone 無痕模式）改放記憶體：App 開著時照樣上傳，只是關掉就沒了
+const origMem = new Map();
+async function origAll() {
+  let all = [];
   try {
-    const all = (await origQ("readonly", (st) => st.getAll())) || [];
-    origPending = all.filter((x) => x.room === getRoom()).length;
-  } catch (e) {
-    origPending = 0;
-  }
+    all = (await origQ("readonly", (st) => st.getAll())) || [];
+  } catch (e) {}
+  return all.concat([...origMem.values()]).filter((x) => x.room === getRoom());
+}
+async function origCount() {
+  origPending = (await origAll()).length;
   renderOrigState();
   return origPending;
 }
 // 上傳照片時呼叫：有設定才把原圖排進佇列
-function origEnqueue(id, file) {
+async function origEnqueue(id, file) {
   if (!origUrl() || !file || !file.size || file.size > ORIG_MAX || !db) return;
-  origQ("readwrite", (st) =>
-    st.put({ id, room: getRoom(), blob: file, name: file.name || "", type: file.type || "image/jpeg", at: Date.now() }),
-  )
-    .then(() => origFlush())
-    .catch(() => {});
+  // 存成 ArrayBuffer（Safari 有些情況不能把 File 存進 IndexedDB，ArrayBuffer 都可以）
+  const it = { id, room: getRoom(), name: file.name || "", type: file.type || "image/jpeg", at: Date.now() };
+  try {
+    it.buf = await file.arrayBuffer();
+  } catch (e) {
+    it.blob = file;
+  }
+  try {
+    await origQ("readwrite", (st) => st.put(it));
+  } catch (e) {
+    origMem.set(id, it);
+  }
+  origFlush();
 }
 let origBusy = false,
+  origAgain = false,
   origRetry = 0;
 async function origFlush() {
-  if (origBusy || !origUrl() || !db || !navigator.onLine) return origCount();
+  if (origBusy) {
+    origAgain = true; // 正在傳的時候又有新照片：傳完這批馬上接著傳
+    return;
+  }
+  if (!origUrl() || !db || !navigator.onLine) return origCount();
   origBusy = true;
   clearTimeout(origRetry);
   try {
-    const all = ((await origQ("readonly", (st) => st.getAll())) || [])
-      .filter((x) => x.room === getRoom())
-      .sort((a, b) => a.at - b.at);
+    const all = (await origAll()).sort((a, b) => a.at - b.at);
     origPending = all.length;
     renderOrigState();
     for (const it of all) {
@@ -6345,7 +6360,7 @@ async function origFlush() {
         id: it.id,
         name: `${it.id}.${ext}`,
         mime: it.type,
-        data: await blobToB64(it.blob),
+        data: await blobToB64(it.buf ? new Blob([it.buf], { type: it.type }) : it.blob),
       });
       // 照片紀錄加上 orig（雲端檔案 id）；照片已經被刪掉就算了
       await db
@@ -6354,15 +6369,22 @@ async function origFlush() {
         .update({ orig: j.fid })
         .catch(() => {});
       [photos, calPhotos].forEach((arr) => arr.forEach((p) => p.id === it.id && (p.orig = j.fid)));
-      await origQ("readwrite", (st) => st.delete(it.id));
+      origMem.delete(it.id);
+      await origQ("readwrite", (st) => st.delete(it.id)).catch(() => {});
       origPending--;
       renderOrigState();
     }
   } catch (e) {
     // 網路不穩或 Google 那邊忙：一分鐘後再試，App 重新打開或連上網路時也會再試
+    console.warn("原圖上傳失敗，一分鐘後再試：", e && e.message);
+    origAgain = false;
     origRetry = setTimeout(origFlush, 60000);
   } finally {
     origBusy = false;
+  }
+  if (origAgain) {
+    origAgain = false;
+    return origFlush();
   }
   return origCount();
 }

@@ -605,6 +605,8 @@ for (const [theme, width] of [
     drive = {};
   let down = false;
   const { ctx, page, errors } = await phone();
+  const warns = [];
+  page.on("console", (m) => m.type() === "warning" && warns.push(m.text()));
   await ctx.route(/script\.google\.com/, (r) => {
     const d = JSON.parse(r.request().postData() || "{}");
     if (down) return r.fulfill({ status: 500, body: "busy" });
@@ -665,7 +667,9 @@ for (const [theme, width] of [
   const fallback = !!dl2 && readFileSync(await dl2.path()).length < big.length;
   saved && same && gotOrig && fallback
     ? ok("照片原圖：設定、原圖上傳到雲端、下載拿到原圖，雲端掛掉時改用壓小的版本")
-    : fail(`照片原圖不對（設定 ${saved}，上傳一樣 ${same}，下載原圖 ${gotOrig}，備援 ${fallback}）`);
+    : fail(
+        `照片原圖不對（設定 ${saved}，上傳一樣 ${same}，下載原圖 ${gotOrig}，備援 ${fallback}）${warns.join(" | ")}`,
+      );
   if (errors.length) fail("操作過程有程式錯誤：" + errors.join(" | "));
   await ctx.close();
 }
