@@ -145,7 +145,7 @@
 
 ### 每天 00:00：`.github/workflows/remind.yml`
 
-- 台灣時間 00:00（cron `0 16 * * *` UTC，GitHub 常會晚幾分鐘到半小時）跑 `tools/remind.mjs`，用執行當下的台灣日期當「今天」，直接推播給 `done` 裡的 `x~push~s_*` 裝置（用 `x~push~cfg` 的 VAPID 金鑰，不經過 Apps Script）：
+- 台灣時間 00:00 過後（cron 排 UTC 16:03、16:17、16:36、16:58 四次：GitHub 排程常晚到、整點甚至會整個跳過；每種提醒都有 `x~remind~…` 記號，先跑的那次發，後面的自動跳過）跑 `tools/remind.mjs`，用執行當下的台灣日期當「今天」，直接推播給 `done` 裡的 `x~push~s_*` 裝置（用 `x~push~cfg` 的 VAPID 金鑰，不經過 Apps Script）：
   - 今天是週年、里程碑、生日、七夕或每月紀念日 → 兩個人，記錄 `x~remind~day-日期`。（前一天打開網站時，網站自己會推「明天是…」，那則記錄是 `x~remind~日期`，兩則不衝突。）
   - 今天有約好、還沒完成的願望 → 兩個人，記錄 `x~remind~planday-日期`（網站前一天的「明天約好了」是 `plan-日期`）。
   - 今天輪到誰抽題（跟 `app.js` 的 `turnOf()` 一樣隔天輪）而且還沒抽（`x~rounds~` 裡沒有今天的）→ **只推給輪到的那個人**的裝置（看 `x~push~` 的 `by`），記錄 `x~remind~draw-日期`。
