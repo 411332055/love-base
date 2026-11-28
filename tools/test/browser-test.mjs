@@ -146,17 +146,13 @@ async function phone({ theme = "dark", name = "寒冰", width = 390, extra = nul
 const go = async (page, sec) => {
   await page.evaluate((s) => (location.hash = s), sec);
   await page.waitForTimeout(350);
-  // 等換頁動畫跑完再量（GitHub 上的機器比較慢，動畫跑到一半量會多出幾 px）
-  await page
-    .waitForFunction(
-      () =>
-        !document
-          .getAnimations()
-          .some((a) => a.playState === "running" && a.effect?.getTiming().iterations !== Infinity),
-      null,
-      { timeout: 3000 },
-    )
-    .catch(() => {});
+  // 換頁動畫直接跳到結束再量（GitHub 上的 WebKit 沒有畫面，動畫時間幾乎不會走，
+  // 停在「滑進來到一半」會多量出幾十 px；真的手機上 0.26 秒就跑完了）
+  await page.evaluate(() =>
+    document.getAnimations().forEach((a) => {
+      if (a.effect?.getTiming().iterations !== Infinity) a.finish();
+    }),
+  );
 };
 
 // 整頁比螢幕寬時，找出是哪個東西撐寬的（一層一層把子元素藏起來，看寬度有沒有變回來）
