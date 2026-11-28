@@ -170,7 +170,18 @@ const widest = (page) =>
     const base = W();
     if (base <= innerWidth + 1) {
       st.remove();
-      return "（關掉動畫後就沒有超出：是動畫進行中多出來的）";
+      const run = document
+        .getAnimations()
+        .filter((a) => a.playState === "running")
+        .slice(0, 4)
+        .map((a) => {
+          const t = a.effect?.target;
+          const n = t
+            ? t.tagName.toLowerCase() + (t.id ? "#" + t.id : "") + (t.classList[0] ? "." + t.classList[0] : "")
+            : "?";
+          return `${n} ${a.animationName || a.transitionProperty || a.constructor.name}`;
+        });
+      return `（關掉動畫後就沒有超出，是這些動畫造成的：${run.join("、") || "找不到"}）`;
     }
     let cur = document.body,
       path = [];
