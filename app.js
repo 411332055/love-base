@@ -737,6 +737,26 @@ function photoBtn(p, cls, editable = false, eager = false) {
     `" alt="" loading="${eager ? "eager" : "lazy"}" decoding="async"><span class="nm">${esc(p.by)}${p.by === myName() ? "（我）" : ""}${!editable && p.cap ? " 💬" : ""}</span>${editBadge}</button>`
   );
 }
+// 今天的照片是大圖，縮圖（420 像素）放大會糊：先顯示縮圖，背景載網站上的清楚版本（pics，最長邊 1280）換上。
+// 載過的記在 phSharp，重畫時直接用清楚的，不會又先閃一下糊的。
+const phSharp = new Map();
+function sharpenToday(box) {
+  box.querySelectorAll(".ph-big [data-open] img").forEach((img) => {
+    const id = img.closest("[data-open]").dataset.open;
+    if (phSharp.has(id)) return;
+    fetchPicImg(id)
+      .then((src) => {
+        if (!src) return;
+        if (phSharp.size >= 20) phSharp.delete(phSharp.keys().next().value);
+        phSharp.set(id, src);
+        // 先在背景解碼好再換，換的那一下不會閃
+        const im = new Image();
+        im.onload = () => img.isConnected && (img.src = src);
+        im.src = src;
+      })
+      .catch(() => {});
+  });
+}
 let phWho = "other"; // 今天的照片正在看誰的：other（對方，預設）／mine
 let phSegI = 0; // 切換鈕膠囊上次停的位置，重畫時從那裡滑過去
 // 看過哪些對方今天的照片：停在「我」的畫面時，對方傳了新的，切換鈕上會亮小紅點
@@ -851,8 +871,9 @@ function renderTodayPhotos() {
     upText = uploadingProg ? `上傳中 ${uploadingProg}…` : "上傳中…";
   // 一次看一個人的照片：先看對方的，左上角切換「對方／我」；照片排成可以左右滑的大圖
   // 今天的照片不要等「看得到才載入」：兩邊都先載好，切換時照片馬上出現
-  const mineBtn = (p) => photoBtn(p, "ph-slot has" + (capEditing === p.id ? " editing" : ""), true, true),
-    otherBtn = (p) => photoBtn(p, "ph-slot has", false, true),
+  const sharp = (p) => (phSharp.has(p.id) ? { ...p, th: phSharp.get(p.id) } : p),
+    mineBtn = (p) => photoBtn(sharp(p), "ph-slot has" + (capEditing === p.id ? " editing" : ""), true, true),
+    otherBtn = (p) => photoBtn(sharp(p), "ph-slot has", false, true),
     uploadBtn = (cls, label) =>
       `<button type="button" class="${cls}" data-up="${k}" ${up ? "disabled" : ""}>${up ? upText : label}</button>`,
     partner = NAMES.find((n) => n !== myName()) || "對方";
@@ -894,6 +915,7 @@ function renderTodayPhotos() {
   if (allCaps.length)
     h += allCaps.map((p) => `<div class="ph-note">${esc(nameOf(p.by))}：「${esc(p.cap)}」</div>`).join("");
   box.innerHTML = h;
+  if (navigator.onLine) sharpenToday(box);
   const seg = box.querySelector(".ph-who"),
     tabs = [...seg.querySelectorAll("[data-who]")],
     segSel = (i) => tabs.forEach((b, j) => b.setAttribute("aria-selected", String(i === j)));
