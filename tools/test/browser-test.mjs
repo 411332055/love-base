@@ -208,9 +208,25 @@ const widest = (page) =>
       })
       .filter((e, _, all) => !all.includes(e.parentElement))
       .slice(0, 5)
+      .concat(
+        // 字超出：用文字範圍量（元素的框在螢幕內，但裡面的字跑出去）
+        [...document.querySelectorAll("body *")]
+          .filter((e) => {
+            if (!e.getClientRects().length) return false;
+            const rg = document.createRange();
+            rg.selectNodeContents(e);
+            return rg.getBoundingClientRect().right > innerWidth + 1;
+          })
+          .filter((e, _, all) => !all.some((o) => o !== e && e.contains(o)))
+          .slice(0, 4),
+        // 裡面有東西比框還寬的
+        [...document.querySelectorAll(".wrap>section.current *")]
+          .filter((e) => e.clientWidth > 0 && e.scrollWidth > e.clientWidth + 20)
+          .slice(-3),
+      )
       .map((e) => {
         const q = e.getBoundingClientRect();
-        return `${e.tagName.toLowerCase()}${e.id ? "#" + e.id : ""}${e.classList[0] ? "." + e.classList[0] : ""} 右邊到 ${Math.round(q.right)}`;
+        return `${e.tagName.toLowerCase()}${e.id ? "#" + e.id : ""}${e.classList[0] ? "." + e.classList[0] : ""} 右邊到 ${Math.round(q.right)} 內寬 ${e.scrollWidth}/${e.clientWidth}「${(e.textContent || "").trim().slice(0, 10)}」`;
       });
     st.remove();
     return `（撐寬的是 ${path.slice(-3).join(" > ")}，左 ${Math.round(r.left)} 寬 ${Math.round(r.width)}；超出螢幕的：${outs.join("、") || "沒有"}）`;
