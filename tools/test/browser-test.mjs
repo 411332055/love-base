@@ -146,14 +146,32 @@ async function phone({ theme = "dark", name = "寒冰", width = 390, extra = nul
 const go = async (page, sec) => {
   await page.evaluate((s) => (location.hash = s), sec);
   await page.waitForTimeout(350);
+  // 等換頁動畫跑完再量（GitHub 上的機器比較慢，動畫跑到一半量會多出幾 px）
+  await page
+    .waitForFunction(
+      () =>
+        !document
+          .getAnimations()
+          .some((a) => a.playState === "running" && a.effect?.getTiming().iterations !== Infinity),
+      null,
+      { timeout: 3000 },
+    )
+    .catch(() => {});
 };
 
 // 整頁比螢幕寬時，找出是哪個東西撐寬的（一層一層把子元素藏起來，看寬度有沒有變回來）
 const widest = (page) =>
   page.evaluate(() => {
     const W = () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
+    // 找的時候先把動畫關掉，不然藏起來再放回去會讓動畫重播，量到的位置不準
+    const st = document.createElement("style");
+    st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
+    document.head.append(st);
     const base = W();
-    if (base <= innerWidth + 1) return "";
+    if (base <= innerWidth + 1) {
+      st.remove();
+      return "（關掉動畫後就沒有超出：是動畫進行中多出來的）";
+    }
     let cur = document.body,
       path = [];
     for (let k = 0; k < 16; k++) {
@@ -175,6 +193,7 @@ const widest = (page) =>
       );
     }
     const r = cur.getBoundingClientRect();
+    st.remove();
     return `（撐寬的是 ${path.slice(-3).join(" > ")}，左 ${Math.round(r.left)} 寬 ${Math.round(r.width)}）`;
   });
 
