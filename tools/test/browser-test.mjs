@@ -155,88 +155,32 @@ const go = async (page, sec) => {
   );
 };
 
-// 整頁比螢幕寬時，找出是哪個東西撐寬的（一層一層把子元素藏起來，看寬度有沒有變回來）
-const widest = (page) =>
-  page.evaluate(async () => {
-    const W = () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
-    // 找的時候先把動畫關掉，不然藏起來再放回去會讓動畫重播，量到的位置不準
-    const st = document.createElement("style");
-    st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
-    document.head.append(st);
-    const st2 = document.createElement("style");
-    st2.textContent = ".t-recalc{display:none}";
-    document.head.append(st2);
-    void document.body.offsetWidth;
-    st2.remove();
-    const base = W();
-    if (base <= innerWidth + 1) {
-      st.remove();
-      const run = document
-        .getAnimations()
-        .filter((a) => a.playState === "running")
-        .slice(0, 4)
-        .map((a) => {
-          const t = a.effect?.target;
-          const n = t
-            ? t.tagName.toLowerCase() + (t.id ? "#" + t.id : "") + (t.classList[0] ? "." + t.classList[0] : "")
-            : "?";
-          return `${n} ${a.animationName || a.transitionProperty || a.constructor.name}`;
-        });
-      return `（關掉動畫後就沒有超出，是這些動畫造成的：${run.join("、") || "找不到"}）`;
+// 看得到的東西有沒有超出螢幕右邊（被切掉或可以左右滑）。不看 body.scrollWidth：
+// WebKit 會把已經被 overflow-x:clip 切掉的部分、甚至動畫中的舊寬度算進去，數字不準。
+// 本來就可以左右滑的照片列（overflow-x 不是 visible 的容器）裡面的東西不算。
+const PAST_RIGHT = `(() => {
+  const out = [];
+  if (document.documentElement.scrollWidth > innerWidth + 1)
+    out.push("整頁可以左右滑 " + (document.documentElement.scrollWidth - innerWidth) + "px");
+  const inStrip = (e) => {
+    for (let p = e.parentElement; p && p !== document.body; p = p.parentElement)
+      if (getComputedStyle(p).overflowX !== "visible") return true;
+    return false;
+  };
+  const name = (e) => { const c = e.closest("[id]"); return (c ? "#" + c.id + " " : "") + e.tagName.toLowerCase(); };
+  for (const e of document.querySelectorAll(".wrap>section.current *")) {
+    if (!e.getClientRects().length || getComputedStyle(e).visibility === "hidden" || inStrip(e)) continue;
+    const q = e.getBoundingClientRect();
+    let right = q.width > 0 ? q.right : 0;
+    if ([...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) {
+      const rg = document.createRange();
+      rg.selectNodeContents(e);
+      right = Math.max(right, rg.getBoundingClientRect().right);
     }
-    let cur = document.body,
-      path = [];
-    for (let k = 0; k < 16; k++) {
-      let hit = null;
-      for (const c of cur.children) {
-        const d = c.style.display;
-        c.style.display = "none";
-        const w = W();
-        c.style.display = d;
-        if (w < base) {
-          hit = c;
-          break;
-        }
-      }
-      if (!hit) break;
-      cur = hit;
-      path.push(
-        cur.tagName.toLowerCase() + (cur.id ? "#" + cur.id : "") + (cur.classList[0] ? "." + cur.classList[0] : ""),
-      );
-    }
-    const r = cur.getBoundingClientRect();
-    // 也直接列出右邊超出螢幕的東西（最外面的幾個）
-    const outs = [...document.querySelectorAll("body *")]
-      .filter((e) => {
-        const q = e.getBoundingClientRect();
-        return q.width > 0 && q.right > innerWidth + 1 && !e.parentElement.closest("[hidden]");
-      })
-      .filter((e, _, all) => !all.includes(e.parentElement))
-      .slice(0, 5)
-      .concat(
-        // 字超出：用文字範圍量（元素的框在螢幕內，但裡面的字跑出去）
-        [...document.querySelectorAll("body *")]
-          .filter((e) => {
-            if (!e.getClientRects().length) return false;
-            const rg = document.createRange();
-            rg.selectNodeContents(e);
-            return rg.getBoundingClientRect().right > innerWidth + 1;
-          })
-          .filter((e, _, all) => !all.some((o) => o !== e && e.contains(o)))
-          .slice(0, 4),
-        // 裡面有東西比框還寬的
-        [...document.querySelectorAll(".wrap>section.current *")]
-          .filter((e) => e.clientWidth > 0 && e.scrollWidth > e.clientWidth + 20)
-          .slice(-3),
-      )
-      .map((e) => {
-        const q = e.getBoundingClientRect();
-        return `${e.tagName.toLowerCase()}${e.id ? "#" + e.id : ""}${e.classList[0] ? "." + e.classList[0] : ""} 右邊到 ${Math.round(q.right)} 內寬 ${e.scrollWidth}/${e.clientWidth}「${(e.textContent || "").trim().slice(0, 10)}」`;
-      });
-    st.remove();
-    const sizes = `html ${document.documentElement.scrollWidth}、body ${document.body.scrollWidth}、螢幕 ${innerWidth}`;
-    return `（${sizes}；撐寬的是 ${path.slice(-3).join(" > ")}，左 ${Math.round(r.left)} 寬 ${Math.round(r.width)}；超出螢幕的：${outs.join("、") || "沒有"}）`;
-  });
+    if (right > innerWidth + 1) out.push(name(e) + " 超出螢幕 " + Math.round(right - innerWidth) + "px「" + e.textContent.trim().slice(0, 12) + "」");
+  }
+  return [...new Set(out)].slice(0, 4);
+})()`;
 
 // 1. 每一頁在深色、淺色、窄螢幕都能打開，沒有錯誤、沒有左右超出畫面
 for (const [theme, width] of [
@@ -250,24 +194,8 @@ for (const [theme, width] of [
   const bad = [];
   for (const sec of SECTIONS) {
     await go(page, sec);
-    // body 也要量：html 有 overflow-x:clip，被撐寬的內容會被切掉而不是出現捲軸
-    const over = await page.evaluate(async () => {
-      // 量「動畫跑完的樣子」：先關掉動畫（滑進來的途中本來就會短暫超出，網站用 overflow-x:clip 藏住）
-      const st = document.createElement("style");
-      st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
-      document.head.append(st);
-      // 等兩個畫面：WebKit 關掉動畫後第一次量到的寬度還是動畫中的舊值
-      // WebKit 會留著動畫中的舊寬度，要再改一次樣式才會重算（真的手機上看不到，網站有 overflow-x:clip）
-      const st2 = document.createElement("style");
-      st2.textContent = ".t-recalc{display:none}";
-      document.head.append(st2);
-      void document.body.offsetWidth;
-      st2.remove();
-      const w = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth;
-      st.remove();
-      return w;
-    });
-    if (over > 1) bad.push(`${sec} 超出 ${over}px${await widest(page)}`);
+    const over = await page.evaluate(PAST_RIGHT);
+    if (over.length) bad.push(`${sec}：${over.join("、")}`);
   }
   if (errors.length) fail(`${theme} ${width}px 有程式錯誤：${errors.join(" | ")}`);
   else if (bad.length) fail(`${theme} ${width}px：${bad.join("、")}`);
@@ -876,19 +804,7 @@ for (const [theme, width] of [
             q = 1 / (sc * DPR);
           if (q < 0.6) out.push(`${name(im)} 照片糊（${Math.round(r.width)}px 寬只給 ${im.naturalWidth}px 的圖）`);
         }
-        // 整頁被撐寬（量動畫跑完的樣子）
-        const st = document.createElement("style");
-        st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
-        document.head.append(st);
-        const st2 = document.createElement("style");
-        st2.textContent = ".t-recalc{display:none}";
-        document.head.append(st2);
-        void document.body.offsetWidth;
-        st2.remove();
-        const bw = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth;
-        st.remove();
-        if (bw > 1) out.push(`整頁被撐寬 ${bw}px`);
-        // 字跑出自己的框
+        // 字跑出自己的框（卡片沒有裁切，字溢到旁邊）
         for (const e of sec.querySelectorAll("*")) {
           if (!vis(e) || /hidden|clip|auto|scroll/.test(getComputedStyle(e).overflowX)) continue;
           if (![...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim().length > 3)) continue;
@@ -901,7 +817,8 @@ for (const [theme, width] of [
         }
         return [...new Set(out)].slice(0, 4);
       });
-      if (found.length) bad.push(`${sec}：${found.join("、")}${await widest(page)}`);
+      found.push(...(await page.evaluate(PAST_RIGHT)));
+      if (found.length) bad.push(`${sec}：${found.join("、")}`);
     }
     // 點開大圖也要清楚
     await go(page, "today");
