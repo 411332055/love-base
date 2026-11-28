@@ -217,9 +217,15 @@ for (const [theme, width] of [
   for (const sec of SECTIONS) {
     await go(page, sec);
     // body 也要量：html 有 overflow-x:clip，被撐寬的內容會被切掉而不是出現捲軸
-    const over = await page.evaluate(
-      () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
-    );
+    const over = await page.evaluate(() => {
+      // 量「動畫跑完的樣子」：先關掉動畫（滑進來的途中本來就會短暫超出，網站用 overflow-x:clip 藏住）
+      const st = document.createElement("style");
+      st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
+      document.head.append(st);
+      const w = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth;
+      st.remove();
+      return w;
+    });
     if (over > 1) bad.push(`${sec} 超出 ${over}px${await widest(page)}`);
   }
   if (errors.length) fail(`${theme} ${width}px 有程式錯誤：${errors.join(" | ")}`);
@@ -829,8 +835,12 @@ for (const [theme, width] of [
             q = 1 / (sc * DPR);
           if (q < 0.6) out.push(`${name(im)} 照片糊（${Math.round(r.width)}px 寬只給 ${im.naturalWidth}px 的圖）`);
         }
-        // 整頁被撐寬
+        // 整頁被撐寬（量動畫跑完的樣子）
+        const st = document.createElement("style");
+        st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
+        document.head.append(st);
         const bw = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth;
+        st.remove();
         if (bw > 1) out.push(`整頁被撐寬 ${bw}px`);
         // 字跑出自己的框
         for (const e of sec.querySelectorAll("*")) {
