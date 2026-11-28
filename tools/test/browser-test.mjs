@@ -200,8 +200,20 @@ const widest = (page) =>
       );
     }
     const r = cur.getBoundingClientRect();
+    // 也直接列出右邊超出螢幕的東西（最外面的幾個）
+    const outs = [...document.querySelectorAll("body *")]
+      .filter((e) => {
+        const q = e.getBoundingClientRect();
+        return q.width > 0 && q.right > innerWidth + 1 && !e.parentElement.closest("[hidden]");
+      })
+      .filter((e, _, all) => !all.includes(e.parentElement))
+      .slice(0, 5)
+      .map((e) => {
+        const q = e.getBoundingClientRect();
+        return `${e.tagName.toLowerCase()}${e.id ? "#" + e.id : ""}${e.classList[0] ? "." + e.classList[0] : ""} 右邊到 ${Math.round(q.right)}`;
+      });
     st.remove();
-    return `（撐寬的是 ${path.slice(-3).join(" > ")}，左 ${Math.round(r.left)} 寬 ${Math.round(r.width)}）`;
+    return `（撐寬的是 ${path.slice(-3).join(" > ")}，左 ${Math.round(r.left)} 寬 ${Math.round(r.width)}；超出螢幕的：${outs.join("、") || "沒有"}）`;
   });
 
 // 1. 每一頁在深色、淺色、窄螢幕都能打開，沒有錯誤、沒有左右超出畫面
