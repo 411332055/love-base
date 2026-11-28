@@ -148,6 +148,36 @@ const go = async (page, sec) => {
   await page.waitForTimeout(350);
 };
 
+// 整頁比螢幕寬時，找出是哪個東西撐寬的（一層一層把子元素藏起來，看寬度有沒有變回來）
+const widest = (page) =>
+  page.evaluate(() => {
+    const W = () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
+    const base = W();
+    if (base <= innerWidth + 1) return "";
+    let cur = document.body,
+      path = [];
+    for (let k = 0; k < 16; k++) {
+      let hit = null;
+      for (const c of cur.children) {
+        const d = c.style.display;
+        c.style.display = "none";
+        const w = W();
+        c.style.display = d;
+        if (w < base) {
+          hit = c;
+          break;
+        }
+      }
+      if (!hit) break;
+      cur = hit;
+      path.push(
+        cur.tagName.toLowerCase() + (cur.id ? "#" + cur.id : "") + (cur.classList[0] ? "." + cur.classList[0] : ""),
+      );
+    }
+    const r = cur.getBoundingClientRect();
+    return `（撐寬的是 ${path.slice(-3).join(" > ")}，左 ${Math.round(r.left)} 寬 ${Math.round(r.width)}）`;
+  });
+
 // 1. 每一頁在深色、淺色、窄螢幕都能打開，沒有錯誤、沒有左右超出畫面
 for (const [theme, width] of [
   ["dark", 390],
@@ -164,7 +194,7 @@ for (const [theme, width] of [
     const over = await page.evaluate(
       () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
     );
-    if (over > 1) bad.push(`${sec} 超出 ${over}px`);
+    if (over > 1) bad.push(`${sec} 超出 ${over}px${await widest(page)}`);
   }
   if (errors.length) fail(`${theme} ${width}px 有程式錯誤：${errors.join(" | ")}`);
   else if (bad.length) fail(`${theme} ${width}px：${bad.join("、")}`);
@@ -789,7 +819,7 @@ for (const [theme, width] of [
         }
         return [...new Set(out)].slice(0, 4);
       });
-      if (found.length) bad.push(`${sec}：${found.join("、")}`);
+      if (found.length) bad.push(`${sec}：${found.join("、")}${await widest(page)}`);
     }
     // 點開大圖也要清楚
     await go(page, "today");
