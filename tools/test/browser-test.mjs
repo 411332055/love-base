@@ -229,6 +229,23 @@ const widest = (page) =>
         const q = e.getBoundingClientRect();
         return `${e.tagName.toLowerCase()}${e.id ? "#" + e.id : ""}${e.classList[0] ? "." + e.classList[0] : ""} 右邊到 ${Math.round(q.right)} 內寬 ${e.scrollWidth}/${e.clientWidth}「${(e.textContent || "").trim().slice(0, 10)}」`;
       });
+    // 一個一個藏起來試：藏掉之後寬度就正常的，最小的那幾個就是兇手
+    const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const guilty = [];
+    const cands = [...document.querySelectorAll(".wrap>section.current *")].filter((e) => e.getClientRects().length);
+    for (const e of cands.slice(0, 400)) {
+      const d = e.style.display;
+      e.style.display = "none";
+      await frame();
+      const ok = W() <= innerWidth + 1;
+      e.style.display = d;
+      if (ok) guilty.push(e);
+    }
+    const g = guilty
+      .filter((e) => !guilty.some((o) => o !== e && e.contains(o)))
+      .slice(0, 3)
+      .map((e) => e.tagName.toLowerCase() + (e.id ? "#" + e.id : "") + (e.classList[0] ? "." + e.classList[0] : ""));
+    outs.unshift("藏掉就正常：" + (g.join("、") || "沒有單一個"));
     st.remove();
     return `（撐寬的是 ${path.slice(-3).join(" > ")}，左 ${Math.round(r.left)} 寬 ${Math.round(r.width)}；超出螢幕的：${outs.join("、") || "沒有"}）`;
   });
