@@ -160,7 +160,10 @@ for (const [theme, width] of [
   const bad = [];
   for (const sec of SECTIONS) {
     await go(page, sec);
-    const over = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+    // body 也要量：html 有 overflow-x:clip，被撐寬的內容會被切掉而不是出現捲軸
+    const over = await page.evaluate(
+      () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
+    );
     if (over > 1) bad.push(`${sec} 超出 ${over}px`);
   }
   if (errors.length) fail(`${theme} ${width}px 有程式錯誤：${errors.join(" | ")}`);
@@ -672,6 +675,140 @@ for (const [theme, width] of [
       );
   if (errors.length) fail("操作過程有程式錯誤：" + errors.join(" | "));
   await ctx.close();
+}
+
+// 5. 用真實大小的照片和很長的字把每一頁看一遍：照片不能糊、字不能跑出框、整頁不能被撐寬
+//    （之前的假照片縮圖和大圖都是同一張小圖，所以「今天的照片」大格用了縮圖變糊卻沒被抓到）
+{
+  const b64 = (f) => "data:image/jpeg;base64," + readFileSync(join(ROOT, "tools/test/fixtures", f)).toString("base64");
+  const TH = b64("th.jpg"), // 420 寬，跟網站存的縮圖一樣
+    PIC = b64("pic.jpg"); // 1280 寬，跟網站存的大圖一樣
+  const URL_LONG = "https://www.instagram.com/p/C0abcdefghijklmnopqrstuvwxyz1234567890/?igsh=abcdefghijklmnop";
+  const real = (s) => {
+    const R = `rooms/${ROOM}/`,
+      now = new Date();
+    for (const [id, v] of Object.entries(s[R + "photos"])) v.th = TH;
+    for (const [id, v] of Object.entries(s[R + "pics"])) v.img = PIC;
+    const today = keyOf(now);
+    for (const by of ["寒冰", "夏夏"]) {
+      s[R + "photos"][`${today}_${by}`] = { date: today, by, th: TH, cap: URL_LONG, at: now.toISOString() };
+      s[R + "pics"][`${today}_${by}`] = { img: PIC, date: today, by };
+    }
+    const d1 = Object.values(s[R + "diary"]);
+    d1[0].say = "這個給你看 " + URL_LONG;
+    d1[1].funny = "哈".repeat(80);
+    d1[2].mood = "😂".repeat(40);
+    s[R + "done"]["x~wishes~w2"] = {
+      text: "一起去這間店" + URL_LONG,
+      cat: "eat",
+      done: false,
+      doneDate: "",
+      by: "寒冰",
+      at: now.toISOString(),
+    };
+    return s;
+  };
+  for (const [theme, width] of [
+    ["dark", 412],
+    ["light", 360],
+  ]) {
+    const ctx = await browser.newContext({
+      viewport: { width, height: 844 },
+      deviceScaleFactor: 3, // 跟現在的手機一樣是 3 倍密度螢幕，才看得出照片糊不糊
+      isMobile: true,
+      hasTouch: true,
+      colorScheme: theme,
+      serviceWorkers: "block",
+    });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.route(/gstatic\.com/, (r) =>
+      r.fulfill({ contentType: "text/javascript", body: r.request().url().includes("app-compat") ? FAKE : "" }),
+    );
+    await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.fulfill({ body: "" }));
+    await page.addInitScript(
+      ([sd, room]) => {
+        if (location.protocol === "about:") return;
+        window.__SEED = sd;
+        localStorage.setItem("love-base-room", room);
+        localStorage.setItem("love-base-name", "寒冰");
+        localStorage.setItem("love-base-seen", "9999");
+        localStorage.setItem("love-base-splash", new Date().toDateString());
+      },
+      [real(seed()), ROOM],
+    );
+    await page.goto(BASE + "#today");
+    await page.waitForTimeout(1500);
+    const bad = [];
+    for (const sec of SECTIONS) {
+      await go(page, sec);
+      await page.evaluate(() => {
+        const s = document.querySelector(".wrap>section.current");
+        s.querySelectorAll("details").forEach((d) => (d.open = true));
+        document.querySelectorAll("img[loading=lazy]").forEach((i) => (i.loading = "eager"));
+      });
+      await page.waitForTimeout(1200);
+      const found = await page.evaluate(() => {
+        const out = [],
+          DPR = devicePixelRatio,
+          sec = document.querySelector(".wrap>section.current"),
+          vis = (e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden",
+          name = (e) => {
+            const c = e.closest("[id]");
+            return (c ? "#" + c.id + " " : "") + e.tagName.toLowerCase();
+          };
+        // 照片清楚度：圖的像素至少要有「顯示大小 × 螢幕密度」的 60%
+        for (const im of sec.querySelectorAll("img")) {
+          if (!vis(im) || !im.naturalWidth) continue;
+          const r = im.getBoundingClientRect();
+          if (r.width < 40) continue;
+          const fit = getComputedStyle(im).objectFit,
+            sc =
+              fit === "contain"
+                ? Math.min(r.width / im.naturalWidth, r.height / im.naturalHeight)
+                : fit === "cover"
+                  ? Math.max(r.width / im.naturalWidth, r.height / im.naturalHeight)
+                  : r.width / im.naturalWidth,
+            q = 1 / (sc * DPR);
+          if (q < 0.6) out.push(`${name(im)} 照片糊（${Math.round(r.width)}px 寬只給 ${im.naturalWidth}px 的圖）`);
+        }
+        // 整頁被撐寬
+        const bw = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth;
+        if (bw > 1) out.push(`整頁被撐寬 ${bw}px`);
+        // 字跑出自己的框
+        for (const e of sec.querySelectorAll("*")) {
+          if (!vis(e) || /hidden|clip|auto|scroll/.test(getComputedStyle(e).overflowX)) continue;
+          if (![...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim().length > 3)) continue;
+          const rg = document.createRange();
+          rg.selectNodeContents(e);
+          const tr = rg.getBoundingClientRect(),
+            er = e.getBoundingClientRect();
+          if (er.width > 0 && tr.right > er.right + 3)
+            out.push(`${name(e)} 字跑出框「${e.textContent.trim().slice(0, 12)}」`);
+        }
+        return [...new Set(out)].slice(0, 4);
+      });
+      if (found.length) bad.push(`${sec}：${found.join("、")}`);
+    }
+    // 點開大圖也要清楚
+    await go(page, "today");
+    await page.evaluate(() => document.querySelector("#todayPhotos [data-open]")?.click());
+    await page.waitForTimeout(1500);
+    const lb = await page.evaluate(() => {
+      const im = document.getElementById("lbImg");
+      if (!im || document.getElementById("lightbox").hidden || !im.naturalWidth) return "大圖沒打開";
+      const r = im.getBoundingClientRect(),
+        q = 1 / (Math.min(r.width / im.naturalWidth, r.height / im.naturalHeight) * devicePixelRatio);
+      return q < 0.6 ? `大圖糊（${Math.round(r.width)}px 寬只給 ${im.naturalWidth}px 的圖）` : "";
+    });
+    if (lb) bad.push(lb);
+    const tag = `${theme === "dark" ? "深色" : "淺色"} ${width}px`;
+    if (errors.length) fail(`真實資料 ${tag} 有程式錯誤：${errors.join(" | ")}`);
+    else if (bad.length) fail(`真實資料 ${tag}：${bad.join("；")}`);
+    else ok(`真實資料 ${tag}：照片都清楚、長網址和長字都有換行、每一頁都沒有被撐寬`);
+    await ctx.close();
+  }
 }
 
 await browser.close();

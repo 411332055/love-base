@@ -3132,7 +3132,8 @@ function renderMonth() {
   const funny = es.filter((e) => e.funny).slice(-3);
   $("mBest").innerHTML =
     (best ? `<p>⭐ 最幸福的一天：${esc(best.date)}（${esc(best.happy)}/10）${esc(bookSay(best))}</p>` : "") +
-      funny.map((e) => `<p>🤪 ${esc(e.date)}：${esc(e.funny)}</p>`).join("") || '<p class="sub">這個月還沒有日記。</p>';
+      funny.map((e) => `<p>🤪 ${esc(e.by || "")} ${esc(e.date)}：${esc(e.funny)}</p>`).join("") ||
+    '<p class="sub">這個月還沒有日記。</p>';
 }
 $("mPick").onchange = renderMonth;
 window.addEventListener(
@@ -6729,7 +6730,10 @@ function renderMonthBook() {
     quotes.push(...mine.slice(0, 2));
   }
   const extraQuotes = es.filter((e) => bookSay(e) && !quotes.includes(e)).slice(-2);
-  const shownQuotes = [...quotes, ...extraQuotes].slice(0, 4);
+  const seenSay = new Set(); // 同一句話只放一次（兩篇日記剛好寫一樣的字時）
+  const shownQuotes = [...quotes, ...extraQuotes]
+    .filter((e) => !seenSay.has(bookSay(e)) && seenSay.add(bookSay(e)))
+    .slice(0, 4);
   const quotesHtml = shownQuotes.length
     ? `<article class="entry book-m"><header><b>💬 這個月寫給彼此的話</b></header>` +
       shownQuotes
@@ -6797,7 +6801,7 @@ function renderYearBook() {
             : ""
         }` +
         `${top ? `<blockquote>${esc(bookSay(top))}<br><small>${esc(top.by || "")} · ${esc(top.date)}</small></blockquote>` : ""}` +
-        `${fun ? `<div>🤪 ${esc(fun.funny)}</div>` : ""}</article>`
+        `${fun ? `<div>🤪 ${esc(fun.funny)} <small>(${esc(fun.by || "")})</small></div>` : ""}</article>`
       );
     })
     .join("");
