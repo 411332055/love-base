@@ -157,12 +157,13 @@ const go = async (page, sec) => {
 
 // 整頁比螢幕寬時，找出是哪個東西撐寬的（一層一層把子元素藏起來，看寬度有沒有變回來）
 const widest = (page) =>
-  page.evaluate(() => {
+  page.evaluate(async () => {
     const W = () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
     // 找的時候先把動畫關掉，不然藏起來再放回去會讓動畫重播，量到的位置不準
     const st = document.createElement("style");
     st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
     document.head.append(st);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const base = W();
     if (base <= innerWidth + 1) {
       st.remove();
@@ -245,11 +246,13 @@ for (const [theme, width] of [
   for (const sec of SECTIONS) {
     await go(page, sec);
     // body 也要量：html 有 overflow-x:clip，被撐寬的內容會被切掉而不是出現捲軸
-    const over = await page.evaluate(() => {
+    const over = await page.evaluate(async () => {
       // 量「動畫跑完的樣子」：先關掉動畫（滑進來的途中本來就會短暫超出，網站用 overflow-x:clip 藏住）
       const st = document.createElement("style");
       st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
       document.head.append(st);
+      // 等兩個畫面：WebKit 關掉動畫後第一次量到的寬度還是動畫中的舊值
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const w = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth;
       st.remove();
       return w;
@@ -839,7 +842,7 @@ for (const [theme, width] of [
         document.querySelectorAll("img[loading=lazy]").forEach((i) => (i.loading = "eager"));
       });
       await page.waitForTimeout(1200);
-      const found = await page.evaluate(() => {
+      const found = await page.evaluate(async () => {
         const out = [],
           DPR = devicePixelRatio,
           sec = document.querySelector(".wrap>section.current"),
@@ -867,6 +870,7 @@ for (const [theme, width] of [
         const st = document.createElement("style");
         st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
         document.head.append(st);
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         const bw = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth;
         st.remove();
         if (bw > 1) out.push(`整頁被撐寬 ${bw}px`);
