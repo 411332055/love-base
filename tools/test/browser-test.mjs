@@ -164,6 +164,7 @@ const widest = (page) =>
     st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
     document.head.append(st);
     const st2 = document.createElement("style");
+    st2.textContent = ".t-recalc{display:none}";
     document.head.append(st2);
     void document.body.offsetWidth;
     st2.remove();
@@ -233,7 +234,8 @@ const widest = (page) =>
         return `${e.tagName.toLowerCase()}${e.id ? "#" + e.id : ""}${e.classList[0] ? "." + e.classList[0] : ""} 右邊到 ${Math.round(q.right)} 內寬 ${e.scrollWidth}/${e.clientWidth}「${(e.textContent || "").trim().slice(0, 10)}」`;
       });
     st.remove();
-    return `（撐寬的是 ${path.slice(-3).join(" > ")}，左 ${Math.round(r.left)} 寬 ${Math.round(r.width)}；超出螢幕的：${outs.join("、") || "沒有"}）`;
+    const sizes = `html ${document.documentElement.scrollWidth}、body ${document.body.scrollWidth}、螢幕 ${innerWidth}`;
+    return `（${sizes}；撐寬的是 ${path.slice(-3).join(" > ")}，左 ${Math.round(r.left)} 寬 ${Math.round(r.width)}；超出螢幕的：${outs.join("、") || "沒有"}）`;
   });
 
 // 1. 每一頁在深色、淺色、窄螢幕都能打開，沒有錯誤、沒有左右超出畫面
@@ -257,6 +259,7 @@ for (const [theme, width] of [
       // 等兩個畫面：WebKit 關掉動畫後第一次量到的寬度還是動畫中的舊值
       // WebKit 會留著動畫中的舊寬度，要再改一次樣式才會重算（真的手機上看不到，網站有 overflow-x:clip）
       const st2 = document.createElement("style");
+      st2.textContent = ".t-recalc{display:none}";
       document.head.append(st2);
       void document.body.offsetWidth;
       st2.remove();
@@ -878,6 +881,7 @@ for (const [theme, width] of [
         st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
         document.head.append(st);
         const st2 = document.createElement("style");
+        st2.textContent = ".t-recalc{display:none}";
         document.head.append(st2);
         void document.body.offsetWidth;
         st2.remove();
