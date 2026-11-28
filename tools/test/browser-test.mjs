@@ -163,7 +163,10 @@ const widest = (page) =>
     const st = document.createElement("style");
     st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
     document.head.append(st);
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const st2 = document.createElement("style");
+    document.head.append(st2);
+    void document.body.offsetWidth;
+    st2.remove();
     const base = W();
     if (base <= innerWidth + 1) {
       st.remove();
@@ -229,25 +232,6 @@ const widest = (page) =>
         const q = e.getBoundingClientRect();
         return `${e.tagName.toLowerCase()}${e.id ? "#" + e.id : ""}${e.classList[0] ? "." + e.classList[0] : ""} 右邊到 ${Math.round(q.right)} 內寬 ${e.scrollWidth}/${e.clientWidth}「${(e.textContent || "").trim().slice(0, 10)}」`;
       });
-    // 字和元素都沒超出時，可能是 ::before / ::after 的裝飾：一條一條規則關掉試
-    const guilty = [];
-    const pseudoRules = [...document.styleSheets].flatMap((sh) => {
-      try {
-        return [...sh.cssRules].filter((r) => /::?(before|after)/.test(r.selectorText || ""));
-      } catch {
-        return [];
-      }
-    });
-    for (const r of pseudoRules) {
-      const t = document.createElement("style");
-      t.textContent = `${r.selectorText}{display:none!important}`;
-      document.head.append(t);
-      if (W() <= innerWidth + 1) guilty.push(r.selectorText.slice(0, 60));
-      t.remove();
-    }
-    outs.unshift(
-      `捲動 ${Math.round(scrollY)}/${document.documentElement.scrollHeight}；關掉就正常的裝飾：${guilty.join("、") || "沒有"}`,
-    );
     st.remove();
     return `（撐寬的是 ${path.slice(-3).join(" > ")}，左 ${Math.round(r.left)} 寬 ${Math.round(r.width)}；超出螢幕的：${outs.join("、") || "沒有"}）`;
   });
@@ -271,7 +255,11 @@ for (const [theme, width] of [
       st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
       document.head.append(st);
       // 等兩個畫面：WebKit 關掉動畫後第一次量到的寬度還是動畫中的舊值
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      // WebKit 會留著動畫中的舊寬度，要再改一次樣式才會重算（真的手機上看不到，網站有 overflow-x:clip）
+      const st2 = document.createElement("style");
+      document.head.append(st2);
+      void document.body.offsetWidth;
+      st2.remove();
       const w = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth;
       st.remove();
       return w;
@@ -889,7 +877,10 @@ for (const [theme, width] of [
         const st = document.createElement("style");
         st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
         document.head.append(st);
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const st2 = document.createElement("style");
+        document.head.append(st2);
+        void document.body.offsetWidth;
+        st2.remove();
         const bw = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth;
         st.remove();
         if (bw > 1) out.push(`整頁被撐寬 ${bw}px`);
